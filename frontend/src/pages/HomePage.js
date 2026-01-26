@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Clock, TrendingUp, Sparkles } from 'lucide-react';
 import api from '../lib/api';
 import { formatCurrency, formatTimeRemaining } from '../lib/utils';
-import { Button } from './ui/button';
+import { Button } from '../components/ui/button';
 
 const categories = [
   { name: 'Electronics', icon: '💻', color: 'bg-blue-100 text-blue-600' },
