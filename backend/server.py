@@ -12,6 +12,7 @@ from datetime import datetime, timezone, timedelta
 import bcrypt
 import jwt
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
+from supabase import create_client, Client
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -20,6 +21,11 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+# Supabase connection
+supabase_url = os.environ.get('SUPABASE_URL')
+supabase_key = os.environ.get('SUPABASE_ANON_KEY')
+supabase: Client = create_client(supabase_url, supabase_key)
 
 # Stripe setup
 stripe_api_key = os.environ.get('STRIPE_API_KEY')
@@ -49,17 +55,19 @@ class User(BaseModel):
     username: str
     avatar_url: Optional[str] = None
     rating_score: float = 0.0
+    total_ratings: int = 0
+    bio: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ListingCreate(BaseModel):
     title: str
     description: str
     category: str
-    condition: str  # New, Used, Refurbished
-    listing_type: str  # auction or buy_now
+    condition: str
+    listing_type: str
     starting_price: Optional[float] = None
     buy_now_price: Optional[float] = None
-    duration_hours: Optional[int] = 24  # For auctions
+    duration_hours: Optional[int] = 24
     images: List[str] = []
 
 class Listing(BaseModel):
@@ -76,15 +84,18 @@ class Listing(BaseModel):
     current_price: float = 0.0
     buy_now_price: Optional[float] = None
     images: List[str] = []
-    status: str = "active"  # active, sold, expired
+    status: str = "active"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     ends_at: Optional[datetime] = None
     bid_count: int = 0
     winner_id: Optional[str] = None
+    views: int = 0
 
 class BidCreate(BaseModel):
     listing_id: str
     amount: float
+    is_proxy_bid: bool = False
+    max_amount: Optional[float] = None
 
 class Bid(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -93,11 +104,30 @@ class Bid(BaseModel):
     bidder_id: str
     bidder_username: str
     amount: float
+    is_proxy_bid: bool = False
+    max_amount: Optional[float] = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class WatchlistItem(BaseModel):
     user_id: str
     listing_id: str
+
+class UserRating(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    rated_user_id: str
+    rater_id: str
+    rater_username: str
+    rating: int
+    comment: Optional[str] = None
+    listing_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class RatingCreate(BaseModel):
+    rated_user_id: str
+    rating: int
+    comment: Optional[str] = None
+    listing_id: Optional[str] = None
 
 # ============ AUTH HELPERS ============
 
@@ -130,16 +160,66 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid token")
     return payload
 
+# ============ PROXY BID HELPER ============
+
+async def process_proxy_bids(listing_id: str, new_bid_amount: float, new_bidder_id: str):
+    """Process proxy bids when a new bid is placed"""
+    proxy_bids = await db.bids.find({
+        "listing_id": listing_id,
+        "is_proxy_bid": True,
+        "bidder_id": {"$ne": new_bidder_id}
+    }, {"_id": 0}).sort("max_amount", -1).to_list(100)
+    
+    for proxy_bid in proxy_bids:
+        if proxy_bid['max_amount'] > new_bid_amount:
+            next_bid = new_bid_amount + 1.0
+            if next_bid <= proxy_bid['max_amount']:
+                bid_obj = Bid(
+                    listing_id=listing_id,
+                    bidder_id=proxy_bid['bidder_id'],
+                    bidder_username=proxy_bid['bidder_username'],
+                    amount=next_bid,
+                    is_proxy_bid=True,
+                    max_amount=proxy_bid['max_amount']
+                )
+                
+                bid_doc = bid_obj.model_dump()
+                bid_doc['timestamp'] = bid_doc['timestamp'].isoformat()
+                await db.bids.insert_one(bid_doc)
+                
+                await db.listings.update_one(
+                    {"id": listing_id},
+                    {
+                        "$set": {"current_price": next_bid},
+                        "$inc": {"bid_count": 1}
+                    }
+                )
+                
+                # Sync to Supabase
+                try:
+                    supabase.table('bids').insert({
+                        'id': bid_obj.id,
+                        'listing_id': listing_id,
+                        'bidder_id': proxy_bid['bidder_id'],
+                        'bidder_username': proxy_bid['bidder_username'],
+                        'amount': next_bid,
+                        'is_proxy_bid': True,
+                        'timestamp': bid_obj.timestamp.isoformat()
+                    }).execute()
+                except Exception as e:
+                    logging.error(f"Supabase sync error: {e}")
+                
+                return True
+    return False
+
 # ============ AUTH ROUTES ============
 
 @api_router.post("/auth/register")
 async def register(user_input: UserRegister):
-    # Check if user exists
     existing = await db.users.find_one({"email": user_input.email}, {"_id": 0})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create user
     user_dict = user_input.model_dump()
     hashed = hash_password(user_dict.pop('password'))
     user_obj = User(**user_dict)
@@ -179,6 +259,70 @@ async def get_me(authorization: Optional[str] = Header(None)):
         user['created_at'] = datetime.fromisoformat(user['created_at'])
     return User(**user)
 
+# ============ USER PROFILE ROUTES ============
+
+@api_router.get("/users/{user_id}", response_model=User)
+async def get_user_profile(user_id: str):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if isinstance(user['created_at'], str):
+        user['created_at'] = datetime.fromisoformat(user['created_at'])
+    return User(**user)
+
+@api_router.put("/users/me")
+async def update_profile(bio: Optional[str] = None, authorization: Optional[str] = Header(None)):
+    current_user = await get_current_user(authorization)
+    update_data = {}
+    if bio is not None:
+        update_data['bio'] = bio
+    
+    if update_data:
+        await db.users.update_one({"id": current_user['user_id']}, {"$set": update_data})
+    
+    return {"message": "Profile updated"}
+
+@api_router.post("/ratings")
+async def create_rating(rating_input: RatingCreate, authorization: Optional[str] = Header(None)):
+    current_user = await get_current_user(authorization)
+    
+    if rating_input.rating < 1 or rating_input.rating > 5:
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+    
+    user = await db.users.find_one({"id": current_user['user_id']}, {"_id": 0})
+    
+    rating_obj = UserRating(
+        rated_user_id=rating_input.rated_user_id,
+        rater_id=current_user['user_id'],
+        rater_username=user['username'],
+        rating=rating_input.rating,
+        comment=rating_input.comment,
+        listing_id=rating_input.listing_id
+    )
+    
+    doc = rating_obj.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.ratings.insert_one(doc)
+    
+    # Update user's average rating
+    ratings = await db.ratings.find({"rated_user_id": rating_input.rated_user_id}, {"_id": 0}).to_list(1000)
+    avg_rating = sum(r['rating'] for r in ratings) / len(ratings)
+    
+    await db.users.update_one(
+        {"id": rating_input.rated_user_id},
+        {"$set": {"rating_score": round(avg_rating, 2), "total_ratings": len(ratings)}}
+    )
+    
+    return rating_obj
+
+@api_router.get("/users/{user_id}/ratings")
+async def get_user_ratings(user_id: str):
+    ratings = await db.ratings.find({"rated_user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    for rating in ratings:
+        if isinstance(rating['created_at'], str):
+            rating['created_at'] = datetime.fromisoformat(rating['created_at'])
+    return ratings
+
 # ============ LISTING ROUTES ============
 
 @api_router.post("/listings", response_model=Listing)
@@ -208,14 +352,33 @@ async def create_listing(listing_input: ListingCreate, authorization: Optional[s
     return listing_obj
 
 @api_router.get("/listings", response_model=List[Listing])
-async def get_listings(category: Optional[str] = None, status: str = "active", search: Optional[str] = None):
+async def get_listings(
+    category: Optional[str] = None,
+    status: str = "active",
+    search: Optional[str] = None,
+    condition: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    sort_by: str = "created_at"
+):
     query = {"status": status}
     if category:
         query["category"] = category
     if search:
         query["title"] = {"$regex": search, "$options": "i"}
+    if condition:
+        query["condition"] = condition
+    if min_price is not None:
+        query["current_price"] = query.get("current_price", {})
+        query["current_price"]["$gte"] = min_price
+    if max_price is not None:
+        query["current_price"] = query.get("current_price", {})
+        query["current_price"]["$lte"] = max_price
     
-    listings = await db.listings.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    sort_field = sort_by if sort_by != "ending_soon" else "ends_at"
+    sort_dir = 1 if sort_by == "ending_soon" else -1
+    
+    listings = await db.listings.find(query, {"_id": 0}).sort(sort_field, sort_dir).to_list(100)
     
     for listing in listings:
         if isinstance(listing['created_at'], str):
@@ -231,6 +394,9 @@ async def get_listing(listing_id: str):
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
     
+    # Increment views
+    await db.listings.update_one({"id": listing_id}, {"$inc": {"views": 1}})
+    
     if isinstance(listing['created_at'], str):
         listing['created_at'] = datetime.fromisoformat(listing['created_at'])
     if listing.get('ends_at') and isinstance(listing['ends_at'], str):
@@ -245,7 +411,6 @@ async def place_bid(bid_input: BidCreate, authorization: Optional[str] = Header(
     current_user = await get_current_user(authorization)
     user = await db.users.find_one({"id": current_user['user_id']}, {"_id": 0})
     
-    # Get listing
     listing = await db.listings.find_one({"id": bid_input.listing_id}, {"_id": 0})
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
@@ -256,30 +421,32 @@ async def place_bid(bid_input: BidCreate, authorization: Optional[str] = Header(
     if listing['listing_type'] != 'auction':
         raise HTTPException(status_code=400, detail="This is not an auction listing")
     
-    # Check if auction ended
     if listing.get('ends_at'):
         ends_at = datetime.fromisoformat(listing['ends_at']) if isinstance(listing['ends_at'], str) else listing['ends_at']
         if ends_at < datetime.now(timezone.utc):
             raise HTTPException(status_code=400, detail="Auction has ended")
     
-    # Validate bid amount
     current_price = listing.get('current_price', listing.get('starting_price', 0.0))
     if bid_input.amount <= current_price:
         raise HTTPException(status_code=400, detail=f"Bid must be higher than current price of ${current_price}")
     
-    # Create bid
+    if bid_input.is_proxy_bid and bid_input.max_amount:
+        if bid_input.max_amount < bid_input.amount:
+            raise HTTPException(status_code=400, detail="Max amount must be greater than or equal to bid amount")
+    
     bid_obj = Bid(
         listing_id=bid_input.listing_id,
         bidder_id=current_user['user_id'],
         bidder_username=user['username'],
-        amount=bid_input.amount
+        amount=bid_input.amount,
+        is_proxy_bid=bid_input.is_proxy_bid,
+        max_amount=bid_input.max_amount if bid_input.is_proxy_bid else None
     )
     
     bid_doc = bid_obj.model_dump()
     bid_doc['timestamp'] = bid_doc['timestamp'].isoformat()
     await db.bids.insert_one(bid_doc)
     
-    # Update listing
     await db.listings.update_one(
         {"id": bid_input.listing_id},
         {
@@ -287,6 +454,24 @@ async def place_bid(bid_input: BidCreate, authorization: Optional[str] = Header(
             "$inc": {"bid_count": 1}
         }
     )
+    
+    # Sync to Supabase for real-time
+    try:
+        supabase.table('bids').insert({
+            'id': bid_obj.id,
+            'listing_id': bid_input.listing_id,
+            'bidder_id': current_user['user_id'],
+            'bidder_username': user['username'],
+            'amount': bid_input.amount,
+            'is_proxy_bid': bid_input.is_proxy_bid,
+            'timestamp': bid_obj.timestamp.isoformat()
+        }).execute()
+    except Exception as e:
+        logging.error(f"Supabase sync error: {e}")
+    
+    # Process proxy bids
+    if not bid_input.is_proxy_bid:
+        await process_proxy_bids(bid_input.listing_id, bid_input.amount, current_user['user_id'])
     
     return bid_obj
 
@@ -378,7 +563,6 @@ async def create_checkout(request: Request, authorization: Optional[str] = Heade
     if not listing_id or not origin_url:
         raise HTTPException(status_code=400, detail="listing_id and origin_url required")
     
-    # Get listing
     listing = await db.listings.find_one({"id": listing_id}, {"_id": 0})
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
@@ -386,13 +570,11 @@ async def create_checkout(request: Request, authorization: Optional[str] = Heade
     if listing['status'] != 'active':
         raise HTTPException(status_code=400, detail="Listing is not active")
     
-    # Determine amount
     amount = listing.get('buy_now_price') or listing.get('current_price', 0.0)
     
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Invalid listing price")
     
-    # Create Stripe checkout
     host_url = origin_url
     webhook_url = f"{origin_url}/api/webhook/stripe"
     stripe_checkout = StripeCheckout(api_key=stripe_api_key, webhook_url=webhook_url)
@@ -414,7 +596,6 @@ async def create_checkout(request: Request, authorization: Optional[str] = Heade
     
     session = await stripe_checkout.create_checkout_session(checkout_request)
     
-    # Create payment transaction record
     payment_doc = {
         "session_id": session.session_id,
         "listing_id": listing_id,
@@ -435,23 +616,19 @@ async def create_checkout(request: Request, authorization: Optional[str] = Heade
 async def get_payment_status(session_id: str, authorization: Optional[str] = Header(None)):
     current_user = await get_current_user(authorization)
     
-    # Check database first
     payment = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
     
-    # If already processed, return cached status
     if payment['payment_status'] == 'paid':
         return payment
     
-    # Poll Stripe
     host_url = str(os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:8001'))
     webhook_url = f"{host_url}/api/webhook/stripe"
     stripe_checkout = StripeCheckout(api_key=stripe_api_key, webhook_url=webhook_url)
     
     checkout_status = await stripe_checkout.get_checkout_status(session_id)
     
-    # Update payment record
     update_data = {
         "payment_status": checkout_status.payment_status,
         "status": checkout_status.status
@@ -462,7 +639,6 @@ async def get_payment_status(session_id: str, authorization: Optional[str] = Hea
         {"$set": update_data}
     )
     
-    # If paid, mark listing as sold
     if checkout_status.payment_status == 'paid' and payment['payment_status'] != 'paid':
         await db.listings.update_one(
             {"id": payment['listing_id']},
@@ -484,7 +660,6 @@ async def stripe_webhook(request: Request):
     try:
         webhook_response = await stripe_checkout.handle_webhook(body, signature)
         
-        # Update payment transaction
         if webhook_response.session_id:
             await db.payment_transactions.update_one(
                 {"session_id": webhook_response.session_id},
@@ -494,7 +669,6 @@ async def stripe_webhook(request: Request):
                 }}
             )
             
-            # If paid, mark listing as sold
             if webhook_response.payment_status == 'paid':
                 payment = await db.payment_transactions.find_one({"session_id": webhook_response.session_id}, {"_id": 0})
                 if payment:
