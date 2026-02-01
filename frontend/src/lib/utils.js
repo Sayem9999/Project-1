@@ -6,9 +6,11 @@ export function cn(...inputs) {
 }
 
 export function formatCurrency(amount) {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('bn-BD', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'BDT',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
 }
 
