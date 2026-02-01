@@ -12,6 +12,7 @@ import CreateListingPage from './pages/CreateListingPage';
 import DashboardPage from './pages/DashboardPage';
 import SearchPage from './pages/SearchPage';
 import UserProfilePage from './pages/UserProfilePage';
+import TransactionHistoryPage from './pages/TransactionHistoryPage';
 import './App.css';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
               <Route path="/create-listing" element={<CreateListingPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/users/:userId" element={<UserProfilePage />} />
+              <Route path="/transactions" element={<TransactionHistoryPage />} />
             </Routes>
           </main>
           <Footer />
