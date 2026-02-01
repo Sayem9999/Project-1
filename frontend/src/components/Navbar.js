@@ -34,7 +34,7 @@ export default function Navbar() {
             {isAuthenticated ? (
               <>
                 <Link to="/create-listing">
-                  <Button data-testid="create-listing-btn" className="btn-primary flex items-center space-x-2">
+                  <Button data-testid="create-listing-btn" className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2 font-semibold shadow-md transition-all flex items-center space-x-2">
                     <Plus className="w-5 h-5" />
                     <span className="hidden sm:inline">List Item</span>
                   </Button>
@@ -56,12 +56,12 @@ export default function Navbar() {
             ) : (
               <>
                 <Link to="/login">
-                  <Button data-testid="login-btn" variant="outline" className="btn-secondary">
+                  <Button data-testid="login-btn" variant="outline" className="border-2 border-slate-300 text-slate-900 hover:bg-slate-50 rounded-full px-6 py-2 font-medium">
                     Login
                   </Button>
                 </Link>
                 <Link to="/register">
-                  <Button data-testid="register-btn" className="btn-primary">
+                  <Button data-testid="register-btn" className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2 font-semibold shadow-md">
                     Sign Up
                   </Button>
                 </Link>

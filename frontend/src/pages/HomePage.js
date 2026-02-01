@@ -48,13 +48,13 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
               <Link to="/listings">
-                <Button data-testid="browse-auctions-btn" className="btn-primary flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5" />
+                <Button data-testid="browse-auctions-btn" className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-4 text-lg font-semibold shadow-xl hover:shadow-2xl transition-all flex items-center space-x-2">
+                  <Sparkles className="w-6 h-6" />
                   <span>Browse Auctions</span>
                 </Button>
               </Link>
               <Link to="/create-listing">
-                <Button data-testid="start-selling-btn" variant="outline" className="btn-secondary">
+                <Button data-testid="start-selling-btn" variant="outline" className="bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-50 rounded-full px-8 py-4 text-lg font-semibold transition-all">
                   Start Selling
                 </Button>
               </Link>

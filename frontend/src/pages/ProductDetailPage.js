@@ -273,7 +273,7 @@ export default function ProductDetailPage() {
                         data-testid="place-bid-btn"
                         type="submit"
                         disabled={bidding}
-                        className="w-full btn-primary text-lg py-4 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full text-lg py-4 font-bold shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all disabled:bg-slate-400"
                       >
                         {bidding ? 'Placing Bid...' : 'Place Bid'}
                       </Button>
@@ -294,7 +294,7 @@ export default function ProductDetailPage() {
                   <Button
                     data-testid="buy-now-btn"
                     onClick={handleBuyNow}
-                    className="w-full btn-primary text-lg py-4 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full text-lg py-4 font-bold shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all"
                   >
                     Buy Now
                   </Button>

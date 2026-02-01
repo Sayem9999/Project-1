@@ -69,11 +69,11 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-3 font-semibold shadow-lg hover:shadow-blue-500/30 transition-all duration-300;
+    @apply bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-3 font-semibold shadow-lg hover:shadow-blue-500/30 transition-all duration-300 border-2 border-transparent;
   }
 
   .btn-secondary {
-    @apply bg-white border border-slate-200 text-slate-900 hover:bg-slate-50 rounded-full px-6 py-2 font-medium transition-all duration-300;
+    @apply bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-50 hover:border-slate-400 rounded-full px-6 py-2 font-medium transition-all duration-300;
   }
 
   .card-auction {
