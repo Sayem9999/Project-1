@@ -958,6 +958,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+@app.on_event("startup")
+async def startup_event():
+    start_scheduler()
+    logger.info("Auction auto-close scheduler started")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    shutdown_scheduler()
     client.close()
+    logger.info("Application shutdown complete")
