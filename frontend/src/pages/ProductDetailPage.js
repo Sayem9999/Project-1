@@ -19,6 +19,7 @@ export default function ProductDetailPage() {
   const [bidding, setBidding] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(null);
+  const [showBkashCheckout, setShowBkashCheckout] = useState(false);
 
   useEffect(() => {
     fetchListing();
