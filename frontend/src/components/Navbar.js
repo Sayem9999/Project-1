@@ -18,15 +18,18 @@ export default function Navbar() {
 
           {/* Search Bar */}
           <div className="hidden md:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                data-testid="search-input"
-                type="text"
-                placeholder="Search for anything..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-transparent focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg transition-all"
-              />
-            </div>
+            <Link to="/listings" className="w-full">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  data-testid="search-input"
+                  type="text"
+                  placeholder="Search for anything..."
+                  readOnly
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-transparent focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg transition-all cursor-pointer"
+                />
+              </div>
+            </Link>
           </div>
 
           {/* Actions */}
