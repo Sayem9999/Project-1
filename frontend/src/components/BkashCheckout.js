@@ -30,7 +30,7 @@ export default function BkashCheckout({ listingId, amount, onSuccess, onCancel }
 
     try {
       // Create payment
-      const createRes = await api.post('/api/bkash/create', {
+      const createRes = await api.createBkashPayment({
         listing_id: listingId,
         amount: amount,
       });
