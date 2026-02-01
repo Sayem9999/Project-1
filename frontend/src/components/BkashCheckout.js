@@ -51,7 +51,7 @@ export default function BkashCheckout({ listingId, amount, onSuccess, onCancel }
           },
           executeRequestOnAuthorization: async () => {
             try {
-              const executeRes = await api.post(`/api/bkash/execute/${paymentID}`);
+              const executeRes = await api.executeBkashPayment(paymentID);
               
               if (executeRes.data.statusCode === '0000') {
                 toast.success('Payment successful!');
