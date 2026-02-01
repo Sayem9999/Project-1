@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency, formatTimeRemaining, formatRelativeTime } from '../lib/utils';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
+import BkashCheckout from '../components/BkashCheckout';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
