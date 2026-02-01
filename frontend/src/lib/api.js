@@ -30,6 +30,12 @@ export const api = {
   removeFromWatchlist: (listingId) => axios.delete(`${API}/watchlist/${listingId}`, { headers: getAuthHeader() }),
   getWatchlist: () => axios.get(`${API}/watchlist`, { headers: getAuthHeader() }),
 
+  // User Profile
+  getUserProfile: (userId) => axios.get(`${API}/users/${userId}`),
+  updateProfile: (data) => axios.put(`${API}/users/me`, data, { headers: getAuthHeader() }),
+  getUserRatings: (userId) => axios.get(`${API}/users/${userId}/ratings`),
+  createRating: (data) => axios.post(`${API}/ratings`, data, { headers: getAuthHeader() }),
+
   // Payments
   createCheckout: (data) => axios.post(`${API}/payments/checkout`, data, { headers: getAuthHeader() }),
   getPaymentStatus: (sessionId) => axios.get(`${API}/payments/status/${sessionId}`, { headers: getAuthHeader() }),
