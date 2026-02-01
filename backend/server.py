@@ -684,6 +684,258 @@ async def stripe_webhook(request: Request):
         logging.error(f"Webhook error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
+# ============ BKASH PAYMENT ROUTES ============
+
+class BkashPaymentCreate(BaseModel):
+    listing_id: str
+    amount: float
+
+@api_router.post("/bkash/create")
+async def create_bkash_checkout(payment_data: BkashPaymentCreate, authorization: Optional[str] = Header(None)):
+    current_user = await get_current_user(authorization)
+    
+    # Get listing
+    listing = await db.listings.find_one({"id": payment_data.listing_id}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    
+    if listing['status'] != 'active' and listing['status'] != 'sold':
+        raise HTTPException(status_code=400, detail="Listing is not available")
+    
+    # Create merchant invoice number
+    merchant_invoice = f"NILAM_{payment_data.listing_id}_{int(datetime.now(timezone.utc).timestamp())}"
+    
+    # Get callback URL
+    backend_url = os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:8001')
+    callback_url = f"{backend_url}/api/bkash/callback"
+    
+    try:
+        # Create bKash payment
+        bkash_response = await create_bkash_payment(
+            amount=payment_data.amount,
+            merchant_invoice_number=merchant_invoice,
+            callback_url=callback_url
+        )
+        
+        # Store transaction in MongoDB
+        transaction_doc = {
+            "id": str(uuid.uuid4()),
+            "listing_id": payment_data.listing_id,
+            "buyer_id": current_user['user_id'],
+            "seller_id": listing['seller_id'],
+            "payment_id": bkash_response.get("paymentID"),
+            "amount": payment_data.amount,
+            "currency": "BDT",
+            "merchant_invoice_number": merchant_invoice,
+            "status": "CREATED",
+            "payment_method": "bkash",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "bkash_response": bkash_response
+        }
+        
+        await db.bkash_transactions.insert_one(transaction_doc)
+        
+        return {
+            "paymentID": bkash_response.get("paymentID"),
+            "bkashURL": bkash_response.get("bkashURL"),
+            "callbackURL": callback_url,
+            "successUrl": bkash_response.get("successCallbackURL"),
+            "failureUrl": bkash_response.get("failureCallbackURL"),
+            "cancelledUrl": bkash_response.get("cancelledCallbackURL"),
+            "merchantInvoiceNumber": merchant_invoice,
+            "amount": payment_data.amount,
+            "transactionId": transaction_doc["id"]
+        }
+    
+    except Exception as e:
+        logging.error(f"bKash payment creation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/bkash/execute/{payment_id}")
+async def execute_bkash_checkout(payment_id: str, authorization: Optional[str] = Header(None)):
+    current_user = await get_current_user(authorization)
+    
+    try:
+        # Execute bKash payment
+        execution_result = await execute_bkash_payment(payment_id)
+        
+        # Update transaction in MongoDB
+        await db.bkash_transactions.update_one(
+            {"payment_id": payment_id},
+            {
+                "$set": {
+                    "status": "COMPLETED",
+                    "trx_id": execution_result.get("trxID"),
+                    "executed_at": datetime.now(timezone.utc).isoformat(),
+                    "execution_response": execution_result
+                }
+            }
+        )
+        
+        # Get transaction to update listing
+        transaction = await db.bkash_transactions.find_one({"payment_id": payment_id}, {"_id": 0})
+        
+        if transaction:
+            # Mark listing as sold
+            await db.listings.update_one(
+                {"id": transaction['listing_id']},
+                {
+                    "$set": {
+                        "status": "sold",
+                        "winner_id": transaction['buyer_id'],
+                        "sold_at": datetime.now(timezone.utc).isoformat()
+                    }
+                }
+            )
+        
+        return execution_result
+    
+    except Exception as e:
+        # Update transaction as failed
+        await db.bkash_transactions.update_one(
+            {"payment_id": payment_id},
+            {
+                "$set": {
+                    "status": "FAILED",
+                    "failed_at": datetime.now(timezone.utc).isoformat(),
+                    "failure_reason": str(e)
+                }
+            }
+        )
+        logging.error(f"bKash payment execution error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/bkash/query/{payment_id}")
+async def query_bkash_status(payment_id: str):
+    try:
+        result = await query_bkash_payment(payment_id)
+        return result
+    except Exception as e:
+        logging.error(f"bKash query error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/bkash/callback")
+async def bkash_callback_handler(request: Request):
+    try:
+        body = await request.body()
+        signature = request.headers.get("X-Signature", "")
+        
+        # Verify signature
+        if not verify_bkash_webhook(body, signature):
+            logging.warning("Invalid bKash webhook signature")
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        
+        import json
+        payload = json.loads(body)
+        payment_id = payload.get("paymentID")
+        status = payload.get("status")
+        
+        # Update transaction with callback data
+        await db.bkash_transactions.update_one(
+            {"payment_id": payment_id},
+            {
+                "$set": {
+                    "callback_status": status,
+                    "callback_at": datetime.now(timezone.utc).isoformat(),
+                    "callback_data": payload
+                }
+            }
+        )
+        
+        return {"status": "success"}
+    
+    except Exception as e:
+        logging.error(f"bKash callback error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============ TRANSACTION HISTORY ROUTES ============
+
+@api_router.get("/transactions")
+async def get_user_transactions(authorization: Optional[str] = Header(None)):
+    current_user = await get_current_user(authorization)
+    
+    # Get all transactions for user (as buyer or seller)
+    transactions = await db.bkash_transactions.find({
+        "$or": [
+            {"buyer_id": current_user['user_id']},
+            {"seller_id": current_user['user_id']}
+        ]
+    }, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    return transactions
+
+@api_router.get("/transactions/{transaction_id}")
+async def get_transaction_detail(transaction_id: str, authorization: Optional[str] = Header(None)):
+    current_user = await get_current_user(authorization)
+    
+    transaction = await db.bkash_transactions.find_one(
+        {
+            "id": transaction_id,
+            "$or": [
+                {"buyer_id": current_user['user_id']},
+                {"seller_id": current_user['user_id']}
+            ]
+        },
+        {"_id": 0}
+    )
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    # Get listing details
+    listing = await db.listings.find_one({"id": transaction['listing_id']}, {"_id": 0})
+    
+    return {
+        "transaction": transaction,
+        "listing": listing
+    }
+
+# ============ SELLER ANALYTICS ROUTES ============
+
+@api_router.get("/analytics/seller")
+async def get_seller_analytics(authorization: Optional[str] = Header(None)):
+    current_user = await get_current_user(authorization)
+    
+    # Get seller's listings
+    listings = await db.listings.find({"seller_id": current_user['user_id']}, {"_id": 0}).to_list(1000)
+    
+    # Calculate analytics
+    total_listings = len(listings)
+    active_listings = len([l for l in listings if l['status'] == 'active'])
+    sold_listings = len([l for l in listings if l['status'] == 'sold'])
+    expired_listings = len([l for l in listings if l['status'] == 'expired'])
+    
+    total_views = sum(l.get('views', 0) for l in listings)
+    total_bids = sum(l.get('bid_count', 0) for l in listings)
+    
+    # Calculate revenue (from sold items)
+    total_revenue = sum(l.get('final_price', l.get('current_price', l.get('buy_now_price', 0))) 
+                       for l in listings if l['status'] == 'sold')
+    
+    # Get recent transactions
+    recent_transactions = await db.bkash_transactions.find(
+        {"seller_id": current_user['user_id'], "status": "COMPLETED"},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(10).to_list(10)
+    
+    # Best performing listings (by views)
+    top_listings = sorted(listings, key=lambda x: x.get('views', 0), reverse=True)[:5]
+    
+    return {
+        "summary": {
+            "total_listings": total_listings,
+            "active_listings": active_listings,
+            "sold_listings": sold_listings,
+            "expired_listings": expired_listings,
+            "total_views": total_views,
+            "total_bids": total_bids,
+            "total_revenue": total_revenue,
+            "conversion_rate": round((sold_listings / total_listings * 100) if total_listings > 0 else 0, 2)
+        },
+        "recent_transactions": recent_transactions,
+        "top_listings": top_listings
+    }
+
 # ============ ROOT ============
 
 @api_router.get("/")
