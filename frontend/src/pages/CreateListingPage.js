@@ -124,7 +124,7 @@ export default function CreateListingPage() {
           {/* Category & Condition */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor="category" className="block text-sm font-semibold text-slate-900 mb-2">
                 Category *
               </label>
               <select
@@ -134,7 +134,7 @@ export default function CreateListingPage() {
                 required
                 value={formData.category}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-white border-2 border-slate-300 text-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               >
                 {categories.map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -143,7 +143,7 @@ export default function CreateListingPage() {
             </div>
 
             <div>
-              <label htmlFor="condition" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor="condition" className="block text-sm font-semibold text-slate-900 mb-2">
                 Condition *
               </label>
               <select
@@ -153,7 +153,7 @@ export default function CreateListingPage() {
                 required
                 value={formData.condition}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-white border-2 border-slate-300 text-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               >
                 {conditions.map((cond) => (
                   <option key={cond} value={cond}>{cond}</option>
@@ -164,7 +164,7 @@ export default function CreateListingPage() {
 
           {/* Listing Type */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+            <label className="block text-sm font-semibold text-slate-900 mb-3">
               Listing Type *
             </label>
             <div className="grid grid-cols-2 gap-4">
@@ -201,26 +201,26 @@ export default function CreateListingPage() {
           {formData.listing_type === 'auction' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="starting_price" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Starting Price ($) *
+                <label htmlFor="starting_price" className="block text-sm font-semibold text-slate-900 mb-2">
+                  Starting Price (৳) *
                 </label>
                 <input
                   id="starting_price"
                   data-testid="starting-price-input"
                   name="starting_price"
                   type="number"
-                  step="0.01"
-                  min="0.01"
+                  step="1"
+                  min="1"
                   required={formData.listing_type === 'auction'}
                   value={formData.starting_price}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="1.00"
+                  className="w-full px-4 py-3 bg-white border-2 border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  placeholder="100"
                 />
               </div>
 
               <div>
-                <label htmlFor="duration_hours" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <label htmlFor="duration_hours" className="block text-sm font-semibold text-slate-900 mb-2">
                   Duration (hours) *
                 </label>
                 <select
@@ -230,7 +230,7 @@ export default function CreateListingPage() {
                   required={formData.listing_type === 'auction'}
                   value={formData.duration_hours}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 bg-white border-2 border-slate-300 text-slate-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 >
                   <option value="1">1 hour</option>
                   <option value="6">6 hours</option>
@@ -247,28 +247,28 @@ export default function CreateListingPage() {
           {/* Buy Now Price */}
           {formData.listing_type === 'buy_now' && (
             <div>
-              <label htmlFor="buy_now_price" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Price ($) *
+              <label htmlFor="buy_now_price" className="block text-sm font-semibold text-slate-900 mb-2">
+                Price (৳) *
               </label>
               <input
                 id="buy_now_price"
                 data-testid="buy-now-price-input"
                 name="buy_now_price"
                 type="number"
-                step="0.01"
-                min="0.01"
+                step="1"
+                min="1"
                 required={formData.listing_type === 'buy_now'}
                 value={formData.buy_now_price}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="99.00"
+                className="w-full px-4 py-3 bg-white border-2 border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                placeholder="1000"
               />
             </div>
           )}
 
           {/* Images */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-semibold text-slate-900 mb-2">
               Images (URLs)
             </label>
             <div className="space-y-3">
@@ -279,7 +279,7 @@ export default function CreateListingPage() {
                     type="url"
                     value={url}
                     onChange={(e) => handleImageUrlChange(index, e.target.value)}
-                    className="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="flex-1 px-4 py-3 bg-white border-2 border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     placeholder="https://example.com/image.jpg"
                   />
                   {imageUrls.length > 1 && (
