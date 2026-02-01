@@ -39,6 +39,18 @@ export const api = {
   // Payments
   createCheckout: (data) => axios.post(`${API}/payments/checkout`, data, { headers: getAuthHeader() }),
   getPaymentStatus: (sessionId) => axios.get(`${API}/payments/status/${sessionId}`, { headers: getAuthHeader() }),
+  
+  // bKash Payments
+  createBkashPayment: (data) => axios.post(`${API}/bkash/create`, data, { headers: getAuthHeader() }),
+  executeBkashPayment: (paymentId) => axios.post(`${API}/bkash/execute/${paymentId}`, {}, { headers: getAuthHeader() }),
+  queryBkashPayment: (paymentId) => axios.get(`${API}/bkash/query/${paymentId}`),
+  
+  // Transactions
+  getTransactions: () => axios.get(`${API}/transactions`, { headers: getAuthHeader() }),
+  getTransactionDetail: (transactionId) => axios.get(`${API}/transactions/${transactionId}`, { headers: getAuthHeader() }),
+  
+  // Analytics
+  getSellerAnalytics: () => axios.get(`${API}/analytics/seller`, { headers: getAuthHeader() }),
 };
 
 export default api;
