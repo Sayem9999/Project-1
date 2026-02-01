@@ -81,20 +81,20 @@ export default function ProductDetailPage() {
     }
   };
 
-  const handleBuyNow = async () => {
+  const handleBuyNow = () => {
     if (!isAuthenticated) {
       toast.error('Please login to buy');
       navigate('/login');
       return;
     }
+    setShowBkashCheckout(true);
+  };
 
-    try {
-      const originUrl = window.location.origin;
-      const res = await api.createCheckout({ listing_id: id, origin_url: originUrl });
-      window.location.href = res.data.url;
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to create checkout');
-    }
+  const handlePaymentSuccess = (data) => {
+    toast.success('Payment successful! Transaction ID: ' + data.trxID);
+    setTimeout(() => {
+      navigate('/transactions');
+    }, 2000);
   };
 
   if (loading) {
