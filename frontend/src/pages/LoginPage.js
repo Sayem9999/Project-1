@@ -27,18 +27,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div data-testid="login-page" className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 py-12 px-4">
+    <div data-testid="login-page" className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">Welcome Back</h1>
-          <p className="text-slate-600 dark:text-slate-400">Sign in to your Nilam account</p>
+          <h1 className="text-4xl font-bold text-slate-900 mb-2">Welcome Back</h1>
+          <p className="text-slate-600">Sign in to your Nilam account</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-lg">
+        <div className="bg-white rounded-xl p-8 shadow-lg border border-slate-200">
           <form data-testid="login-form" onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Email
+              <label htmlFor="email" className="block text-sm font-semibold text-slate-900 mb-2">
+                Email Address
               </label>
               <input
                 id="email"
@@ -47,13 +47,13 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-white border-2 border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-slate-900 mb-2">
                 Password
               </label>
               <input
@@ -63,8 +63,8 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="••••••••"
+                className="w-full px-4 py-3 bg-white border-2 border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                placeholder="Enter your password"
               />
             </div>
 
@@ -72,15 +72,15 @@ export default function LoginPage() {
               data-testid="login-submit-btn"
               type="submit"
               disabled={loading}
-              className="w-full btn-primary"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full py-3 font-bold text-base shadow-lg transition-all disabled:bg-slate-400"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+          <div className="mt-6 text-center text-sm text-slate-600">
             Don't have an account?{' '}
-            <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link to="/register" className="text-blue-600 hover:text-blue-700 font-bold">
               Sign up
             </Link>
           </div>
