@@ -293,13 +293,22 @@ export default function ProductDetailPage() {
                       {formatCurrency(listing.buy_now_price)}
                     </p>
                   </div>
-                  <Button
-                    data-testid="buy-now-btn"
-                    onClick={handleBuyNow}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full text-lg py-4 font-bold shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all"
-                  >
-                    Buy Now
-                  </Button>
+                  {!showBkashCheckout ? (
+                    <Button
+                      data-testid="buy-now-btn"
+                      onClick={handleBuyNow}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full text-lg py-4 font-bold shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all"
+                    >
+                      Buy Now
+                    </Button>
+                  ) : (
+                    <BkashCheckout
+                      listingId={id}
+                      amount={listing.buy_now_price}
+                      onSuccess={handlePaymentSuccess}
+                      onCancel={() => setShowBkashCheckout(false)}
+                    />
+                  )}
                 </>
               )}
 
