@@ -33,6 +33,26 @@ export VERCEL_TOKEN=...
 ./scripts/deploy_vercel.sh
 ```
 
+### What else is needed to deploy successfully
+- Valid `VERCEL_TOKEN` (the one provided earlier was rejected by Vercel CLI)
+- Valid `RAILWAY_TOKEN`
+- Railway CLI installed (`npm i -g @railway/cli`)
+- Vercel CLI installed (`npm i -g vercel`)
+- Outbound network access to:
+  - `https://api.vercel.com`
+  - `https://backboard.railway.app`
+  - `https://github.com` (Railway CLI binary download)
+- Recommended IDs for deterministic non-interactive deployment:
+  - `RAILWAY_PROJECT_ID`
+  - `RAILWAY_SERVICE_ID`
+  - `VERCEL_ORG_ID`
+  - `VERCEL_PROJECT_ID`
+
+Run preflight before deploy:
+```bash
+./scripts/preflight_cloud.sh
+```
+
 ## Production environment variables
 
 Backend (Railway):

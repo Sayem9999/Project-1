@@ -4,6 +4,19 @@ This guide is for **production cloud deployment only**:
 - **No Docker flow**
 - **No local hosting flow**
 
+## 0) Preflight (required)
+
+Before deploying, run:
+
+```bash
+./scripts/preflight_cloud.sh
+```
+
+This checks:
+- required tokens
+- required CLIs
+- required network reachability
+
 ## 1) Backend on Railway
 
 Deploy directory: `backend/`
@@ -31,6 +44,12 @@ Deploy directory: `frontend/`
 
 ### Vercel environment variable
 - `NEXT_PUBLIC_API_BASE=https://<your-railway-domain>/api`
+
+### Recommended deployment identifiers
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+- `RAILWAY_PROJECT_ID`
+- `RAILWAY_SERVICE_ID`
 
 ### Deploy command
 ```bash

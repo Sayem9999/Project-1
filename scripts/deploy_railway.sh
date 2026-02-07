@@ -14,7 +14,7 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR/backend"
 
-if [ -n "${RAILWAY_PROJECT_ID:-}" ] && [ -n "${RAILWAY_SERVICE_ID:-}" ]; then
+if [ -n "${RAILWAY_SERVICE_ID:-}" ]; then
   railway up --detach --ci --service "$RAILWAY_SERVICE_ID"
 else
   railway up --detach --ci
