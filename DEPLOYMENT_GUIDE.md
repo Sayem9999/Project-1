@@ -59,8 +59,9 @@ export VERCEL_TOKEN=...
 
 If using Vercel dashboard instead of CLI:
 - Import repository
-- Set Root Directory = `frontend`
 - Add `NEXT_PUBLIC_API_BASE`
+
+This repo includes a root `vercel.json` that builds `frontend/package.json` to avoid root-level 404 deployments in monorepos.
 
 ## 3) Unified deploy
 

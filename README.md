@@ -34,7 +34,7 @@ export VERCEL_TOKEN=...
 ```
 
 ### What else is needed to deploy successfully
-- Valid `VERCEL_TOKEN` (the one provided earlier was rejected by Vercel CLI)
+- Valid `VERCEL_TOKEN`
 - Valid `RAILWAY_TOKEN`
 - Railway CLI installed (`npm i -g @railway/cli`)
 - Vercel CLI installed (`npm i -g vercel`)
@@ -78,3 +78,6 @@ Frontend (Vercel):
 - `POST /api/agents/{director|cutter|subtitle|audio|color|qc}`
 
 See `DEPLOYMENT_GUIDE.md` for the full production runbook.
+
+
+Monorepo note: Vercel is configured at repository root (`vercel.json`) to build and serve `frontend/package.json`, preventing root-level 404 deployments.
