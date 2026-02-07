@@ -1,0 +1,22 @@
+'use client';
+import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/api';
+
+export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const router = useRouter();
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const res = await apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    if (!res.ok) return setError('Invalid credentials');
+    const data = await res.json();
+    localStorage.setItem('token', data.access_token);
+    router.push('/dashboard/upload');
+  }
+
+  return <form onSubmit={submit} className="mx-auto max-w-md space-y-4"><h1 className="text-2xl font-semibold">Login</h1><input className="w-full rounded bg-slate-900 p-3" placeholder="Email" onChange={(e)=>setEmail(e.target.value)} /><input type="password" className="w-full rounded bg-slate-900 p-3" placeholder="Password" onChange={(e)=>setPassword(e.target.value)} /><button className="w-full rounded bg-cyan-400 p-3 font-semibold text-slate-950">Login</button><p className="text-red-400">{error}</p></form>;
+}

@@ -1,0 +1,12 @@
+{
+  "name": "edit-ai-process",
+  "nodes": [
+    {"name": "Webhook", "type": "n8n-nodes-base.webhook", "path": "edit-ai-process"},
+    {"name": "Set Processing", "type": "n8n-nodes-base.httpRequest", "method": "POST", "url": "http://backend:8000/api/workflow/n8n/callback/{{$json.job_id}}"},
+    {"name": "Transcribe", "type": "n8n-nodes-base.executeCommand", "command": "python workers/transcribe.py --input {{$json.source_path}}"},
+    {"name": "Director", "type": "n8n-nodes-base.httpRequest", "url": "http://backend:8000/api/agents/director", "method": "POST"},
+    {"name": "Render", "type": "n8n-nodes-base.executeCommand", "command": "python workers/render.py --job {{$json.job_id}}"},
+    {"name": "QC", "type": "n8n-nodes-base.httpRequest", "url": "http://backend:8000/api/agents/qc", "method": "POST"},
+    {"name": "Set Complete", "type": "n8n-nodes-base.httpRequest", "method": "POST", "url": "http://backend:8000/api/workflow/n8n/callback/{{$json.job_id}}"}
+  ]
+}
