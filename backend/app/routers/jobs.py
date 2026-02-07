@@ -1,5 +1,5 @@
 from pathlib import Path
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,9 +8,16 @@ from ..deps import get_current_user
 from ..models import Job, User
 from ..schemas import JobResponse
 from ..services.storage import storage_service
-from ..services.n8n_client import trigger_edit_workflow
+from ..services.n8n_client import trigger_edit_workflow, N8NTriggerError
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+ALLOWED_VIDEO_MIME_TYPES = {
+    "video/mp4",
+    "video/quicktime",
+    "video/x-matroska",
+    "video/webm",
+}
 
 
 @router.post("/upload", response_model=JobResponse)
@@ -19,12 +26,23 @@ async def upload_video(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    if file.content_type not in ALLOWED_VIDEO_MIME_TYPES:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported video format")
+
     source_path = await storage_service.save_upload(file)
     job = Job(user_id=current_user.id, source_path=source_path)
     session.add(job)
     await session.commit()
     await session.refresh(job)
-    await trigger_edit_workflow(job.id, job.source_path)
+
+    try:
+        await trigger_edit_workflow(job.id, job.source_path)
+        job.progress_message = "Workflow accepted. Processing started."
+    except N8NTriggerError:
+        job.progress_message = "Upload saved, but processing trigger is delayed. Our scheduler will retry shortly."
+
+    await session.commit()
+    await session.refresh(job)
     return JobResponse.model_validate(job, from_attributes=True)
 
 

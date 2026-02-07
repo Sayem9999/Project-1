@@ -74,6 +74,12 @@ This script will:
 - install and build frontend
 - start backend on `:8000` and frontend on `:3000`
 
+If you are using the local mock webhook, set this in `backend/.env` before starting:
+
+```env
+N8N_WEBHOOK_URL=http://127.0.0.1:5678/webhook/edit-ai-process
+```
+
 Stop services:
 
 ```bash
