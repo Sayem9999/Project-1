@@ -81,3 +81,24 @@ Stop services:
 ```
 
 Logs are stored in `.runtime/logs`.
+
+
+## Local n8n callback testing
+
+For local end-to-end testing without a full n8n instance, run the lightweight mock webhook:
+
+```bash
+python scripts/mock_n8n.py
+```
+
+It listens on `:5678/webhook/edit-ai-process`, receives backend job triggers, posts processing/complete callbacks, and writes a rendered output file.
+
+## E2E smoke test (auth + upload + status + download)
+
+With backend/frontend running and `scripts/mock_n8n.py` active:
+
+```bash
+python scripts/smoke_e2e.py
+```
+
+This generates a real sample video via FFmpeg, signs up a test user, uploads the video, polls job status, and downloads the final output.
