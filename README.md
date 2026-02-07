@@ -59,3 +59,25 @@ Backend (`backend/.env`):
 
 Frontend:
 - `NEXT_PUBLIC_API_BASE`
+
+## Local deployment (no Docker required)
+
+If Docker is unavailable, use the built-in deployment scripts:
+
+```bash
+./scripts/deploy_local.sh
+```
+
+This script will:
+- create a local Python virtualenv in `.runtime/venv`
+- install backend dependencies
+- install and build frontend
+- start backend on `:8000` and frontend on `:3000`
+
+Stop services:
+
+```bash
+./scripts/stop_local.sh
+```
+
+Logs are stored in `.runtime/logs`.

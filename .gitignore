@@ -8,3 +8,5 @@ backend/.env
 backend/storage/
 coverage/
 .DS_Store
+
+.runtime/
