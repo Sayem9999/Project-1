@@ -1,32 +1,53 @@
 # edit.ai
 
-Production-grade SaaS starter for professional automated video editing.
+Production-grade SaaS for professional automated video editing.
 
 ## Stack
 - **Frontend:** Next.js App Router + Tailwind CSS
 - **Backend:** FastAPI + REST + async SQLAlchemy
 - **Workflow:** n8n webhook orchestration
-- **AI:** OpenAI (GPT-4.1 + GPT-4o-mini), Whisper API integration points
+- **AI:** OpenAI (GPT-4.1 + GPT-4o-mini), Whisper integration points
 - **Processing:** FFmpeg on CPU
 - **Auth:** Email/password + JWT
-- **DB:** SQLite (portable to Postgres through SQLAlchemy)
-- **Storage:** Local filesystem in `backend/storage`
 
-## Quick start
+## Deploy (No Docker, No Local Hosting)
 
+This repository is configured for:
+- **Frontend on Vercel** (`frontend/`)
+- **Backend on Railway** (`backend/`)
+
+### Required secrets
+- `VERCEL_TOKEN`
+- `RAILWAY_TOKEN`
+
+### One-command cloud deploy
 ```bash
-cp backend/.env.example backend/.env
-# Fill SECRET_KEY and OPENAI_API_KEY
-
-docker compose up --build
+export RAILWAY_TOKEN=...
+export VERCEL_TOKEN=...
+./scripts/deploy_cloud.sh
 ```
 
-Frontend: `http://localhost:3000`  
-Backend: `http://localhost:8000/docs`  
-n8n: `http://localhost:5678`
+### Individual deploy commands
+```bash
+./scripts/deploy_railway.sh
+./scripts/deploy_vercel.sh
+```
+
+## Production environment variables
+
+Backend (Railway):
+- `SECRET_KEY`
+- `DATABASE_URL` (use Railway Postgres)
+- `STORAGE_ROOT=storage`
+- `N8N_WEBHOOK_URL`
+- `FRONTEND_URL`
+- `FRONTEND_ORIGINS` (include your Vercel domain)
+- `OPENAI_API_KEY`
+
+Frontend (Vercel):
+- `NEXT_PUBLIC_API_BASE=https://<railway-backend-domain>/api`
 
 ## API surface
-
 - `POST /api/auth/signup`
 - `POST /api/auth/login`
 - `GET /api/auth/me`
@@ -36,93 +57,4 @@ n8n: `http://localhost:5678`
 - `POST /api/workflow/n8n/callback/{job_id}`
 - `POST /api/agents/{director|cutter|subtitle|audio|color|qc}`
 
-## n8n orchestration
-1. Backend upload route creates job and triggers webhook.
-2. n8n calls status callback -> `processing`.
-3. n8n executes transcript + agent decisions.
-4. n8n executes FFmpeg render worker.
-5. n8n posts callback with `complete` and `output_path`.
-
-Reference workflow files:
-- `docs/n8n/workflow.md`
-- `docs/n8n/workflow.json`
-
-## Environment variables
-
-Backend (`backend/.env`):
-- `SECRET_KEY`
-- `DATABASE_URL`
-- `STORAGE_ROOT`
-- `N8N_WEBHOOK_URL`
-- `FRONTEND_URL`
-- `OPENAI_API_KEY`
-
-Frontend:
-- `NEXT_PUBLIC_API_BASE`
-
-## Local deployment (no Docker required)
-
-If Docker is unavailable, use the built-in deployment scripts:
-
-```bash
-./scripts/deploy_local.sh
-```
-
-This script will:
-- create a local Python virtualenv in `.runtime/venv`
-- install backend dependencies
-- install and build frontend
-- start backend on `:8000` and frontend on `:3000`
-
-If you are using the local mock webhook, set this in `backend/.env` before starting:
-
-```env
-N8N_WEBHOOK_URL=http://127.0.0.1:5678/webhook/edit-ai-process
-```
-
-Stop services:
-
-```bash
-./scripts/stop_local.sh
-```
-
-Logs are stored in `.runtime/logs`.
-
-
-## Local n8n callback testing
-
-For local end-to-end testing without a full n8n instance, run the lightweight mock webhook:
-
-```bash
-python scripts/mock_n8n.py
-```
-
-It listens on `:5678/webhook/edit-ai-process`, receives backend job triggers, posts processing/complete callbacks, and writes a rendered output file.
-
-## E2E smoke test (auth + upload + status + download)
-
-With backend/frontend running and `scripts/mock_n8n.py` active:
-
-```bash
-python scripts/smoke_e2e.py
-```
-
-This generates a real sample video via FFmpeg, signs up a test user, uploads the video, polls job status, and downloads the final output.
-
-
-## Deploy to Vercel + Railway
-
-- Frontend deploy target: **Vercel** (`frontend/`)
-- Backend deploy target: **Railway** (`backend/`)
-
-Quick commands:
-
-```bash
-export RAILWAY_TOKEN=...
-./scripts/deploy_railway.sh
-
-export VERCEL_TOKEN=...
-./scripts/deploy_vercel.sh
-```
-
-Full guide: `DEPLOYMENT_GUIDE.md`.
+See `DEPLOYMENT_GUIDE.md` for the full production runbook.
