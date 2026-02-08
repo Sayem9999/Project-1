@@ -130,15 +130,15 @@ export default function UploadPage() {
               onDragOver={handleDrag}
               onDrop={handleDrop}
               className={`relative rounded-2xl border-2 border-dashed transition-all ${dragActive
-                  ? 'border-cyan-500 bg-cyan-500/10'
-                  : file
-                    ? 'border-emerald-500/50 bg-emerald-500/5'
-                    : 'border-white/20 bg-[#12121a] hover:border-white/40'
+                ? 'border-cyan-500 bg-cyan-500/10'
+                : file
+                  ? 'border-emerald-500/50 bg-emerald-500/5'
+                  : 'border-white/20 bg-[#12121a] hover:border-white/40'
                 }`}
             >
               {preview ? (
-                <div className="relative aspect-video rounded-xl overflow-hidden">
-                  <video src={preview} className="w-full h-full object-cover" controls />
+                <div className="relative rounded-xl overflow-hidden bg-black" style={{ maxHeight: '300px' }}>
+                  <video src={preview} className="w-full h-full object-contain max-h-[300px]" controls />
                   <button
                     onClick={() => { setFile(null); setPreview(null); }}
                     className="absolute top-3 right-3 p-2 bg-black/50 rounded-lg text-white hover:bg-black/70 transition-colors"
@@ -185,8 +185,8 @@ export default function UploadPage() {
                       key={theme.id}
                       onClick={() => setSettings(s => ({ ...s, theme: theme.id }))}
                       className={`p-4 rounded-xl border text-left transition-all ${settings.theme === theme.id
-                          ? 'border-cyan-500 bg-cyan-500/10'
-                          : 'border-white/10 bg-[#12121a] hover:border-white/20'
+                        ? 'border-cyan-500 bg-cyan-500/10'
+                        : 'border-white/10 bg-[#12121a] hover:border-white/20'
                         }`}
                     >
                       <span className="text-2xl mb-2 block">{theme.icon}</span>
@@ -205,8 +205,8 @@ export default function UploadPage() {
                       key={pace.id}
                       onClick={() => setSettings(s => ({ ...s, pacing: pace.id }))}
                       className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-all ${settings.pacing === pace.id
-                          ? 'border-cyan-500 bg-cyan-500/10 text-white'
-                          : 'border-white/10 text-gray-400 hover:text-white'
+                        ? 'border-cyan-500 bg-cyan-500/10 text-white'
+                        : 'border-white/10 text-gray-400 hover:text-white'
                         }`}
                     >
                       {pace.label}
@@ -224,8 +224,8 @@ export default function UploadPage() {
                       key={r.id}
                       onClick={() => setSettings(s => ({ ...s, ratio: r.id }))}
                       className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-all ${settings.ratio === r.id
-                          ? 'border-cyan-500 bg-cyan-500/10 text-white'
-                          : 'border-white/10 text-gray-400 hover:text-white'
+                        ? 'border-cyan-500 bg-cyan-500/10 text-white'
+                        : 'border-white/10 text-gray-400 hover:text-white'
                         }`}
                     >
                       {r.label}
@@ -246,8 +246,8 @@ export default function UploadPage() {
                 onClick={handleUpload}
                 disabled={!file || uploading}
                 className={`w-full py-4 rounded-xl text-lg font-semibold transition-all ${file && !uploading
-                    ? 'bg-gradient-to-r from-cyan-500 to-violet-500 text-white hover:opacity-90'
-                    : 'bg-white/10 text-gray-500 cursor-not-allowed'
+                  ? 'bg-gradient-to-r from-cyan-500 to-violet-500 text-white hover:opacity-90'
+                  : 'bg-white/10 text-gray-500 cursor-not-allowed'
                   }`}
               >
                 {uploading ? (

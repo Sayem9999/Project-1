@@ -1,17 +1,29 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+
+  useEffect(() => {
+    // Check for redirect from signup (email already exists)
+    const emailParam = searchParams.get('email');
+    const messageParam = searchParams.get('message');
+    if (emailParam) setEmail(emailParam);
+    if (messageParam === 'exists') {
+      setInfo('Account already exists. Please sign in.');
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +100,13 @@ export default function LoginPage() {
           {/* Card */}
           <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
             <h1 className="text-2xl font-bold text-white text-center mb-2">Welcome back</h1>
-            <p className="text-gray-400 text-center mb-8">Sign in to your account</p>
+            <p className="text-gray-400 text-center mb-6">Sign in to your account</p>
+
+            {info && (
+              <div className="p-3 mb-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 text-sm text-center">
+                {info}
+              </div>
+            )}
 
             {/* Google */}
             <button

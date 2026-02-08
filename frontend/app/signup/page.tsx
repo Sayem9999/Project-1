@@ -26,7 +26,14 @@ export default function SignupPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Signup failed');
+      if (!res.ok) {
+        // Check if email already exists - redirect to login
+        if (data.detail?.toLowerCase().includes('already') || data.detail?.toLowerCase().includes('exist')) {
+          router.push(`/login?email=${encodeURIComponent(email)}&message=exists`);
+          return;
+        }
+        throw new Error(data.detail || 'Signup failed');
+      }
 
       localStorage.setItem('token', data.access_token);
       router.push('/dashboard/upload');
