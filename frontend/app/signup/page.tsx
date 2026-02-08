@@ -15,6 +15,11 @@ export default function SignupPage() {
       const res = await apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password }) });
       if (!res.ok) {
         const errText = await res.text();
+        if (res.status === 400 && errText.includes("already registered")) {
+          setError("Account already exists. Redirecting to login...");
+          setTimeout(() => router.push('/login'), 2000);
+          return;
+        }
         return setError(`Signup failed (Status ${res.status}): ${errText}`);
       }
       const data = await res.json();
