@@ -18,18 +18,27 @@ async def upload_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     theme: str = Form("professional"),
+    pacing: str = Form("medium"),
+    mood: str = Form("professional"),
+    ratio: str = Form("16:9"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     source_path = await storage_service.save_upload(file)
+    # Note: We aren't saving pacing/mood/ratio to DB yet to avoid migration
+    # We pass them directly to the background task via job details (or a temp dict)
+    # For now, we'll pack them into the 'theme' field as JSON string if we wanted to save them,
+    # OR we just pass them to process_job explicitly.
+    # To keep it simple: we just use 'process_job' args.
+    
     job = Job(user_id=current_user.id, source_path=source_path, theme=theme)
     session.add(job)
     await session.commit()
     await session.refresh(job)
     
-    # Trigger internal workflow instead of n8n
+    # Trigger internal workflow
     from ..services.workflow_engine import process_job
-    background_tasks.add_task(process_job, job.id, job.source_path)
+    background_tasks.add_task(process_job, job.id, job.source_path, pacing, mood, ratio)
     
     return JobResponse.model_validate(job, from_attributes=True)
 

@@ -1,13 +1,18 @@
 'use client';
 import { FormEvent, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ThemeSelector } from '@/components/ui/ThemeSelector';
+import { DirectorPanel } from '@/components/ui/DirectorPanel';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [theme, setTheme] = useState('professional');
+
+  // Director Controls
+  const [pacing, setPacing] = useState('medium');
+  const [mood, setMood] = useState('professional');
+  const [ratio, setRatio] = useState('16:9');
+
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
@@ -27,7 +32,13 @@ export default function UploadPage() {
     const token = localStorage.getItem('token');
     const form = new FormData();
     form.append('file', file);
-    form.append('theme', theme);
+
+    // Pass Director Instructions
+    form.append('pacing', pacing);
+    form.append('mood', mood);
+    form.append('ratio', ratio);
+    // Legacy theme field for backward compat
+    form.append('theme', mood);
 
     try {
       const res = await fetch(`${API_BASE}/jobs/upload`, {
@@ -55,25 +66,31 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="glass-panel relative overflow-hidden rounded-2xl p-8">
         <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-brand-cyan/20 blur-3xl"></div>
-        <div className="absolute top-1/2 -left-24 h-48 w-48 rounded-full bg-brand-magenta/20 blur-3xl"></div>
+        <div className="absolute top-1/2 -left-24 h-48 w-48 rounded-full bg-brand-violet/20 blur-3xl"></div>
 
-        <section className="relative space-y-2 mb-8">
+        <section className="relative space-y-2 mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-white text-glow">
-            Upload Source Video
+            Start Production
           </h1>
           <p className="text-slate-400">
-            AI Director will analyze your footage and apply the selected editing style.
+            Tell the AI Director how to edit your footage.
           </p>
         </section>
 
         <form onSubmit={submit} className="relative space-y-8">
-          <ThemeSelector value={theme} onChange={setTheme} />
+
+          {/* Enhanced Director Controls */}
+          <DirectorPanel
+            pacing={pacing} setPacing={setPacing}
+            mood={mood} setMood={setMood}
+            ratio={ratio} setRatio={setRatio}
+          />
 
           <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-400">Source File</label>
+            <label className="text-sm font-medium text-slate-400">Source Footage</label>
             <div className="flex w-full items-center justify-center">
               <label className={`flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-all ${file ? 'border-brand-cyan bg-brand-cyan/5' : 'border-slate-700 bg-slate-900/50 hover:bg-slate-900'}`}>
                 <div className="flex flex-col items-center justify-center pb-6 pt-5">

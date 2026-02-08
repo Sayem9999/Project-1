@@ -9,7 +9,7 @@ from ..models import Job
 from ..config import settings
 from ..agents import director_agent, cutter_agent, subtitle_agent, audio_agent, color_agent, qc_agent
 
-async def process_job(job_id: int, source_path: str):
+async def process_job(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9"):
     """
     Internal workflow engine replacing n8n.
     Steps:
@@ -49,7 +49,12 @@ async def process_job(job_id: int, source_path: str):
         # 2a. Lead Director Strategy
         director_plan = {}
         try:
-             director_resp = await director_agent.run({"theme": theme, "source_path": source_path})
+             director_resp = await director_agent.run({
+                 "source_path": source_path,
+                 "pacing": pacing,
+                 "mood": mood, 
+                 "ratio": ratio
+             })
              director_plan = parse_json_safe(director_resp.get("raw_response", "{}"))
              print(f"[Workflow] Director Plan: {director_plan}")
         except Exception as e:

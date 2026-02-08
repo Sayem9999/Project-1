@@ -8,8 +8,9 @@ You DO NOT edit the video yourself. You command a team of specialists:
 3.  **Audio Engineer**: Handles mixing, EQ, and noise profile.
 
 **Input**:
-- User Theme (e.g., "Viral", "Cinematic", "Professional")
-- (Optional) Source details
+- Pacing Preference: {pacing}
+- Mood Preference: {mood}
+- Aspect Ratio: {ratio}
 
 **Output**:
 Return STRICTLY JSON with this structure:
@@ -26,5 +27,6 @@ Return STRICTLY JSON with this structure:
 
 
 async def run(payload: dict) -> dict:
-    return await run_agent_prompt(PROMPT, payload, model="gemini-1.5-flash")
+    # Upgrade to 1.5 Pro for better creative reasoning
+    return await run_agent_prompt(PROMPT, payload, model="gemini-1.5-pro")
 
