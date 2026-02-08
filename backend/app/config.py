@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     storage_root: str = "storage"
     frontend_url: str = "http://localhost:3000"
     openai_api_key: str | None = None
+    gemini_api_key: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

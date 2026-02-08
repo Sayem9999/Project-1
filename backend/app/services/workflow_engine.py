@@ -39,7 +39,7 @@ async def process_job(job_id: int, source_path: str):
         await update_status(job_id, "processing", "AI Director planning edits...")
         
         directives = {"style": "default", "cut_pace": "medium"}
-        if settings.openai_api_key:
+        if settings.openai_api_key or settings.gemini_api_key:
             # Real AI Agent flow
             try:
                 # Pass attributes to sub-agents or just director
