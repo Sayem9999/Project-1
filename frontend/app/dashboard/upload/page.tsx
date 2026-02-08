@@ -30,13 +30,19 @@ export default function UploadPage() {
       });
 
       if (!res.ok) {
-        throw new Error('Upload failed');
+        const errBody = await res.text();
+        throw new Error(`Status ${res.status}: ${errBody}`);
       }
 
       const data = await res.json();
       router.push(`/dashboard/jobs/${data.id}`);
     } catch (e) {
-      setError('Upload failed. Please try again.');
+      console.error("Upload error:", e);
+      if (e instanceof Error) {
+        setError(`Upload failed: ${e.message}`);
+      } else {
+        setError('Upload failed. Check console for details.');
+      }
       setUploading(false);
     }
   }
@@ -103,6 +109,11 @@ export default function UploadPage() {
               )}
             </button>
             {error && <p className="mt-4 text-center text-sm text-red-400">{error}</p>}
+
+            <div className="mt-8 p-4 rounded bg-slate-900/50 text-xs text-slate-500 font-mono text-center">
+              <p>Debug Info:</p>
+              <p>API: {API_BASE}</p>
+            </div>
           </div>
         </form>
       </div>
