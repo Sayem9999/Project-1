@@ -15,4 +15,4 @@ greenlet
 gunicorn
 asyncpg
 psycopg2-binary
-google-generativeai
+google-generativeai>=0.8.3
