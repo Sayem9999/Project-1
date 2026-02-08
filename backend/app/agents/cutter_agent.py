@@ -19,5 +19,6 @@ Return STRICTLY JSON with:
 
 
 async def run(payload: dict) -> dict:
-    return await run_agent_prompt(PROMPT, payload, model="gemini-1.5-flash")
+    # Upgrade to 1.5 Pro for better video context understanding
+    return await run_agent_prompt(PROMPT, payload, model="gemini-1.5-pro")
 
