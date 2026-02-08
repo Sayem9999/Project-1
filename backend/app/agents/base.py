@@ -10,12 +10,14 @@ if settings.gemini_api_key:
     genai.configure(api_key=settings.gemini_api_key)
 
 
-async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gpt-4o-mini") -> dict:
+async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gemini-1.5-flash") -> dict:
     # 1. Try Gemini First (Free Tier)
     if settings.gemini_api_key:
-        # Prioritize 1.5 Flash (Fast & Free) -> 1.5 Pro -> Legacy Pro
-        # Note: 404 errors usually mean the library version is old or model name is wrong.
-        gemini_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+        # Prioirtize the requested model, then fallbacks
+        candidates = [model, "gemini-1.5-flash", "gemini-pro"]
+        # Deduplicate
+        seen = set()
+        gemini_models = [x for x in candidates if not (x in seen or seen.add(x))]
         
         for g_model in gemini_models:
             try:
@@ -29,9 +31,21 @@ async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gpt-
             except Exception as e:
                 print(f"Gemini {g_model} error: {e}")
                 continue # Try next model
-            except Exception as e:
-                print(f"Gemini {g_model} failed: {e}")
-                continue # Try next model
+
+        print("All Gemini models failed. Falling back to OpenAI...")
+
+    # 2. Fallback to OpenAI
+    if not openai_client:
+        raise RuntimeError("No AI API keys configured (GEMINI_API_KEY or OPENAI_API_KEY).")
+
+    response = await openai_client.chat.completions.create(
+        model="gpt-4o-mini", # Fallback model
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": str(payload)},
+        ],
+    )
+    return {"raw_response": response.choices[0].message.content}
         
         print("All Gemini models failed. Falling back to OpenAI...")
 
