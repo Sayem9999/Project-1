@@ -17,6 +17,8 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup() -> None:
+    print(f"Startup: Gemini Key Present: {bool(settings.gemini_api_key)}")
+    print(f"Startup: OpenAI Key Present: {bool(settings.openai_api_key)}")
     # Ensure storage directory exists for SQLite fallback
     import os
     os.makedirs("storage", exist_ok=True)

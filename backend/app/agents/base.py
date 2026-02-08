@@ -18,6 +18,7 @@ async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gemi
         # Deduplicate
         seen = set()
         gemini_models = [x for x in candidates if not (x in seen or seen.add(x))]
+        last_error = None
         
         for g_model in gemini_models:
             try:
@@ -30,23 +31,19 @@ async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gemi
                     return {"raw_response": response.text}
             except Exception as e:
                 print(f"Gemini {g_model} error: {e}")
+                last_error = e
                 continue # Try next model
-
-        print("All Gemini models failed. Falling back to OpenAI...")
+        
+        # If we get here, all Gemini models failed
+        print(f"All Gemini models failed. Last error: {last_error}")
+        if not settings.openai_api_key:
+             # If no OpenAI key, we must raise the Gemini error to info the user
+             raise RuntimeError(f"Gemini failed: {last_error}. OpenAI fallback unavailable.")
 
     # 2. Fallback to OpenAI
     if not openai_client:
         raise RuntimeError("No AI API keys configured (GEMINI_API_KEY or OPENAI_API_KEY).")
 
-    response = await openai_client.chat.completions.create(
-        model="gpt-4o-mini", # Fallback model
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": str(payload)},
-        ],
-    )
-    return {"raw_response": response.choices[0].message.content}
-        
     response = await openai_client.chat.completions.create(
         model=model if model == "gpt-4o-mini" else "gpt-4o-mini", # Fallback model
         messages=[
