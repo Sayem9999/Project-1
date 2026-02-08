@@ -34,18 +34,29 @@ export default function JobStatusPage() {
     }
   }, [params.id, downloadUrl]);
 
-  // Calculate progress percentage based on message
-  const getProgress = (status: string, message: string) => {
-    if (status === 'complete') return 100;
-    if (status === 'failed') return 100;
-    if (message?.includes('Analyzing')) return 25;
-    if (message?.includes('AI Director')) return 50;
-    if (message?.includes('Rendering')) return 75;
-    if (message?.includes('Starting')) return 10;
-    return 5;
+  // Calculate progress percentage and ETA based on message
+  const getProgressInfo = (status: string, message: string) => {
+    if (status === 'complete') return { progress: 100, eta: 'Complete!', stage: 'Done' };
+    if (status === 'failed') return { progress: 100, eta: 'Failed', stage: 'Error' };
+
+    // Stage-based progress
+    if (message?.includes('Memory') || message?.includes('Starting'))
+      return { progress: 10, eta: '~2 min', stage: 'Initializing' };
+    if (message?.includes('Director') || message?.includes('Planning'))
+      return { progress: 25, eta: '~1.5 min', stage: 'AI Director' };
+    if (message?.includes('Specialists') || message?.includes('Cutter'))
+      return { progress: 45, eta: '~1 min', stage: 'AI Specialists' };
+    if (message?.includes('Rendering'))
+      return { progress: 70, eta: '~45 sec', stage: 'Rendering' };
+    if (message?.includes('QC') || message?.includes('Review'))
+      return { progress: 85, eta: '~20 sec', stage: 'QC Review' };
+    if (message?.includes('Subtitle') || message?.includes('Meta'))
+      return { progress: 95, eta: '~10 sec', stage: 'Finalizing' };
+
+    return { progress: 5, eta: '~2 min', stage: 'Queued' };
   };
 
-  const progress = job ? getProgress(job.status, job.progress_message) : 0;
+  const progressInfo = job ? getProgressInfo(job.status, job.progress_message) : { progress: 0, eta: '', stage: '' };
   const isComplete = job?.status === 'complete';
   const isFailed = job?.status === 'failed';
 
@@ -100,7 +111,31 @@ export default function JobStatusPage() {
 
           {/* Job Details Card */}
           <div className="glass-panel p-6 rounded-xl space-y-4">
-            <h3 className="text-lg font-semibold text-white">Production Details</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-white">Production Details</h3>
+              {!isComplete && !isFailed && (
+                <span className="agent-badge agent-badge-active">
+                  {progressInfo.stage}
+                </span>
+              )}
+            </div>
+
+            {/* Progress Bar */}
+            {!isComplete && !isFailed && (
+              <div className="space-y-2">
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-brand-cyan to-brand-violet transition-all duration-500 ease-out"
+                    style={{ width: `${progressInfo.progress}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">{progressInfo.progress}% complete</span>
+                  <span className="text-brand-cyan font-medium">ETA: {progressInfo.eta}</span>
+                </div>
+              </div>
+            )}
+
             <dl className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <dt className="text-slate-500">Project ID</dt>
@@ -108,8 +143,8 @@ export default function JobStatusPage() {
               </div>
               <div>
                 <dt className="text-slate-500">Status</dt>
-                <dd className={`font-mono ${isComplete ? 'text-emerald-400' : 'text-brand-cyan'}`}>
-                  {job?.status.toUpperCase()}
+                <dd className={`font-mono ${isComplete ? 'text-emerald-400' : isFailed ? 'text-red-400' : 'text-brand-cyan'}`}>
+                  {job?.status?.toUpperCase() || 'LOADING'}
                 </dd>
               </div>
               <div>
@@ -117,8 +152,8 @@ export default function JobStatusPage() {
                 <dd className="text-slate-300 capitalize">{job?.theme || 'Standard'}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Progress</dt>
-                <dd className="text-slate-300">{Math.round(progress)}%</dd>
+                <dt className="text-slate-500">Engine</dt>
+                <dd className="text-slate-300">Proedit AI v2.0</dd>
               </div>
             </dl>
           </div>

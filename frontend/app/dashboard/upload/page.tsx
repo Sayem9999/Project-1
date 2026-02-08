@@ -54,7 +54,16 @@ export default function UploadPage() {
       router.push(`/jobs/${data.id}`);
     } catch (e) {
       console.error("Upload error:", e);
-      setError(e instanceof Error ? e.message : 'Upload failed. Check console.');
+      // User-friendly error messages
+      let errorMessage = 'Upload failed. Please try again.';
+      if (e instanceof Error) {
+        if (e.message.includes('401')) errorMessage = 'Session expired. Please log in again.';
+        else if (e.message.includes('413')) errorMessage = 'File too large. Maximum size is 500MB.';
+        else if (e.message.includes('Network')) errorMessage = 'Network error. Check your connection.';
+        else if (e.message.includes('500')) errorMessage = 'Server error. Our team has been notified.';
+        else errorMessage = e.message;
+      }
+      setError(errorMessage);
       setUploading(false);
     }
   }
@@ -104,10 +113,10 @@ export default function UploadPage() {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 className={`group flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all duration-300 ${isDragOver
-                    ? 'border-brand-cyan bg-brand-cyan/10 scale-102 ring-4 ring-brand-cyan/20'
-                    : file
-                      ? 'border-emerald-500/50 bg-emerald-500/5'
-                      : 'border-slate-700 bg-slate-900/50 hover:bg-slate-900 hover:border-slate-500'
+                  ? 'border-brand-cyan bg-brand-cyan/10 scale-102 ring-4 ring-brand-cyan/20'
+                  : file
+                    ? 'border-emerald-500/50 bg-emerald-500/5'
+                    : 'border-slate-700 bg-slate-900/50 hover:bg-slate-900 hover:border-slate-500'
                   }`}
               >
                 <div className="flex flex-col items-center justify-center pb-6 pt-5">
@@ -152,7 +161,21 @@ export default function UploadPage() {
                 'Start Production'
               )}
             </button>
-            {error && <p className="mt-4 text-center text-sm text-red-400 bg-red-500/10 p-3 rounded">{error}</p>}
+            {error && (
+              <div className="mt-4 flex items-center justify-between gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
+                <div className="flex items-center gap-3">
+                  <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-red-300">{error}</p>
+                </div>
+                <button onClick={() => setError('')} className="text-red-400 hover:text-red-300">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </form>
       </div>

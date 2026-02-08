@@ -14,35 +14,86 @@ export function Hero() {
             <div className="py-24 sm:py-32 lg:pb-40">
                 <div className="mx-auto max-w-7xl px-6 lg:px-8">
                     <div className="mx-auto max-w-4xl text-center">
-                        <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl text-glow animate-float">
-                            Professional Video Editing, <br />
-                            <span className="text-gradient">Automated by AI</span>
+                        {/* Trust Badge */}
+                        <div className="mb-6 animate-slide-up">
+                            <span className="inline-flex items-center gap-2 rounded-full bg-brand-cyan/10 px-4 py-1.5 text-sm text-brand-cyan ring-1 ring-inset ring-brand-cyan/20">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-cyan opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-cyan"></span>
+                                </span>
+                                AI-Powered • 10x Faster Editing
+                            </span>
+                        </div>
+
+                        <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl text-glow animate-float">
+                            Edit Videos Like a <br />
+                            <span className="bg-gradient-to-r from-brand-cyan via-brand-violet to-brand-fuchsia bg-clip-text text-transparent">
+                                Hollywood Studio
+                            </span>
                         </h1>
-                        <p className="mt-6 text-lg leading-8 text-slate-300">
-                            Transform raw footage into studio-quality content in minutes.
-                            Our AI Director, Colorist, and Audio Engineers work together to polish your video to perfection.
+                        <p className="mt-6 text-lg leading-8 text-slate-300 max-w-2xl mx-auto">
+                            Upload raw footage. Our AI Director, Colorist, and Audio Engineers
+                            work together 24/7 to deliver studio-quality edits in minutes.
                         </p>
+
+                        {/* CTA Buttons */}
                         <div className="mt-10 flex items-center justify-center gap-x-6">
-                            <Link href="/signup" className="btn-primary text-lg px-8 py-4">
-                                Start Production
+                            <Link href="/signup" className="btn-primary btn-glow text-lg px-8 py-4 flex items-center gap-2">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                Start Free
                             </Link>
-                            <Link href="/login" className="text-sm font-semibold leading-6 text-white hover:text-brand-cyan transition-colors">
-                                Log in <span aria-hidden="true">→</span>
+                            <Link href="/login" className="group text-sm font-semibold leading-6 text-white hover:text-brand-cyan transition-colors flex items-center gap-1">
+                                Already have an account?
+                                <span className="group-hover:translate-x-1 transition-transform">→</span>
                             </Link>
+                        </div>
+
+                        {/* Social Proof */}
+                        <div className="mt-12 flex items-center justify-center gap-8 text-slate-500 text-sm">
+                            <div className="flex items-center gap-2">
+                                <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                                No credit card required
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                                5 free renders/month
+                            </div>
                         </div>
                     </div>
 
                     {/* Mockup / Visual */}
                     <div className="mt-16 flow-root sm:mt-24">
-                        <div className="-m-2 rounded-xl bg-white/5 p-2 ring-1 ring-inset ring-white/10 lg:-m-4 lg:rounded-2xl lg:p-4 hover:ring-brand-cyan/30 transition-all duration-500">
+                        <div className="glass-panel -m-2 rounded-xl p-2 lg:-m-4 lg:rounded-2xl lg:p-4 card-hover">
                             <div className="rounded-md bg-slate-950/50 shadow-2xl ring-1 ring-white/10 overflow-hidden aspect-video relative group">
-                                {/* Abstract UI Representation */}
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="w-24 h-24 rounded-full bg-slate-800/50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-white/10 backdrop-blur-sm">
-                                        <svg className="w-10 h-10 text-brand-cyan ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                {/* Dashboard Preview */}
+                                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950">
+                                    {/* Agent Cards Preview */}
+                                    <div className="grid grid-cols-3 gap-4 p-8 w-full max-w-2xl opacity-60 group-hover:opacity-100 transition-opacity">
+                                        <div className="glass-panel p-4 rounded-lg animate-slide-up" style={{ animationDelay: '0ms' }}>
+                                            <div className="w-8 h-8 rounded-full bg-brand-cyan/20 mb-2"></div>
+                                            <div className="h-2 bg-slate-700 rounded w-3/4 mb-1"></div>
+                                            <div className="h-2 bg-slate-800 rounded w-1/2"></div>
+                                        </div>
+                                        <div className="glass-panel p-4 rounded-lg animate-slide-up" style={{ animationDelay: '100ms' }}>
+                                            <div className="w-8 h-8 rounded-full bg-brand-violet/20 mb-2"></div>
+                                            <div className="h-2 bg-slate-700 rounded w-2/3 mb-1"></div>
+                                            <div className="h-2 bg-slate-800 rounded w-1/2"></div>
+                                        </div>
+                                        <div className="glass-panel p-4 rounded-lg animate-slide-up" style={{ animationDelay: '200ms' }}>
+                                            <div className="w-8 h-8 rounded-full bg-brand-fuchsia/20 mb-2"></div>
+                                            <div className="h-2 bg-slate-700 rounded w-full mb-1"></div>
+                                            <div className="h-2 bg-slate-800 rounded w-2/3"></div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-cyan to-brand-violet animate-scan"></div>
+                                {/* Scan Line */}
+                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-cyan via-brand-violet to-brand-fuchsia" style={{ animation: 'shimmer 2s infinite' }}></div>
                             </div>
                         </div>
                     </div>
