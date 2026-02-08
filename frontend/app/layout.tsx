@@ -1,12 +1,18 @@
 import './globals.css';
-import { Navbar } from '@/components/ui/Navbar';
+import { ToastProvider } from '@/components/ui/Toast';
+
+export const metadata = {
+  title: 'Proedit.ai - AI Video Editing',
+  description: 'Transform your raw footage into cinematic content with AI-powered editing.',
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <Navbar />
-        <main>{children}</main>
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

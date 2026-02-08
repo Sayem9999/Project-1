@@ -1,104 +1,126 @@
+'use client';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
-export function Hero() {
+export default function Hero() {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const features = [
+        { icon: '⚡', text: '10 AI Agents' },
+        { icon: '🎬', text: 'Cinematic Effects' },
+        { icon: '✨', text: 'Auto Transitions' },
+    ];
+
     return (
-        <div className="relative isolate pt-14">
-            {/* Background Gradients */}
-            <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
-                <div
-                    className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-brand-cyan to-brand-violet opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
-                    style={{ clipPath: 'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)' }}
-                />
+        <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+            {/* Background Effects */}
+            <div className="absolute inset-0 bg-[#0a0a0f]">
+                {/* Gradient Orbs */}
+                <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-cyan-500/20 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-violet-500/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+
+                {/* Grid Pattern */}
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
             </div>
 
-            <div className="py-24 sm:py-32 lg:pb-40">
-                <div className="mx-auto max-w-7xl px-6 lg:px-8">
-                    <div className="mx-auto max-w-4xl text-center">
-                        {/* Trust Badge */}
-                        <div className="mb-6 animate-slide-up">
-                            <span className="inline-flex items-center gap-2 rounded-full bg-brand-cyan/10 px-4 py-1.5 text-sm text-brand-cyan ring-1 ring-inset ring-brand-cyan/20">
-                                <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-cyan opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-cyan"></span>
-                                </span>
-                                AI-Powered • 10x Faster Editing
-                            </span>
-                        </div>
-
-                        <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl text-glow animate-float">
-                            Edit Videos Like a <br />
-                            <span className="bg-gradient-to-r from-brand-cyan via-brand-violet to-brand-fuchsia bg-clip-text text-transparent">
-                                Hollywood Studio
-                            </span>
-                        </h1>
-                        <p className="mt-6 text-lg leading-8 text-slate-300 max-w-2xl mx-auto">
-                            Upload raw footage. Our AI Director, Colorist, and Audio Engineers
-                            work together 24/7 to deliver studio-quality edits in minutes.
-                        </p>
-
-                        {/* CTA Buttons */}
-                        <div className="mt-10 flex items-center justify-center gap-x-6">
-                            <Link href="/signup" className="btn-primary btn-glow text-lg px-8 py-4 flex items-center gap-2">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                                Start Free
-                            </Link>
-                            <Link href="/login" className="group text-sm font-semibold leading-6 text-white hover:text-brand-cyan transition-colors flex items-center gap-1">
-                                Already have an account?
-                                <span className="group-hover:translate-x-1 transition-transform">→</span>
-                            </Link>
-                        </div>
-
-                        {/* Social Proof */}
-                        <div className="mt-12 flex items-center justify-center gap-8 text-slate-500 text-sm">
-                            <div className="flex items-center gap-2">
-                                <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                                No credit card required
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                                5 free renders/month
-                            </div>
-                        </div>
+            <div className="container relative z-10 px-6 py-32">
+                <div className={`max-w-4xl mx-auto text-center transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+                    {/* Badge */}
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 to-violet-500/10 border border-cyan-500/20 mb-8">
+                        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                        <span className="text-sm text-cyan-400 font-medium">Powered by 10 AI Agents</span>
                     </div>
 
-                    {/* Mockup / Visual */}
-                    <div className="mt-16 flow-root sm:mt-24">
-                        <div className="glass-panel -m-2 rounded-xl p-2 lg:-m-4 lg:rounded-2xl lg:p-4 card-hover">
-                            <div className="rounded-md bg-slate-950/50 shadow-2xl ring-1 ring-white/10 overflow-hidden aspect-video relative group">
-                                {/* Dashboard Preview */}
-                                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950">
-                                    {/* Agent Cards Preview */}
-                                    <div className="grid grid-cols-3 gap-4 p-8 w-full max-w-2xl opacity-60 group-hover:opacity-100 transition-opacity">
-                                        <div className="glass-panel p-4 rounded-lg animate-slide-up" style={{ animationDelay: '0ms' }}>
-                                            <div className="w-8 h-8 rounded-full bg-brand-cyan/20 mb-2"></div>
-                                            <div className="h-2 bg-slate-700 rounded w-3/4 mb-1"></div>
-                                            <div className="h-2 bg-slate-800 rounded w-1/2"></div>
-                                        </div>
-                                        <div className="glass-panel p-4 rounded-lg animate-slide-up" style={{ animationDelay: '100ms' }}>
-                                            <div className="w-8 h-8 rounded-full bg-brand-violet/20 mb-2"></div>
-                                            <div className="h-2 bg-slate-700 rounded w-2/3 mb-1"></div>
-                                            <div className="h-2 bg-slate-800 rounded w-1/2"></div>
-                                        </div>
-                                        <div className="glass-panel p-4 rounded-lg animate-slide-up" style={{ animationDelay: '200ms' }}>
-                                            <div className="w-8 h-8 rounded-full bg-brand-fuchsia/20 mb-2"></div>
-                                            <div className="h-2 bg-slate-700 rounded w-full mb-1"></div>
-                                            <div className="h-2 bg-slate-800 rounded w-2/3"></div>
-                                        </div>
+                    {/* Headline */}
+                    <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+                        <span className="text-white">Transform Videos with</span>
+                        <br />
+                        <span className="bg-gradient-to-r from-cyan-400 via-violet-400 to-pink-400 bg-clip-text text-transparent">
+                            AI-Powered Magic
+                        </span>
+                    </h1>
+
+                    {/* Subheadline */}
+                    <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
+                        Upload your raw footage and let our AI studio crew—Director, Colorist,
+                        VFX Artist & more—create cinematic content automatically.
+                    </p>
+
+                    {/* Feature Pills */}
+                    <div className="flex flex-wrap justify-center gap-3 mb-10">
+                        {features.map((feature, i) => (
+                            <div
+                                key={i}
+                                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-gray-300"
+                                style={{ animationDelay: `${i * 0.1}s` }}
+                            >
+                                <span>{feature.icon}</span>
+                                <span>{feature.text}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* CTA Buttons */}
+                    <div className="flex flex-col sm:flex-row justify-center gap-4 mb-16">
+                        <Link
+                            href="/signup"
+                            className="group relative px-8 py-4 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-lg font-semibold text-white overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(0,212,255,0.4)]"
+                        >
+                            <span className="relative z-10 flex items-center justify-center gap-2">
+                                Start Editing Free
+                                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                </svg>
+                            </span>
+                        </Link>
+                        <Link
+                            href="/#demo"
+                            className="px-8 py-4 rounded-xl text-lg font-semibold text-white border border-white/20 hover:bg-white/5 transition-all flex items-center justify-center gap-2"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Watch Demo
+                        </Link>
+                    </div>
+
+                    {/* Trust Badges */}
+                    <div className="flex flex-col items-center gap-4">
+                        <p className="text-sm text-gray-500">Trusted by creators worldwide</p>
+                        <div className="flex items-center gap-6">
+                            <div className="flex -space-x-2">
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                    <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 border-2 border-[#0a0a0f] flex items-center justify-center text-xs font-bold text-white">
+                                        {String.fromCharCode(64 + i)}
                                     </div>
+                                ))}
+                            </div>
+                            <div className="text-left">
+                                <div className="flex items-center gap-1 text-yellow-400">
+                                    {[1, 2, 3, 4, 5].map((i) => (
+                                        <svg key={i} className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                        </svg>
+                                    ))}
                                 </div>
-                                {/* Scan Line */}
-                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-cyan via-brand-violet to-brand-fuchsia" style={{ animation: 'shimmer 2s infinite' }}></div>
+                                <p className="text-xs text-gray-500">4.9/5 from 500+ reviews</p>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Floating Elements */}
+                <div className="absolute top-20 left-10 w-20 h-20 rounded-xl bg-gradient-to-br from-cyan-500/20 to-transparent border border-cyan-500/20 backdrop-blur-sm animate-float hidden lg:block" />
+                <div className="absolute bottom-32 right-10 w-16 h-16 rounded-xl bg-gradient-to-br from-violet-500/20 to-transparent border border-violet-500/20 backdrop-blur-sm animate-float hidden lg:block" style={{ animationDelay: '0.5s' }} />
             </div>
-        </div>
+
+            {/* Bottom Gradient Fade */}
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0a0a0f] to-transparent" />
+        </section>
     );
 }
