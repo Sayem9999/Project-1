@@ -1,5 +1,5 @@
 'use client';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ThemeSelector } from '@/components/ui/ThemeSelector';
 
@@ -11,6 +11,13 @@ export default function UploadPage() {
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+    }
+  }, [router]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
