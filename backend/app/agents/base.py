@@ -13,12 +13,46 @@ if settings.gemini_api_key:
 async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gemini-1.5-flash") -> dict:
     # 1. Try Gemini First (Free Tier)
     if settings.gemini_api_key:
-        # Prioirtize the requested model, then fallbacks
-        candidates = [model, "gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro", "gemini-pro"]
-        # Deduplicate
-        seen = set()
-        gemini_models = [x for x in candidates if not (x in seen or seen.add(x))]
         last_error = None
+        
+        # Dynamic Model Discovery
+        candidates = []
+        try:
+            # Add user requested model first
+            candidates.append(model)
+            
+            # Fetch available models from API
+            available_models = []
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    available_models.append(m.name)
+            
+            # Sort to prefer 1.5, then Pro, then others. 
+            # Note: list_models returns full names like 'models/gemini-1.5-flash'
+            # We need to handle both short and long names.
+            
+            # Add discovered models to candidates
+            candidates.extend(available_models)
+            
+            # Fallbacks just in case list_models fails or returns nothing useful
+            candidates.extend(["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro", "gemini-pro"])
+            
+        except Exception as e:
+            print(f"Error listing models: {e}")
+            candidates = [model, "gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro", "gemini-pro"]
+
+        # Deduplicate while preserving order
+        seen = set()
+        gemini_models = []
+        for x in candidates:
+            # Normalize name (strip 'models/' prefix for comparison)
+            simple_name = x.replace("models/", "")
+            if simple_name not in seen:
+                seen.add(simple_name)
+                # Prefer the version with 'models/' if it came from the API, otherwise use as is
+                gemini_models.append(x)
+
+        print(f"Attempting Gemini models: {gemini_models}")
         
         for g_model in gemini_models:
             try:
