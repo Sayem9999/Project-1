@@ -47,14 +47,8 @@ async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gemi
     )
     return {"raw_response": response.choices[0].message.content}
         
-        print("All Gemini models failed. Falling back to OpenAI...")
-
-    # 2. Fallback to OpenAI
-    if not openai_client:
-        raise RuntimeError("No AI API keys configured (GEMINI_API_KEY or OPENAI_API_KEY).")
-
     response = await openai_client.chat.completions.create(
-        model=model,
+        model=model if model == "gpt-4o-mini" else "gpt-4o-mini", # Fallback model
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": str(payload)},
