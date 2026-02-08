@@ -13,16 +13,22 @@ if settings.gemini_api_key:
 async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gpt-4o-mini") -> dict:
     # 1. Try Gemini First (Free Tier)
     if settings.gemini_api_key:
-        # Try multiple model variants in case of region/version availability issues
-        gemini_models = ["gemini-1.5-flash", "gemini-1.5-flash-001", "gemini-1.5-pro", "gemini-pro"]
+        # Prioritize 1.5 Flash (Fast & Free) -> 1.5 Pro -> Legacy Pro
+        # Note: 404 errors usually mean the library version is old or model name is wrong.
+        gemini_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
         
         for g_model in gemini_models:
             try:
-                # Gemini doesn't use system prompts the same way, but we can prepend it
-                full_prompt = f"{system_prompt}\n\nInput Data:\n{str(payload)}"
-                gemini_model = genai.GenerativeModel(g_model)
-                response = await gemini_model.generate_content_async(full_prompt)
-                return {"raw_response": response.text}
+                # Prepend system prompt to user prompt for Gemini
+                full_prompt = f"System: {system_prompt}\n\nUser Input: {str(payload)}"
+                model_instance = genai.GenerativeModel(g_model)
+                response = await model_instance.generate_content_async(full_prompt)
+                
+                if response.text:
+                    return {"raw_response": response.text}
+            except Exception as e:
+                print(f"Gemini {g_model} error: {e}")
+                continue # Try next model
             except Exception as e:
                 print(f"Gemini {g_model} failed: {e}")
                 continue # Try next model
