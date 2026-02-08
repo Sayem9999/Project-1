@@ -42,7 +42,7 @@ export default function UploadPage() {
       }
 
       const data = await res.json();
-      router.push(`/dashboard/jobs/${data.id}`);
+      router.push(`/jobs/${data.id}`);
     } catch (e) {
       console.error("Upload error:", e);
       if (e instanceof Error) {
