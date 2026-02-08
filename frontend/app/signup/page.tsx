@@ -11,12 +11,19 @@ export default function SignupPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const res = await apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password }) });
-    if (!res.ok) return setError('Unable to create account');
-    const data = await res.json();
-    localStorage.setItem('token', data.access_token);
-    router.push('/dashboard/upload');
+    try {
+      const res = await apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password }) });
+      if (!res.ok) {
+        const errText = await res.text();
+        return setError(`Signup failed (Status ${res.status}): ${errText}`);
+      }
+      const data = await res.json();
+      localStorage.setItem('token', data.access_token);
+      router.push('/dashboard/upload');
+    } catch (e) {
+      setError(`Network error: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
-  return <form onSubmit={submit} className="mx-auto max-w-md space-y-4"><h1 className="text-2xl font-semibold">Create account</h1><input className="w-full rounded bg-slate-900 p-3" placeholder="Email" onChange={(e)=>setEmail(e.target.value)} /><input type="password" className="w-full rounded bg-slate-900 p-3" placeholder="Password" onChange={(e)=>setPassword(e.target.value)} /><button className="w-full rounded bg-cyan-400 p-3 font-semibold text-slate-950">Create account</button><p className="text-red-400">{error}</p></form>;
+  return <form onSubmit={submit} className="mx-auto max-w-md space-y-4"><h1 className="text-2xl font-semibold">Create account</h1><input className="w-full rounded bg-slate-900 p-3" placeholder="Email" onChange={(e) => setEmail(e.target.value)} /><input type="password" className="w-full rounded bg-slate-900 p-3" placeholder="Password" onChange={(e) => setPassword(e.target.value)} /><button className="w-full rounded bg-cyan-400 p-3 font-semibold text-slate-950">Create account</button><p className="text-red-400">{error}</p></form>;
 }
