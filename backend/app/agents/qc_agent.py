@@ -6,4 +6,4 @@ Prioritize clarity, clean transitions, and conservative decisions that preserve 
 
 
 async def run(payload: dict) -> dict:
-    return await run_agent_prompt(PROMPT, payload, model="gpt-4.1" if "qc" in ["director","qc"] else "gpt-4o-mini")
+    return await run_agent_prompt(PROMPT, payload, model="gpt-4o" if "qc" in ["director","qc"] else "gpt-4o-mini")

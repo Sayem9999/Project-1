@@ -26,6 +26,7 @@ class UserResponse(BaseModel):
 class JobResponse(BaseModel):
     id: int
     status: JobStatus
+    theme: str
     progress_message: str
     output_path: str | None
     created_at: datetime
@@ -40,6 +41,7 @@ class N8NCallbackRequest(BaseModel):
 class AgentInput(BaseModel):
     job_id: int
     transcript: str
+    theme: str = "professional"
     style_profile: str = "clean, professional, natural pacing"
     clip_metadata: dict
 

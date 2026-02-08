@@ -1,6 +1,8 @@
+from __future__ import annotations
 import enum
+import typing
 from datetime import datetime
-from sqlalchemy import String, DateTime, Enum, ForeignKey, Text
+from sqlalchemy import String, DateTime, Enum, ForeignKey, Text, Column, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
@@ -24,11 +26,12 @@ class User(Base):
 class Job(Base):
     __tablename__ = "jobs"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    source_path: Mapped[str] = mapped_column(Text)
-    output_path: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.queued)
-    progress_message: Mapped[str] = mapped_column(Text, default="Upload complete, waiting for processing.")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    source_path = Column(Text, nullable=False)
+    output_path = Column(Text, nullable=True)
+    status = Column(Enum(JobStatus), default=JobStatus.queued, nullable=False)
+    theme = Column(String, default="professional", nullable=False)
+    progress_message = Column(Text, default="Upload complete, waiting for processing.")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -8,11 +8,11 @@ async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gpt-
     if not client:
         raise RuntimeError("OPENAI_API_KEY is required for agent execution.")
 
-    response = await client.responses.create(
+    response = await client.chat.completions.create(
         model=model,
-        input=[
+        messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": str(payload)},
         ],
     )
-    return {"raw_response": response.output_text}
+    return {"raw_response": response.choices[0].message.content}

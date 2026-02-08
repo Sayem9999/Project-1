@@ -1,5 +1,5 @@
 from pathlib import Path
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, BackgroundTasks, Form
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,16 +15,22 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 @router.post("/upload", response_model=JobResponse)
 async def upload_video(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    theme: str = Form("professional"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     source_path = await storage_service.save_upload(file)
-    job = Job(user_id=current_user.id, source_path=source_path)
+    job = Job(user_id=current_user.id, source_path=source_path, theme=theme)
     session.add(job)
     await session.commit()
     await session.refresh(job)
-    await trigger_edit_workflow(job.id, job.source_path)
+    
+    # Trigger internal workflow instead of n8n
+    from ..services.workflow_engine import process_job
+    background_tasks.add_task(process_job, job.id, job.source_path)
+    
     return JobResponse.model_validate(job, from_attributes=True)
 
 

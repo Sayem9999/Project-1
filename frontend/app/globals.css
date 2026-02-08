@@ -2,4 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
-body { @apply bg-slate-950 text-slate-100; }
+@layer base {
+  body {
+    @apply bg-background text-slate-100 antialiased overflow-x-hidden;
+    background-image: 
+      radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 0% 50%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-slate-900/40 backdrop-blur-md border border-slate-800/50 shadow-xl;
+  }
+  .glass-input {
+    @apply bg-slate-950/50 backdrop-blur-sm border border-slate-800 focus:border-brand-cyan/50 focus:ring-1 focus:ring-brand-cyan/50 transition-all outline-none;
+  }
+  .text-glow {
+    text-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
+  }
+}
