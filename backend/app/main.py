@@ -9,18 +9,12 @@ import os
 app = FastAPI(title=settings.app_name)
 
 # CORS configuration - allow frontend origins
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-allowed_origins = [
-    FRONTEND_URL,
-    "http://localhost:3000",
-    "https://project-1-alpha-three.vercel.app",
-    "https://proedit.vercel.app",
-    "https://proedit-api-sq5g.onrender.com",
-]
+# Regex to match any Vercel deployment for this project
+origin_regex = r"https://.*\.vercel\.app|http://localhost:3000"
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origin_regex=origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
