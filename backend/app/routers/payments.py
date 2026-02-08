@@ -15,6 +15,11 @@ WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 PRICE_ID_PRO = os.getenv("STRIPE_PRICE_ID_PRO") # e.g. price_H5ggYJ...
 FRONTEND_URL = os.getenv("NEXT_PUBLIC_APP_URL", "http://localhost:3000")
 
+
+@router.get("/debug")
+async def debug_payments():
+    return {"status": "ok", "stripe_key_configured": bool(settings.stripe_secret_key)}
+
 @router.post("/create-checkout-session")
 async def create_checkout_session(
     current_user: User = Depends(get_current_user)

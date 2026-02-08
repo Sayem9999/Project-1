@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Any
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +21,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"Request: {request.method} {request.url} | Origin: {request.headers.get('origin')}")
+    response = await call_next(request)
+    return response
 
 
 @app.on_event("startup")
