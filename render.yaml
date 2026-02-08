@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: proedit-api
+    runtime: python
+    repo: https://github.com/Sayem9999/Project-1
+    branch: main
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        fromDatabase:
+          name: proedit-db
+          property: connectionString
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+
+databases:
+  - name: proedit-db
+    databaseName: proedit
+    user: proedit_user
+    plan: free
