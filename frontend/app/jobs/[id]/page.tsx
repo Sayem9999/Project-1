@@ -73,14 +73,19 @@ export default function JobStatusPage() {
             </div>
           ) : (
             <div className="aspect-video rounded-xl bg-slate-900/50 border border-slate-800 flex items-center justify-center relative overflow-hidden group">
-              {/* Loading Animation in place of video */}
-              <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
+              {/* Shimmer Effect */}
+              <div className="absolute inset-0 loading-shimmer"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-cyan/5 to-brand-violet/5"></div>
               <div className="text-center space-y-4 relative z-10">
-                <div className="relative mx-auto w-16 h-16">
+                <div className="relative mx-auto w-20 h-20 animate-float">
                   <div className="absolute inset-0 rounded-full border-t-2 border-brand-cyan animate-spin"></div>
-                  <div className="absolute inset-2 rounded-full border-r-2 border-brand-violet animate-spin reverse"></div>
+                  <div className="absolute inset-2 rounded-full border-r-2 border-brand-violet animate-spin" style={{ animationDirection: 'reverse' }}></div>
+                  <div className="absolute inset-4 rounded-full border-b-2 border-brand-fuchsia animate-spin"></div>
                 </div>
-                <p className="text-slate-500 text-sm font-mono animate-pulse">RENDERING PREVIEW...</p>
+                <div className="space-y-1">
+                  <p className="text-slate-300 font-semibold progress-pulse">{job?.progress_message || 'Initializing...'}</p>
+                  <p className="text-slate-500 text-xs font-mono">PROEDIT STUDIO ENGINE v2.0</p>
+                </div>
               </div>
             </div>
           )}
