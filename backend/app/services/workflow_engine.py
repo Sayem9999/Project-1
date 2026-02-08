@@ -68,7 +68,8 @@ def publish_progress(job_id: int, status: str, message: str, progress: int = 0):
         return
     try:
         import redis
-        r = redis.from_url(REDIS_URL)
+        # Handle SSL for Upstash (rediss://)
+        r = redis.from_url(REDIS_URL, decode_responses=True)
         data = json.dumps({
             "job_id": job_id,
             "status": status,
@@ -302,7 +303,7 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
         publish_progress(job_id, "failed", f"Processing failed: {str(e)[:100]}", 0)
 
 
-async def update_status(job_id: int, status: str, message: str, output_path: str = None):
+async def update_status(job_id: int, status: str, message: str, output_path: str | None = None):
     async with AsyncSession(engine) as session:
         job = await session.get(Job, job_id)
         if job:
