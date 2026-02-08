@@ -14,7 +14,7 @@ async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gemi
     # 1. Try Gemini First (Free Tier)
     if settings.gemini_api_key:
         # Prioirtize the requested model, then fallbacks
-        candidates = [model, "gemini-1.5-flash", "gemini-1.5-pro"]
+        candidates = [model, "gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro", "gemini-pro"]
         # Deduplicate
         seen = set()
         gemini_models = [x for x in candidates if not (x in seen or seen.add(x))]
