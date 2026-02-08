@@ -35,104 +35,110 @@ export default function Navbar() {
     ];
 
     return (
-        <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-[#0a0a0f]/90 backdrop-blur-xl border-b border-white/10' : 'bg-transparent'
+        <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
+                ? 'py-3 bg-black/80 backdrop-blur-2xl border-b border-white/5'
+                : 'py-5 bg-transparent'
             }`}>
-            <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px' }}>
-                <div className="flex items-center justify-between h-16">
-                    {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2 group">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center text-white text-sm">
-                            ▶
-                        </div>
-                        <span className="text-xl font-bold text-white group-hover:text-cyan-400 transition-colors">
-                            Proedit<span className="text-cyan-400">.ai</span>
-                        </span>
-                    </Link>
-
-                    {/* Center Nav Links */}
-                    <div className="hidden md:flex items-center gap-1">
-                        {navLinks.map(link => (
-                            <Link
-                                key={link.href}
-                                href={link.href}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${pathname === link.href
-                                        ? 'text-cyan-400 bg-cyan-400/10'
-                                        : 'text-gray-400 hover:text-white hover:bg-white/5'
-                                    }`}
-                            >
-                                {link.label}
-                            </Link>
-                        ))}
+            <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+                {/* Logo */}
+                <Link href="/" className="flex items-center gap-3 group">
+                    <div className="relative">
+                        <img src="/logo.svg" alt="Proedit" className="w-10 h-10" />
+                        <div className="absolute inset-0 bg-cyan-500/30 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
+                    <span className="text-2xl font-bold tracking-tight">
+                        <span className="text-white">Pro</span>
+                        <span className="bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">edit</span>
+                    </span>
+                </Link>
 
-                    {/* Right Side */}
-                    <div className="flex items-center gap-3">
-                        {isLoggedIn ? (
-                            <>
-                                <Link
-                                    href="/dashboard/upload"
-                                    className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                {/* Center Nav */}
+                <div className="hidden md:flex items-center gap-1 bg-white/5 rounded-full px-2 py-1.5 border border-white/5">
+                    {navLinks.map(link => (
+                        <Link
+                            key={link.href}
+                            href={link.href}
+                            className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${pathname === link.href
+                                    ? 'bg-white text-black'
+                                    : 'text-gray-400 hover:text-white'
+                                }`}
+                        >
+                            {link.label}
+                        </Link>
+                    ))}
+                </div>
+
+                {/* Right Side */}
+                <div className="flex items-center gap-4">
+                    {isLoggedIn ? (
+                        <>
+                            <Link
+                                href="/dashboard/upload"
+                                className="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-violet-500 text-sm font-semibold text-white hover:shadow-[0_0_30px_rgba(0,212,255,0.4)] transition-all"
+                            >
+                                <span className="text-lg">+</span>
+                                Create
+                            </Link>
+
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowDropdown(!showDropdown)}
+                                    className="flex items-center gap-2 p-1 rounded-full hover:bg-white/10 transition-colors"
                                 >
-                                    + New Project
-                                </Link>
+                                    {user?.avatar_url ? (
+                                        <img src={user.avatar_url} alt="" className="w-9 h-9 rounded-full ring-2 ring-white/20" />
+                                    ) : (
+                                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center text-sm font-bold text-white">
+                                            {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                                        </div>
+                                    )}
+                                </button>
 
-                                {/* User Menu */}
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setShowDropdown(!showDropdown)}
-                                        className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
-                                    >
-                                        {user?.avatar_url ? (
-                                            <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full" />
-                                        ) : (
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center text-sm font-bold text-white">
-                                                {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                                {showDropdown && (
+                                    <>
+                                        <div className="fixed inset-0" onClick={() => setShowDropdown(false)} />
+                                        <div className="absolute right-0 mt-3 w-64 py-2 bg-[#0f0f14] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+                                            <div className="px-4 py-3 border-b border-white/10 bg-gradient-to-r from-cyan-500/10 to-violet-500/10">
+                                                <p className="text-sm font-semibold text-white">{user?.name || 'User'}</p>
+                                                <p className="text-xs text-gray-400 truncate">{user?.email}</p>
                                             </div>
-                                        )}
-                                        <span className="text-gray-400">▼</span>
-                                    </button>
-
-                                    {showDropdown && (
-                                        <div className="absolute right-0 mt-2 w-56 py-2 bg-[#1a1a26] border border-white/10 rounded-xl shadow-2xl">
-                                            <div className="px-4 py-2 border-b border-white/10">
-                                                <p className="text-sm font-medium text-white">{user?.name || 'User'}</p>
-                                                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                                            <div className="py-2">
+                                                <Link href="/dashboard/upload" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors">
+                                                    <span className="text-lg">📤</span> New Project
+                                                </Link>
+                                                <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors">
+                                                    <span className="text-lg">📁</span> My Projects
+                                                </Link>
                                             </div>
-                                            <Link href="/dashboard/upload" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 transition-colors">
-                                                📤 Upload Video
-                                            </Link>
-                                            <Link href="/dashboard" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 transition-colors">
-                                                📁 My Projects
-                                            </Link>
-                                            <div className="border-t border-white/10 mt-2 pt-2">
+                                            <div className="border-t border-white/10 py-2">
                                                 <button
                                                     onClick={handleLogout}
-                                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 w-full transition-colors"
+                                                    className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 w-full transition-colors"
                                                 >
-                                                    🚪 Sign Out
+                                                    <span className="text-lg">👋</span> Sign Out
                                                 </button>
                                             </div>
                                         </div>
-                                    )}
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <Link
-                                    href="/login"
-                                    className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
-                                >
-                                    Sign In
-                                </Link>
-                                <Link
-                                    href="/signup"
-                                    className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
-                                >
-                                    Get Started Free
-                                </Link>
-                            </>
-                        )}
-                    </div>
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <Link
+                                href="/login"
+                                className="px-5 py-2.5 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+                            >
+                                Log in
+                            </Link>
+                            <Link
+                                href="/signup"
+                                className="px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-gray-100 transition-colors"
+                            >
+                                Get Started
+                            </Link>
+                        </>
+                    )}
                 </div>
             </div>
         </nav>

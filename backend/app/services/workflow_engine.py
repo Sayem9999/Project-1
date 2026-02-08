@@ -125,6 +125,11 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
                     if "filter" in effect:
                         vf_filters.append(effect["filter"])
             
+            # Add watermark for free tier users (no user tier check yet, always add for now)
+            # TODO: Check user tier from database and skip watermark for paid users
+            watermark_text = "Proedit.ai"
+            vf_filters.append(f"drawtext=text='{watermark_text}':fontsize=24:fontcolor=white@0.5:x=w-tw-20:y=h-th-20")
+            
             vf = ",".join(vf_filters)
             af = "loudnorm=I=-16:TP=-1.5:LRA=11"
             
