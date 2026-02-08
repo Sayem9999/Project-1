@@ -17,8 +17,22 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup() -> None:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Ensure storage directory exists for SQLite fallback
+    import os
+    os.makedirs("storage", exist_ok=True)
+    
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        print(f"Startup DB Error: {e}")
+        # We don't exit here so the app can at least start and serve /health
+        # The user will see errors when trying to use features, which is better than a timeout.
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"message": "Proedit API is running"}
 
 
 @app.get("/health")
