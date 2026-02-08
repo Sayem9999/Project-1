@@ -38,27 +38,28 @@ function GoogleCallbackContent() {
     }, [searchParams, router]);
 
     return (
-        <div className="glass-panel p-8 rounded-xl text-center space-y-4 max-w-md">
+        <div className="bg-[#12121a] border border-white/10 p-8 rounded-2xl text-center space-y-4 max-w-md w-full">
             {error ? (
                 <>
-                    <div className="w-16 h-16 mx-auto bg-red-500/20 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                    <div className="w-16 h-16 mx-auto bg-red-500/20 rounded-full flex items-center justify-center text-3xl">
+                        ✕
                     </div>
                     <h2 className="text-xl font-bold text-white">Authentication Failed</h2>
-                    <p className="text-slate-400">{error}</p>
-                    <button onClick={() => router.push('/login')} className="btn-primary w-full">
+                    <p className="text-gray-400">{error}</p>
+                    <button
+                        onClick={() => router.push('/login')}
+                        className="w-full py-3 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
+                    >
                         Back to Login
                     </button>
                 </>
             ) : (
                 <>
                     <div className="w-16 h-16 mx-auto relative">
-                        <div className="absolute inset-0 rounded-full border-t-2 border-brand-cyan animate-spin"></div>
+                        <div className="absolute inset-0 rounded-full border-t-2 border-cyan-500 animate-spin"></div>
                     </div>
                     <h2 className="text-xl font-bold text-white">Signing you in...</h2>
-                    <p className="text-slate-400">Connecting with Google</p>
+                    <p className="text-gray-400">Connecting with Google</p>
                 </>
             )}
         </div>
@@ -67,11 +68,11 @@ function GoogleCallbackContent() {
 
 export default function GoogleCallbackPage() {
     return (
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
             <Suspense fallback={
-                <div className="glass-panel p-8 rounded-xl text-center space-y-4 max-w-md">
+                <div className="bg-[#12121a] border border-white/10 p-8 rounded-2xl text-center space-y-4 max-w-md w-full">
                     <div className="w-16 h-16 mx-auto relative">
-                        <div className="absolute inset-0 rounded-full border-t-2 border-brand-cyan animate-spin"></div>
+                        <div className="absolute inset-0 rounded-full border-t-2 border-cyan-500 animate-spin"></div>
                     </div>
                     <h2 className="text-xl font-bold text-white">Loading...</h2>
                 </div>
