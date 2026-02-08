@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Any
+from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .db import engine, Base
 from .routers import auth, jobs, agents, oauth, websocket
