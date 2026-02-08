@@ -12,10 +12,13 @@ if [ -z "${RAILWAY_TOKEN:-}" ]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR/backend"
+
+# Deploy only the backend subtree as repository root so Railway can
+# reliably resolve Docker/Nixpacks config in monorepos.
+DEPLOY_PATH="$ROOT_DIR/backend"
 
 if [ -n "${RAILWAY_SERVICE_ID:-}" ]; then
-  railway up --detach --ci --service "$RAILWAY_SERVICE_ID"
+  railway up "$DEPLOY_PATH" --path-as-root --detach --ci --service "$RAILWAY_SERVICE_ID"
 else
-  railway up --detach --ci
+  railway up "$DEPLOY_PATH" --path-as-root --detach --ci
 fi

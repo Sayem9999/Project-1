@@ -94,8 +94,11 @@ export RAILWAY_TOKEN=...
 
 This uses:
 - backend service from `backend/` (`scripts/deploy_railway.sh`)
-- frontend service from `frontend/` (`scripts/deploy_frontend_railway.sh`)
+- frontend service from `frontend/` (`scripts/deploy_frontend_railway.sh`, deployed with `--path-as-root` for monorepos)
 
 For deterministic targeting, set:
 - `RAILWAY_SERVICE_ID` (backend)
 - `RAILWAY_FRONTEND_SERVICE_ID` (frontend)
+
+
+Railway note: frontend includes `frontend/nixpacks.toml` and `frontend/railway.toml` to make Railpack/Nixpacks detection explicit in monorepo deployments.

@@ -93,6 +93,8 @@ FRONTEND_ORIGINS=https://your-app.vercel.app
 
 Use this if you want to avoid Vercel entirely.
 
+These scripts deploy with `railway up <path> --path-as-root` so Railpack/Nixpacks evaluates `backend/` and `frontend/` as deploy roots in this monorepo.
+
 ### Frontend deploy command
 ```bash
 export RAILWAY_TOKEN=...
@@ -108,3 +110,6 @@ export RAILWAY_TOKEN=...
 ### Required IDs for deterministic deploys
 - `RAILWAY_SERVICE_ID` (backend)
 - `RAILWAY_FRONTEND_SERVICE_ID` (frontend)
+
+
+Railway frontend build detection is explicitly configured via `frontend/nixpacks.toml` and `frontend/railway.toml`.

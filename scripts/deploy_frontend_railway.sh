@@ -12,10 +12,13 @@ if [ -z "${RAILWAY_TOKEN:-}" ]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR/frontend"
+
+# Deploy only the frontend subtree as repository root so Railpack/Nixpacks
+# can detect framework/build settings in monorepos.
+DEPLOY_PATH="$ROOT_DIR/frontend"
 
 if [ -n "${RAILWAY_FRONTEND_SERVICE_ID:-}" ]; then
-  railway up --detach --ci --service "$RAILWAY_FRONTEND_SERVICE_ID"
+  railway up "$DEPLOY_PATH" --path-as-root --detach --ci --service "$RAILWAY_FRONTEND_SERVICE_ID"
 else
-  railway up --detach --ci
+  railway up "$DEPLOY_PATH" --path-as-root --detach --ci
 fi
