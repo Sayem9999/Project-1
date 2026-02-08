@@ -22,3 +22,6 @@ authlib
 itsdangerous
 # Cloudflare R2 (S3-compatible)
 boto3
+# Celery + Redis for background tasks
+celery[redis]>=5.3.0
+redis>=5.0.0

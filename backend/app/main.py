@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .db import engine, Base
-from .routers import auth, jobs, agents, oauth
+from .routers import auth, jobs, agents, oauth, websocket
 
 app = FastAPI(title=settings.app_name)
 
@@ -17,15 +17,15 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup() -> None:
+    import os
     print(f"Startup: Gemini Key Present: {bool(settings.gemini_api_key)}")
     print(f"Startup: OpenAI Key Present: {bool(settings.openai_api_key)}")
     print(f"Startup: Groq Key Present: {bool(settings.groq_api_key)}")
     print(f"Startup: Google OAuth Configured: {bool(settings.google_client_id)}")
-    print(f"Startup: GitHub OAuth Configured: {bool(settings.github_client_id)}")
+    print(f"Startup: Redis URL Present: {bool(os.getenv('REDIS_URL'))}")
     print(f"Startup: R2 Storage Configured: {bool(settings.r2_account_id)}")
     
-    # Ensure storage directory exists for SQLite fallback
-    import os
+    # Ensure storage directories
     os.makedirs("storage", exist_ok=True)
     os.makedirs("storage/uploads", exist_ok=True)
     os.makedirs("storage/outputs", exist_ok=True)
@@ -34,7 +34,7 @@ async def startup() -> None:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
             
-            # Migrate: Add OAuth columns if they don't exist (for existing databases)
+            # Migrate: Add OAuth columns if they don't exist
             from sqlalchemy import text
             migration_queries = [
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_provider VARCHAR(50)",
@@ -48,8 +48,7 @@ async def startup() -> None:
                     await conn.execute(text(query))
                     print(f"[Migration] Executed: {query[:50]}...")
                 except Exception as me:
-                    # Column might already exist or other benign error
-                    print(f"[Migration] Skipped (already done or N/A): {str(me)[:50]}")
+                    print(f"[Migration] Skipped: {str(me)[:50]}")
     except Exception as e:
         print(f"Startup DB Error: {e}")
 
@@ -69,3 +68,5 @@ app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(oauth.router, prefix=settings.api_prefix)
 app.include_router(jobs.router, prefix=settings.api_prefix)
 app.include_router(agents.router, prefix=settings.api_prefix)
+app.include_router(websocket.router)  # WebSocket at root level
+

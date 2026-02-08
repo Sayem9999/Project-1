@@ -15,17 +15,81 @@ from ..agents import (
 )
 from .memory_service import memory_service
 
+# Redis for progress publishing (optional)
+REDIS_URL = os.getenv("REDIS_URL")
+
+
+def detect_gpu_encoder() -> str:
+    """
+    Detect available GPU encoder for FFmpeg.
+    Returns encoder name or 'libx264' as fallback.
+    """
+    # Check for NVIDIA GPU (NVENC)
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-encoders"],
+            capture_output=True, text=True, timeout=5
+        )
+        if "h264_nvenc" in result.stdout:
+            # Verify NVENC actually works
+            test = subprocess.run(
+                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "nullsrc=s=256x256:d=0.1", 
+                 "-c:v", "h264_nvenc", "-f", "null", "-"],
+                capture_output=True, timeout=10
+            )
+            if test.returncode == 0:
+                print("[GPU] NVIDIA NVENC detected and working!")
+                return "h264_nvenc"
+    except:
+        pass
+    
+    # Check for AMD/Intel VAAPI
+    try:
+        if os.path.exists("/dev/dri/renderD128"):
+            result = subprocess.run(
+                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "nullsrc=s=256x256:d=0.1",
+                 "-vaapi_device", "/dev/dri/renderD128", "-vf", "hwupload,scale_vaapi=256:256",
+                 "-c:v", "h264_vaapi", "-f", "null", "-"],
+                capture_output=True, timeout=10
+            )
+            if result.returncode == 0:
+                print("[GPU] VAAPI detected and working!")
+                return "h264_vaapi"
+    except:
+        pass
+    
+    print("[GPU] No GPU encoder available, using CPU (libx264)")
+    return "libx264"
+
+
+def publish_progress(job_id: int, status: str, message: str, progress: int = 0):
+    """Publish progress to Redis for WebSocket streaming (if available)."""
+    if not REDIS_URL:
+        return
+    try:
+        import redis
+        r = redis.from_url(REDIS_URL)
+        data = json.dumps({
+            "job_id": job_id,
+            "status": status,
+            "message": message,
+            "progress": progress
+        })
+        r.publish(f"job:{job_id}:progress", data)
+        r.setex(f"job:{job_id}:latest", 3600, data)
+    except Exception as e:
+        print(f"[Redis] Progress publish error: {e}")
+
 
 async def process_job(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9"):
     """
-    Advanced Agentic Workflow Engine v2.0
+    Advanced Agentic Workflow Engine v3.0
     Features:
     - 10 AI Agents with specialized roles
-    - Keyframe-based analysis
-    - Visual effects & transitions
-    - Thumbnail generation
+    - Parallel agent execution (asyncio.gather)
+    - GPU-accelerated encoding when available
+    - Real-time progress via Redis pub/sub
     - QC Feedback Loop
-    - Studio Memory
     """
     def parse_json_safe(raw: str) -> dict:
         try:
@@ -34,7 +98,11 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
         except:
             return {}
 
-    print(f"[Workflow v2] Starting job {job_id}")
+    print(f"[Workflow v3] Starting job {job_id}")
+    publish_progress(job_id, "processing", "Initializing AI Studio...", 5)
+    
+    # Detect GPU encoder once at start
+    video_encoder = detect_gpu_encoder()
     
     async with AsyncSession(engine) as session:
         job = await session.get(Job, job_id)
@@ -44,17 +112,17 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
         await session.commit()
 
     try:
-        # === PHASE 1: Analysis ===
+        # === PHASE 1: Analysis (10%) ===
         await update_status(job_id, "processing", "[FRAME] Analyzing keyframes...")
+        publish_progress(job_id, "processing", "Analyzing video keyframes...", 10)
         memory_context = memory_service.get_context()
         
-        # Keyframe Analysis (NEW)
         keyframe_payload = {"source_path": source_path, "pacing": pacing}
         keyframe_resp = await keyframe_agent.run(keyframe_payload)
         keyframe_data = parse_json_safe(keyframe_resp.get("raw_response", "{}"))
-        print(f"[Workflow] Keyframe Analysis: {keyframe_data.get('scene_count', 'N/A')} scenes detected")
+        print(f"[Workflow] Keyframe Analysis: {keyframe_data.get('scene_count', 'N/A')} scenes")
         
-        # === PHASE 2: Director Planning ===
+        # === PHASE 2: Director Planning (20%) ===
         max_retries = 1
         attempt = 0
         final_output_path = None
@@ -64,7 +132,8 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
         while attempt <= max_retries:
             attempt += 1
             status_prefix = f"[Take {attempt}]" if attempt > 1 else "[MAX]"
-            await update_status(job_id, "processing", f"{status_prefix} Director planning strategy...")
+            await update_status(job_id, "processing", f"{status_prefix} Director planning...")
+            publish_progress(job_id, "processing", f"Director planning strategy (Take {attempt})...", 20)
             
             director_payload = {
                 "source_path": source_path,
@@ -78,12 +147,13 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
             
             director_resp = await director_agent.run(director_payload)
             director_plan = parse_json_safe(director_resp.get("raw_response", "{}"))
-            print(f"[Workflow] Director Plan (Take {attempt}): {director_plan.get('strategy', 'No strategy')}")
+            print(f"[Workflow] Director Plan: {director_plan.get('strategy', 'No strategy')}")
 
-            # === PHASE 3: Parallel Specialists ===
-            await update_status(job_id, "processing", f"{status_prefix} Specialists working in parallel...")
+            # === PHASE 3: Parallel Specialists (30-60%) ===
+            await update_status(job_id, "processing", f"{status_prefix} Specialists working...")
+            publish_progress(job_id, "processing", "6 AI agents working in parallel...", 35)
             
-            # Run 6 agents in parallel
+            # Run 6 agents in parallel using asyncio.gather()
             specialist_tasks = [
                 cutter_agent.run({"plan": director_plan}),
                 color_agent.run({"plan": director_plan, "mood": mood}),
@@ -94,8 +164,9 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
             ]
             
             results = await asyncio.gather(*specialist_tasks, return_exceptions=True)
+            publish_progress(job_id, "processing", "Specialist analysis complete!", 55)
             
-            # Parse results
+            # Parse results safely
             cutter_res = parse_json_safe(results[0].get("raw_response", "{}")) if isinstance(results[0], dict) else {}
             color_res = parse_json_safe(results[1].get("raw_response", "{}")) if isinstance(results[1], dict) else {}
             audio_res = parse_json_safe(results[2].get("raw_response", "{}")) if isinstance(results[2], dict) else {}
@@ -106,8 +177,9 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
             print(f"[Workflow] Transitions: {transition_res.get('style_note', 'None')}")
             print(f"[Workflow] VFX: {vfx_res.get('style_note', 'None')}")
 
-            # === PHASE 4: Render ===
+            # === PHASE 4: Render (60-80%) ===
             await update_status(job_id, "processing", f"{status_prefix} Rendering video...")
+            publish_progress(job_id, "processing", f"Rendering with {video_encoder}...", 65)
             
             output_filename = f"job-{job_id}-take{attempt}.mp4"
             output_abs = Path(settings.storage_root) / "outputs" / output_filename
@@ -119,35 +191,51 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
             # Build FFmpeg filter chain
             vf_filters = ["scale=1280:720:force_original_aspect_ratio=decrease", "pad=1280:720:(ow-iw)/2:(oh-ih)/2"]
             
-            # Add VFX filters if suggested
+            # Add VFX filters
             if vfx_res.get("effects"):
-                for effect in vfx_res.get("effects", [])[:2]:  # Max 2 effects
+                for effect in vfx_res.get("effects", [])[:2]:
                     if "filter" in effect:
                         vf_filters.append(effect["filter"])
             
-            # Add watermark for free tier users (no user tier check yet, always add for now)
-            # TODO: Check user tier from database and skip watermark for paid users
+            # Watermark for free tier
             watermark_text = "Proedit.ai"
             vf_filters.append(f"drawtext=text='{watermark_text}':fontsize=24:fontcolor=white@0.5:x=w-tw-20:y=h-th-20")
             
             vf = ",".join(vf_filters)
             af = "loudnorm=I=-16:TP=-1.5:LRA=11"
             
-            cmd = ["ffmpeg", "-y", "-i", str(src), "-threads", "2", "-preset", "fast", "-vf", vf, "-af", af, "-c:v", "libx264", "-crf", "23", str(output_abs)]
+            # Build FFmpeg command with GPU acceleration if available
+            cmd = ["ffmpeg", "-y", "-i", str(src)]
+            
+            if video_encoder == "h264_nvenc":
+                # NVIDIA GPU encoding
+                cmd += ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "23"]
+            elif video_encoder == "h264_vaapi":
+                # AMD/Intel GPU encoding
+                cmd += ["-vaapi_device", "/dev/dri/renderD128", "-c:v", "h264_vaapi", "-qp", "23"]
+            else:
+                # CPU fallback
+                cmd += ["-c:v", "libx264", "-preset", "fast", "-crf", "23"]
+            
+            cmd += ["-vf", vf, "-af", af, "-threads", "4", str(output_abs)]
             
             if os.path.exists("./tools/ffmpeg"): cmd[0] = "./tools/ffmpeg"
 
             proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
             await proc.communicate()
             
+            publish_progress(job_id, "processing", "Render complete!", 80)
+            
             if proc.returncode != 0 or not output_abs.exists():
                 shutil.copy(src, output_abs)
 
             final_output_path = f"storage/outputs/{output_filename}"
 
-            # === PHASE 5: QC Review ===
+            # === PHASE 5: QC Review (85%) ===
             if attempt <= max_retries:
-                await update_status(job_id, "processing", f"[THE PRODUCER] Reviewing Take {attempt}...")
+                await update_status(job_id, "processing", f"[THE PRODUCER] Reviewing...")
+                publish_progress(job_id, "processing", "Quality control review...", 85)
+                
                 qc_payload = {"user_request": {"pacing": pacing, "mood": mood}, "director_plan": director_plan}
                 qc_resp = await qc_agent.run(qc_payload)
                 qc_data = parse_json_safe(qc_resp.get("raw_response", "{}"))
@@ -161,10 +249,11 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
                     memory_service.add_feedback(current_feedback)
                     continue 
 
-        # === PHASE 6: Post-Production ===
+        # === PHASE 6: Post-Production (90-100%) ===
         await update_status(job_id, "processing", "[THUMB] Generating thumbnail...")
+        publish_progress(job_id, "processing", "Generating thumbnail & metadata...", 90)
         
-        # Thumbnail & Metadata in parallel
+        # Parallel post-production
         thumb_task = thumbnail_agent.run({"source_path": source_path, "mood": mood})
         meta_task = metadata_agent.run({"plan": director_plan})
         
@@ -173,13 +262,12 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
         thumb_data = parse_json_safe(post_results[0].get("raw_response", "{}")) if isinstance(post_results[0], dict) else {}
         meta_data = parse_json_safe(post_results[1].get("raw_response", "{}")) if isinstance(post_results[1], dict) else {}
         
-        # Extract thumbnail frame
+        # Extract thumbnail
         if thumb_data.get("best_timestamp"):
             thumb_path = Path(settings.storage_root) / "outputs" / f"job-{job_id}-thumb.jpg"
             thumb_cmd = ["ffmpeg", "-y", "-ss", str(thumb_data["best_timestamp"]), "-i", str(src), "-vframes", "1", "-q:v", "2", str(thumb_path)]
             thumb_proc = await asyncio.create_subprocess_exec(*thumb_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
             await thumb_proc.communicate()
-            print(f"[Workflow] Thumbnail generated at {thumb_data['best_timestamp']}s")
         
         # Subtitles
         try:
@@ -203,13 +291,15 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
             completion_msg = f"🎬 {meta_data['title']} is ready!"
             
         await update_status(job_id, "complete", completion_msg, final_rel_path)
-        print(f"[Workflow] Job {job_id} complete! Metadata: {meta_data}")
+        publish_progress(job_id, "complete", completion_msg, 100)
+        print(f"[Workflow] Job {job_id} complete!")
 
     except Exception as e:
         print(f"[Workflow] Job {job_id} failed: {e}")
         import traceback
         traceback.print_exc()
         await update_status(job_id, "failed", f"Processing failed: {str(e)[:100]}")
+        publish_progress(job_id, "failed", f"Processing failed: {str(e)[:100]}", 0)
 
 
 async def update_status(job_id: int, status: str, message: str, output_path: str = None):
