@@ -73,9 +73,20 @@ async def process_job(job_id: int, source_path: str):
         if not src.exists():
             raise FileNotFoundError(f"Source file not found: {source_path}")
 
+        # Determine FFmpeg path
+        ffmpeg_cmd = "ffmpeg"
+        # Check local tools directory (standard for our Render setup)
+        possible_paths = [Path("tools/ffmpeg"), Path("./tools/ffmpeg"), Path("/opt/render/project/src/backend/tools/ffmpeg")]
+        for p in possible_paths:
+            if p.exists() and p.is_file():
+                ffmpeg_cmd = str(p.absolute())
+                break
+        
+        print(f"[Workflow] Using FFmpeg binary at: {ffmpeg_cmd}")
+
         # FFmpeg command (similar to mock_n8n.py but internal)
         cmd = [
-            "ffmpeg", "-y", "-i", str(src),
+            ffmpeg_cmd, "-y", "-i", str(src),
             "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2",
             "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
             str(output_abs)
