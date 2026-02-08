@@ -13,17 +13,21 @@ if settings.gemini_api_key:
 async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gpt-4o-mini") -> dict:
     # 1. Try Gemini First (Free Tier)
     if settings.gemini_api_key:
-        try:
-            # Gemini doesn't use system prompts the same way, but we can prepend it
-            full_prompt = f"{system_prompt}\n\nInput Data:\n{str(payload)}"
-            gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-            response = await gemini_model.generate_content_async(full_prompt)
-            return {"raw_response": response.text}
-        except Exception as e:
-            print(f"Gemini Error: {e}")
-            # Fallback to OpenAI if available
-            if not openai_client:
-                raise e
+        # Try multiple model variants in case of region/version availability issues
+        gemini_models = ["gemini-1.5-flash", "gemini-1.5-flash-001", "gemini-1.5-pro", "gemini-pro"]
+        
+        for g_model in gemini_models:
+            try:
+                # Gemini doesn't use system prompts the same way, but we can prepend it
+                full_prompt = f"{system_prompt}\n\nInput Data:\n{str(payload)}"
+                gemini_model = genai.GenerativeModel(g_model)
+                response = await gemini_model.generate_content_async(full_prompt)
+                return {"raw_response": response.text}
+            except Exception as e:
+                print(f"Gemini {g_model} failed: {e}")
+                continue # Try next model
+        
+        print("All Gemini models failed. Falling back to OpenAI...")
 
     # 2. Fallback to OpenAI
     if not openai_client:
