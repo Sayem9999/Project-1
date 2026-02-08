@@ -38,7 +38,7 @@ async def process_job(job_id: int, source_path: str):
         # --- Step 2: AI Directors ---
         await update_status(job_id, "processing", "AI Director planning edits...")
         
-        directives = {}
+        directives = {"style": "default", "cut_pace": "medium"}
         if settings.openai_api_key:
             # Real AI Agent flow
             try:
@@ -50,8 +50,9 @@ async def process_job(job_id: int, source_path: str):
                 directives = director_output
                 # Fan out to other agents could go here
             except Exception as e:
-                print(f"[Workflow] AI Agent failed: {e}")
-                # Fallback to defaults
+                print(f"[Workflow] AI Agent failed (using defaults): {e}")
+                await update_status(job_id, "processing", "AI Limit Reached - Using Default Style...")
+                # Fallback to defaults (already set)
         else:
             # Mock / Default directives
             directives = {"style": "default", "cut_pace": "medium"}
