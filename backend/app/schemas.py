@@ -29,6 +29,7 @@ class JobResponse(BaseModel):
     theme: str
     progress_message: str
     output_path: str | None
+    thumbnail_path: str | None
     created_at: datetime
 
 

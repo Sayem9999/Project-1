@@ -37,6 +37,7 @@ class Job(Base):
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     source_path = Column(Text, nullable=False)
     output_path = Column(Text, nullable=True)
+    thumbnail_path = Column(Text, nullable=True)
     status = Column(Enum(JobStatus), default=JobStatus.queued, nullable=False)
     theme = Column(String, default="professional", nullable=False)
     progress_message = Column(Text, default="Upload complete, waiting for processing.")

@@ -10,6 +10,7 @@ interface Job {
     status: string;
     progress_message: string;
     output_path?: string;
+    thumbnail_path?: string;
     created_at: string;
 }
 
@@ -101,11 +102,21 @@ export default function DashboardPage() {
                             href={`/jobs/${job.id}`}
                             className="group relative aspect-[4/3] bg-[#12121a] rounded-2xl border border-white/10 hover:border-white/20 overflow-hidden transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-500/10"
                         >
-                            {/* Thumbnail Placeholder */}
+                            {/* Thumbnail */}
                             <div className="absolute inset-x-0 top-0 h-2/3 bg-gradient-to-br from-gray-800 to-black group-hover:scale-105 transition-transform duration-500">
-                                <div className="w-full h-full flex items-center justify-center text-4xl opacity-50">
-                                    🎬
-                                </div>
+                                {job.output_path && (job.output_path.match(/\.(jpg|jpeg|png|webp)$/i) || job.thumbnail_path) ? (
+                                    <img
+                                        src={job.thumbnail_path
+                                            ? (job.thumbnail_path.startsWith('http') ? job.thumbnail_path : `${API_BASE.replace('/api', '')}/${job.thumbnail_path}`)
+                                            : (job.output_path?.startsWith('http') ? job.output_path : `${API_BASE.replace('/api', '')}/${job.output_path}`)}
+                                        alt={`Project ${job.id}`}
+                                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-4xl opacity-50">
+                                        🎬
+                                    </div>
+                                )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-[#12121a] to-transparent" />
                             </div>
 

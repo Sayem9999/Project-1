@@ -264,11 +264,14 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
         meta_data = parse_json_safe(post_results[1].get("raw_response", "{}")) if isinstance(post_results[1], dict) else {}
         
         # Extract thumbnail
+        final_thumb_rel_path = None
         if thumb_data.get("best_timestamp"):
             thumb_path = Path(settings.storage_root) / "outputs" / f"job-{job_id}-thumb.jpg"
             thumb_cmd = ["ffmpeg", "-y", "-ss", str(thumb_data["best_timestamp"]), "-i", str(src), "-vframes", "1", "-q:v", "2", str(thumb_path)]
             thumb_proc = await asyncio.create_subprocess_exec(*thumb_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
             await thumb_proc.communicate()
+            if thumb_path.exists():
+                final_thumb_rel_path = f"storage/outputs/job-{job_id}-thumb.jpg"
         
         # Subtitles
         try:
@@ -291,7 +294,7 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
         if meta_data.get("title"):
             completion_msg = f"🎬 {meta_data['title']} is ready!"
             
-        await update_status(job_id, "complete", completion_msg, final_rel_path)
+        await update_status(job_id, "complete", completion_msg, final_rel_path, final_thumb_rel_path)
         publish_progress(job_id, "complete", completion_msg, 100)
         print(f"[Workflow] Job {job_id} complete!")
 
@@ -303,7 +306,7 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
         publish_progress(job_id, "failed", f"Processing failed: {str(e)[:100]}", 0)
 
 
-async def update_status(job_id: int, status: str, message: str, output_path: str | None = None):
+async def update_status(job_id: int, status: str, message: str, output_path: str | None = None, thumbnail_path: str | None = None):
     async with AsyncSession(engine) as session:
         job = await session.get(Job, job_id)
         if job:
@@ -311,4 +314,6 @@ async def update_status(job_id: int, status: str, message: str, output_path: str
             job.progress_message = message
             if output_path:
                 job.output_path = output_path
+            if thumbnail_path:
+                job.thumbnail_path = thumbnail_path
             await session.commit()

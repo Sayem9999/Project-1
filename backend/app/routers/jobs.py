@@ -68,12 +68,14 @@ async def upload_video(
 
 @router.get("", response_model=list[JobResponse])
 async def list_jobs(
+    skip: int = 0,
+    limit: int = 20,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """List all jobs for current user."""
     result = await session.execute(
-        select(Job).where(Job.user_id == current_user.id).order_by(Job.created_at.desc())
+        select(Job).where(Job.user_id == current_user.id).order_by(Job.created_at.desc()).offset(skip).limit(limit)
     )
     jobs = result.scalars().all()
     return [JobResponse.model_validate(job, from_attributes=True) for job in jobs]
