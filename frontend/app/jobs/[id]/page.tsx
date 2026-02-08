@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
 
-type Job = { id: number; status: string; progress_message: string };
+type Job = { id: number; status: string; progress_message: string; theme: string };
 
 import { AgentConsole } from '@/components/ui/AgentConsole';
 import { VideoPlayer } from '@/components/ui/VideoPlayer';
