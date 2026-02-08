@@ -15,6 +15,7 @@ allowed_origins = [
     "http://localhost:3000",
     "https://project-1-alpha-three.vercel.app",
     "https://proedit.vercel.app",
+    "https://proedit-api-sq5g.onrender.com",
 ]
 
 app.add_middleware(
