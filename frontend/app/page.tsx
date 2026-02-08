@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Play, Wand2, layers, Zap, Music, Video, Star } from 'lucide-react';
+import { ArrowRight, Play, Wand2, Layers, Zap, Music, Video, Star } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
