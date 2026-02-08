@@ -1,8 +1,4 @@
-"""
-OAuth Authentication Router
-Handles Google OAuth login flow.
-"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 import httpx
 from sqlalchemy import select
 
@@ -33,12 +29,13 @@ async def google_login():
 
 
 @router.post("/google/callback")
-async def google_callback(code: str):
+async def google_callback(code: str = Query(...)):
     """Exchange Google auth code for user info and create/login user."""
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(status_code=503, detail="Google OAuth not configured")
     
     redirect_uri = f"{settings.frontend_url}/auth/callback/google"
+    print(f"[OAuth] Exchanging code, redirect_uri: {redirect_uri}")
     
     # Exchange code for tokens
     async with httpx.AsyncClient() as client:
