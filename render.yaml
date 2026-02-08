@@ -2,11 +2,10 @@ services:
   - type: web
     name: proedit-api
     runtime: python
-    repo: https://github.com/Sayem9999/Project-1
-    branch: main
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
