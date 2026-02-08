@@ -33,8 +33,8 @@ export default function Sidebar() {
                             key={link.href}
                             href={link.href}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
-                                    ? 'bg-gradient-to-r from-cyan-500/20 to-violet-500/20 text-white border border-white/10'
-                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                ? 'bg-gradient-to-r from-cyan-500/20 to-violet-500/20 text-white border border-white/10'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             <span className="text-xl">{link.icon}</span>
@@ -54,9 +54,11 @@ export default function Sidebar() {
                     <div className="h-full bg-gradient-to-r from-cyan-500 to-violet-500 w-[65%]" />
                 </div>
                 <p className="text-[10px] text-gray-500 mt-2">13.2 GB of 20 GB used</p>
-                <button className="mt-3 w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-medium text-white transition-colors border border-white/5">
-                    Upgrade Plan
-                </button>
+                <Link href="/pricing" className="block mt-3 w-full">
+                    <button className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-medium text-white transition-colors border border-white/5">
+                        Upgrade Plan
+                    </button>
+                </Link>
             </div>
 
             {/* User */}

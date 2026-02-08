@@ -21,6 +21,9 @@ class TokenResponse(BaseModel):
 class UserResponse(BaseModel):
     id: int
     email: EmailStr
+    full_name: str | None = None
+    avatar_url: str | None = None
+    credits: int = 0
 
 
 class JobResponse(BaseModel):

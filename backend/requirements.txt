@@ -25,3 +25,15 @@ boto3
 # Celery + Redis for background tasks
 celery[redis]>=5.3.0
 redis>=5.0.0
+
+# Workflow Orchestration
+langgraph>=0.0.10
+langchain>=0.1.0
+
+# Video/Audio Engine
+moviepy>=1.0.3
+pydub>=0.25.1
+ffmpeg-python>=0.2.0
+
+# Payments
+stripe>=8.0.0

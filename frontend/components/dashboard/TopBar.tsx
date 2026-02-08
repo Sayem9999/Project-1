@@ -1,12 +1,44 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
 export default function TopBar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const [credits, setCredits] = useState<number | null>(null);
 
     // Format pathname for breadcrumbs (e.g. /dashboard/upload -> Dashboard / Upload)
     const segments = pathname.split('/').filter(Boolean);
+
+    useEffect(() => {
+        const fetchCredits = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setCredits(data.credits);
+                }
+            } catch (err) {
+                console.error("Failed to fetch credits", err);
+            }
+        };
+
+        fetchCredits();
+
+        // Listen for credit updates (simple event bus for now)
+        const handleCreditUpdate = () => fetchCredits();
+        window.addEventListener('credit-update', handleCreditUpdate);
+        return () => window.removeEventListener('credit-update', handleCreditUpdate);
+    }, []);
 
     return (
         <header className="h-16 flex items-center justify-between px-8 bg-[#0a0a0f]/80 backdrop-blur-md sticky top-0 z-40 border-b border-white/5 ml-64">
@@ -24,6 +56,17 @@ export default function TopBar() {
 
             {/* Actions */}
             <div className="flex items-center gap-4">
+                {/* Credits Badge */}
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/50 text-xs font-semibold text-slate-300">
+                    <span className="text-amber-400">🪙</span>
+                    <span>{credits !== null ? credits : '...'} Credits</span>
+                    <button className="ml-2 w-5 h-5 rounded-full bg-cyan-500 text-black flex items-center justify-center hover:bg-cyan-400" title="Buy Credits">
+                        +
+                    </button>
+                </div>
+
+                <div className="w-px h-6 bg-white/10 mx-2" />
+
                 <button className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 transition-colors">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

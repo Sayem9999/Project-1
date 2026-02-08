@@ -48,12 +48,12 @@ try:
     celery_app = get_celery_app()
     
     @celery_app.task(bind=True, max_retries=2)
-    def process_video_task(self, job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9"):
+    def process_video_task(self, job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9", tier: str = "pro"):
         """
         Celery task for video processing.
         Wraps the async workflow engine.
         """
-        publish_progress(job_id, "processing", "Starting video processing...", 5)
+        publish_progress(job_id, "processing", f"Starting video processing ({tier})...", 5)
         
         try:
             from ..services.workflow_engine import process_job
@@ -64,7 +64,7 @@ try:
             
             try:
                 loop.run_until_complete(
-                    process_job(job_id, source_path, pacing, mood, ratio)
+                    process_job(job_id, source_path, pacing, mood, ratio, tier)
                 )
                 publish_progress(job_id, "complete", "Video processing complete!", 100)
                 return {"status": "complete", "job_id": job_id}

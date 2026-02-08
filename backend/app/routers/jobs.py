@@ -25,6 +25,7 @@ async def upload_video(
     pacing: str = Form("medium"),
     mood: str = Form("professional"),
     ratio: str = Form("16:9"),
+    tier: str = Form("pro"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -36,11 +37,21 @@ async def upload_video(
     
     if file_size > 100 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 100MB.")
+
+    # Monetization Check
+    COST_PER_JOB = 2 if tier == "pro" else 1
+    if (current_user.credits or 0) < COST_PER_JOB:
+        raise HTTPException(status_code=402, detail=f"Insufficient credits. {tier.title()} edit requires {COST_PER_JOB} credits.")
     
     source_path = await storage_service.save_upload(file)
     
     job = Job(user_id=current_user.id, source_path=source_path, theme=theme)
     session.add(job)
+    
+    # Deduct credits
+    current_user.credits = (current_user.credits or 0) - COST_PER_JOB
+    session.add(current_user)
+    
     await session.commit()
     await session.refresh(job)
     
@@ -48,20 +59,20 @@ async def upload_video(
         # Use Celery for background processing
         try:
             from ..tasks.video_tasks import process_video_task
-            process_video_task.delay(job.id, job.source_path, pacing, mood, ratio)
+            process_video_task.delay(job.id, job.source_path, pacing, mood, ratio, tier)
         except Exception as e:
             print(f"[Job] Celery dispatch failed: {e}. Falling back to inline.")
             # Fallback to inline
             from fastapi import BackgroundTasks
             from ..services.workflow_engine import process_job
             import asyncio
-            asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio))
+            asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier))
     else:
         # Fallback to inline BackgroundTasks
         from fastapi import BackgroundTasks
         from ..services.workflow_engine import process_job
         import asyncio
-        asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio))
+        asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier))
     
     return JobResponse.model_validate(job, from_attributes=True)
 

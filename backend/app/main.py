@@ -49,6 +49,7 @@ async def startup() -> None:
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500)",
                 "ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL",
                 "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS thumbnail_path TEXT",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS credits INTEGER DEFAULT 10",
             ]
             for query in migration_queries:
                 try:
@@ -88,6 +89,8 @@ app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(oauth.router, prefix=settings.api_prefix)
 app.include_router(jobs.router, prefix=settings.api_prefix)
 app.include_router(agents.router, prefix=settings.api_prefix)
+from .routers import payments
+app.include_router(payments.router, prefix=settings.api_prefix)
 app.include_router(websocket.router)
 
 from fastapi.staticfiles import StaticFiles

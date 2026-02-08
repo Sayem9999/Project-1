@@ -1,165 +1,93 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
-import Navbar from '@/components/ui/Navbar';
-import Footer from '@/components/ui/Footer';
+import { useRouter } from 'next/navigation';
+import { Check } from 'lucide-react';
+import Sidebar from '@/components/dashboard/Sidebar';
+import TopBar from '@/components/dashboard/TopBar';
 
 export default function PricingPage() {
-    const [annual, setAnnual] = useState(true);
+    const router = useRouter();
+    const [loading, setLoading] = useState(false);
 
-    const plans = [
-        {
-            name: 'Free',
-            description: 'Perfect for trying out Proedit',
-            price: { monthly: 0, annual: 0 },
-            features: [
-                '5 renders per month',
-                '720p output quality',
-                'Basic AI agents',
-                'Watermark on exports',
-                'Community support',
-            ],
-            cta: 'Start Free',
-            href: '/signup',
-            popular: false,
-        },
-        {
-            name: 'Pro',
-            description: 'For serious content creators',
-            price: { monthly: 29, annual: 19 },
-            features: [
-                '50 renders per month',
-                '1080p output quality',
-                'All 10 AI agents',
-                'No watermark',
-                'Priority rendering',
-                'Thumbnail generation',
-                'Subtitle export',
-                'Email support',
-            ],
-            cta: 'Upgrade to Pro',
-            href: '/signup?plan=pro',
-            popular: true,
-        },
-        {
-            name: 'Enterprise',
-            description: 'For teams and businesses',
-            price: { monthly: 99, annual: 79 },
-            features: [
-                'Unlimited renders',
-                '4K output quality',
-                'All 10 AI agents',
-                'Custom branding',
-                'API access',
-                'Dedicated support',
-                'Team collaboration',
-                'Analytics dashboard',
-                'SLA guarantee',
-            ],
-            cta: 'Contact Sales',
-            href: '/contact',
-            popular: false,
-        },
-    ];
+    const handlePurchase = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/payments/create-checkout-session`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                alert('Checkout failed');
+            }
+        } catch (error) {
+            console.error('Purchase error:', error);
+            alert('Something went wrong');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <main className="min-h-screen bg-[#0a0a0f]">
-            <Navbar />
+        <div className="min-h-screen bg-[#0a0a0f] text-white selection:bg-cyan-500/30">
+            <Sidebar />
+            <TopBar />
 
-            <section className="pt-32 pb-24">
-                <div className="container mx-auto px-6">
-                    {/* Header */}
-                    <div className="text-center mb-12">
-                        <span className="inline-block px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-sm font-medium mb-4">
-                            Pricing
-                        </span>
-                        <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-                            Simple, Transparent Pricing
-                        </h1>
-                        <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-                            Choose the plan that fits your needs. Upgrade or downgrade anytime.
-                        </p>
-                    </div>
+            <main className="ml-64 p-12 relative z-10">
+                <div className="max-w-4xl mx-auto text-center">
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent mb-4">
+                        Upgrade Your Creativity
+                    </h1>
+                    <p className="text-gray-400 text-lg mb-12">
+                        Get access to the Hollywood Pipeline (v4.0) with Pro Credits.
+                    </p>
 
-                    {/* Toggle */}
-                    <div className="flex justify-center items-center gap-4 mb-12">
-                        <span className={`text-sm ${!annual ? 'text-white' : 'text-gray-500'}`}>Monthly</span>
-                        <button
-                            onClick={() => setAnnual(!annual)}
-                            className={`relative w-14 h-7 rounded-full transition-colors ${annual ? 'bg-cyan-500' : 'bg-gray-700'}`}
-                        >
-                            <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${annual ? 'left-8' : 'left-1'}`} />
-                        </button>
-                        <span className={`text-sm ${annual ? 'text-white' : 'text-gray-500'}`}>
-                            Annual <span className="text-cyan-400 font-medium">Save 35%</span>
-                        </span>
-                    </div>
-
-                    {/* Plans */}
-                    <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                        {plans.map((plan, i) => (
-                            <div
-                                key={i}
-                                className={`relative p-8 rounded-2xl border transition-all ${plan.popular
-                                        ? 'bg-gradient-to-b from-cyan-500/10 to-violet-500/10 border-cyan-500/30 scale-105'
-                                        : 'bg-[#12121a] border-white/10 hover:border-white/20'
-                                    }`}
-                            >
-                                {plan.popular && (
-                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-full text-xs font-semibold text-white">
-                                        Most Popular
-                                    </div>
-                                )}
-
-                                <h3 className="text-xl font-semibold text-white mb-1">{plan.name}</h3>
-                                <p className="text-sm text-gray-400 mb-6">{plan.description}</p>
-
-                                <div className="mb-6">
-                                    <span className="text-5xl font-bold text-white">
-                                        ${annual ? plan.price.annual : plan.price.monthly}
-                                    </span>
-                                    {plan.price.monthly > 0 && (
-                                        <span className="text-gray-400">/month</span>
-                                    )}
-                                </div>
-
-                                <Link
-                                    href={plan.href}
-                                    className={`block w-full py-3 rounded-xl text-center font-semibold transition-all ${plan.popular
-                                            ? 'bg-gradient-to-r from-cyan-500 to-violet-500 text-white hover:opacity-90'
-                                            : 'bg-white/10 text-white hover:bg-white/20'
-                                        }`}
-                                >
-                                    {plan.cta}
-                                </Link>
-
-                                <ul className="mt-8 space-y-3">
-                                    {plan.features.map((feature, j) => (
-                                        <li key={j} className="flex items-center gap-3 text-sm text-gray-300">
-                                            <svg className="w-5 h-5 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                            {feature}
-                                        </li>
-                                    ))}
-                                </ul>
+                    <div className="grid md:grid-cols-2 gap-8 items-center">
+                        {/* Free Tier Info */}
+                        <div className="p-8 rounded-2xl border border-white/5 bg-white/5 backdrop-blur-sm grayscale opacity-75">
+                            <h3 className="text-2xl font-bold mb-2">Started</h3>
+                            <div className="text-4xl font-bold mb-6">$0</div>
+                            <ul className="space-y-4 text-left text-gray-400 mb-8">
+                                <li className="flex gap-2"><Check size={18} /> Standard Pipeline (v3)</li>
+                                <li className="flex gap-2"><Check size={18} /> basic edits</li>
+                                <li className="flex gap-2"><Check size={18} /> Watermarked</li>
+                            </ul>
+                            <div className="text-sm font-medium text-gray-500">
+                                Use your monthly free credits
                             </div>
-                        ))}
-                    </div>
+                        </div>
 
-                    {/* FAQ Teaser */}
-                    <div className="text-center mt-16">
-                        <p className="text-gray-400">
-                            Have questions?{' '}
-                            <Link href="/contact" className="text-cyan-400 hover:underline">
-                                Contact our team
-                            </Link>
-                        </p>
+                        {/* Pro Pack */}
+                        <div className="p-8 rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-cyan-900/10 to-transparent relative overflow-hidden">
+                            <div className="absolute top-0 right-0 bg-cyan-500 text-black text-xs font-bold px-3 py-1 rounded-bl-lg">
+                                POPULAR
+                            </div>
+                            <h3 className="text-2xl font-bold mb-2 text-cyan-400">Pro Pack</h3>
+                            <div className="text-4xl font-bold mb-6">$10 <span className="text-sm text-gray-400 font-normal">/ 10 credits</span></div>
+                            <ul className="space-y-4 text-left text-gray-300 mb-8">
+                                <li className="flex gap-2 items-center"><Check size={18} className="text-cyan-400" /> Hollywood Pipeline (v4.0)</li>
+                                <li className="flex gap-2 items-center"><Check size={18} className="text-cyan-400" /> 5 Pro Edits (2 Credits/each)</li>
+                                <li className="flex gap-2 items-center"><Check size={18} className="text-cyan-400" /> No Watermark</li>
+                                <li className="flex gap-2 items-center"><Check size={18} className="text-cyan-400" /> Priority Rendering</li>
+                            </ul>
+                            <button
+                                onClick={handlePurchase}
+                                disabled={loading}
+                                className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 hover:opacity-90 transition-opacity font-bold text-lg disabled:opacity-50"
+                            >
+                                {loading ? 'Processing...' : 'Buy 10 Credits'}
+                            </button>
+                            <p className="text-xs text-gray-500 mt-4">Secure payment via Stripe</p>
+                        </div>
                     </div>
                 </div>
-            </section>
-
-            <Footer />
-        </main>
+            </main>
+        </div>
     );
 }

@@ -82,25 +82,31 @@ def publish_progress(job_id: int, status: str, message: str, progress: int = 0):
         print(f"[Redis] Progress publish error: {e}")
 
 
-async def process_job(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9"):
-    """
-    Advanced Agentic Workflow Engine v3.0
-    Features:
-    - 10 AI Agents with specialized roles
-    - Parallel agent execution (asyncio.gather)
-    - GPU-accelerated encoding when available
-    - Real-time progress via Redis pub/sub
-    - QC Feedback Loop
-    """
-    def parse_json_safe(raw: str) -> dict:
-        try:
-            clean = raw.replace("```json", "").replace("```", "").strip()
-            return json.loads(clean)
-        except:
-            return {}
+def parse_json_safe(raw: str) -> dict:
+    try:
+        clean = raw.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean)
+    except:
+        return {}
 
-    print(f"[Workflow v3] Starting job {job_id}")
-    publish_progress(job_id, "processing", "Initializing AI Studio...", 5)
+
+async def process_job(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9", tier: str = "pro"):
+    """
+    Master Workflow Router
+    """
+    if tier == "pro":
+        await process_job_pro(job_id, source_path, pacing, mood, ratio)
+    else:
+        await process_job_standard(job_id, source_path, pacing, mood, ratio)
+
+
+async def process_job_standard(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9"):
+    """
+    [v3.0] Standard Parallel Workflow (Free Tier)
+    Fast, efficient, but loose synchronization.
+    """
+    print(f"[Workflow v3] Starting Standard job {job_id}")
+    publish_progress(job_id, "processing", "Initializing Standard Workflow...", 5)
     
     # Detect GPU encoder once at start
     video_encoder = detect_gpu_encoder()
@@ -109,7 +115,7 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
         job = await session.get(Job, job_id)
         if not job: return
         job.status = "processing"
-        job.progress_message = "Initializing AI Studio..."
+        job.progress_message = "Initializing Standard Workflow..."
         await session.commit()
 
     try:
@@ -199,7 +205,7 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
                         vf_filters.append(effect["filter"])
             
             # Watermark for free tier
-            watermark_text = "Proedit.ai"
+            watermark_text = "Proedit.ai (Free)"
             vf_filters.append(f"drawtext=text='{watermark_text}':fontsize=24:fontcolor=white@0.5:x=w-tw-20:y=h-th-20")
             
             vf = ",".join(vf_filters)
@@ -273,7 +279,7 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
             if thumb_path.exists():
                 final_thumb_rel_path = f"storage/outputs/job-{job_id}-thumb.jpg"
         
-        # Subtitles
+        # Subtitles (Use existing logic)
         try:
             sub_resp = await subtitle_agent.run({"source_path": source_path})
             srt_content = sub_resp.get("raw_response", "") if isinstance(sub_resp, dict) else ""
@@ -299,7 +305,60 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
         print(f"[Workflow] Job {job_id} complete!")
 
     except Exception as e:
-        print(f"[Workflow] Job {job_id} failed: {e}")
+        print(f"[Workflow v3] Job {job_id} failed: {e}")
+        import traceback
+        traceback.print_exc()
+        await update_status(job_id, "failed", f"Processing failed: {str(e)[:100]}")
+        publish_progress(job_id, "failed", f"Processing failed: {str(e)[:100]}", 0)
+
+
+async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9"):
+    """
+    [v4.0] Hollywood Pipeline (Pro Tier) - LangGraph + MoviePy
+    Hierarchical: Director -> Cutter -> (Visuals/Audio) -> Compiler
+    """
+    print(f"[Workflow v4] Starting Pro job {job_id} (LangGraph)")
+    publish_progress(job_id, "processing", "Initializing Hollywood Pipeline (LangGraph)...", 5)
+    
+    async with AsyncSession(engine) as session:
+        job = await session.get(Job, job_id)
+        if not job: return
+        job.status = "processing"
+        job.progress_message = "Initializing Hollywood Pipeline..."
+        await session.commit()
+
+    try:
+        from ..graph.workflow import app as graph_app
+        
+        # Initial State
+        initial_state = {
+            "job_id": job_id,
+            "source_path": source_path,
+            "user_request": {"pacing": pacing, "mood": mood, "ratio": ratio},
+            "tier": "pro",
+            "errors": []
+        }
+        
+        # Run Graph
+        # We can use astream to get updates, but invoke is simpler for now
+        print("[Graph] Invoking workflow...")
+        final_state = await graph_app.ainvoke(initial_state)
+        
+        if final_state.get("errors"):
+            raise Exception(f"Graph Errors: {final_state['errors']}")
+            
+        output_rel_path = final_state.get("output_path")
+        if not output_rel_path:
+            raise Exception("No output path returned from Graph.")
+            
+        # Success
+        completion_msg = "🎬 Pro Edit Ready!"
+        await update_status(job_id, "complete", completion_msg, output_rel_path)
+        publish_progress(job_id, "complete", completion_msg, 100)
+        print(f"[Workflow v4] Job {job_id} complete!")
+
+    except Exception as e:
+        print(f"[Workflow v4] Job {job_id} failed: {e}")
         import traceback
         traceback.print_exc()
         await update_status(job_id, "failed", f"Processing failed: {str(e)[:100]}")
