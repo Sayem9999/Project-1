@@ -7,6 +7,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api'
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Director Controls
   const [pacing, setPacing] = useState('medium');
@@ -32,12 +33,9 @@ export default function UploadPage() {
     const token = localStorage.getItem('token');
     const form = new FormData();
     form.append('file', file);
-
-    // Pass Director Instructions
     form.append('pacing', pacing);
     form.append('mood', mood);
     form.append('ratio', ratio);
-    // Legacy theme field for backward compat
     form.append('theme', mood);
 
     try {
@@ -56,14 +54,25 @@ export default function UploadPage() {
       router.push(`/jobs/${data.id}`);
     } catch (e) {
       console.error("Upload error:", e);
-      if (e instanceof Error) {
-        setError(`Upload failed: ${e.message}`);
-      } else {
-        setError('Upload failed. Check console for details.');
-      }
+      setError(e instanceof Error ? e.message : 'Upload failed. Check console.');
       setUploading(false);
     }
   }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => setIsDragOver(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (e.dataTransfer.files?.[0]) {
+      setFile(e.dataTransfer.files[0]);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -81,8 +90,6 @@ export default function UploadPage() {
         </section>
 
         <form onSubmit={submit} className="relative space-y-8">
-
-          {/* Enhanced Director Controls */}
           <DirectorPanel
             pacing={pacing} setPacing={setPacing}
             mood={mood} setMood={setMood}
@@ -92,24 +99,37 @@ export default function UploadPage() {
           <div className="space-y-3">
             <label className="text-sm font-medium text-slate-400">Source Footage</label>
             <div className="flex w-full items-center justify-center">
-              <label className={`flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-all ${file ? 'border-brand-cyan bg-brand-cyan/5' : 'border-slate-700 bg-slate-900/50 hover:bg-slate-900'}`}>
+              <label
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`group flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all duration-300 ${isDragOver
+                    ? 'border-brand-cyan bg-brand-cyan/10 scale-102 ring-4 ring-brand-cyan/20'
+                    : file
+                      ? 'border-emerald-500/50 bg-emerald-500/5'
+                      : 'border-slate-700 bg-slate-900/50 hover:bg-slate-900 hover:border-slate-500'
+                  }`}
+              >
                 <div className="flex flex-col items-center justify-center pb-6 pt-5">
                   {file ? (
-                    <>
-                      <div className="text-brand-cyan mb-2">
-                        <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                    <div className="animate-in fade-in zoom-in duration-300 text-center">
+                      <div className="mx-auto bg-emerald-500/20 p-4 rounded-full mb-3">
+                        <svg className="h-8 w-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
                       </div>
-                      <p className="mb-2 text-sm text-slate-300 font-medium">{file.name}</p>
-                      <p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                    </>
+                      <p className="text-lg font-semibold text-white">{file.name}</p>
+                      <p className="text-sm text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB • Ready for AI</p>
+                    </div>
                   ) : (
-                    <>
-                      <div className="text-slate-500 mb-2">
-                        <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                    <div className="text-center space-y-2">
+                      <div className={`mx-auto p-4 rounded-full transition-all duration-300 ${isDragOver ? 'bg-brand-cyan/20 scale-110' : 'bg-slate-800'}`}>
+                        <svg className={`h-8 w-8 transition-colors ${isDragOver ? 'text-brand-cyan' : 'text-slate-400 group-hover:text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                       </div>
-                      <p className="mb-2 text-sm text-slate-400"><span className="font-semibold text-brand-cyan">Click to upload</span> or drag and drop</p>
-                      <p className="text-xs text-slate-500">MP4, MOV up to 500MB</p>
-                    </>
+                      <div>
+                        <p className="text-lg font-medium text-white group-hover:text-brand-cyan transition-colors">Click to upload</p>
+                        <p className="text-sm text-slate-400">or drag and drop video files</p>
+                      </div>
+                      <p className="text-xs text-slate-600">MP4, MOV up to 500MB</p>
+                    </div>
                   )}
                 </div>
                 <input type="file" className="hidden" accept="video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
@@ -120,24 +140,19 @@ export default function UploadPage() {
           <div className="pt-4">
             <button
               disabled={!file || uploading}
-              className={`w-full rounded-lg bg-gradient-to-r from-brand-cyan to-brand-violet px-5 py-4 font-bold text-white shadow-lg transition-all hover:shadow-brand-cyan/25 ${(!file || uploading) ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'
+              className={`w-full rounded-xl bg-gradient-to-r from-brand-cyan to-brand-violet px-5 py-5 text-lg font-bold text-white shadow-[0_0_30px_rgba(139,92,246,0.3)] transition-all hover:shadow-[0_0_50px_rgba(139,92,246,0.5)] ${(!file || uploading) ? 'opacity-50 cursor-not-allowed bg-slate-800' : 'hover:scale-[1.02] active:scale-[0.98]'
                 }`}
             >
               {uploading ? (
-                <span className="flex items-center justify-center gap-2">
+                <span className="flex items-center justify-center gap-3">
                   <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  Processing...
+                  Initializing AI Agents...
                 </span>
               ) : (
                 'Start Production'
               )}
             </button>
-            {error && <p className="mt-4 text-center text-sm text-red-400">{error}</p>}
-
-            <div className="mt-8 p-4 rounded bg-slate-900/50 text-xs text-slate-500 font-mono text-center">
-              <p>Debug Info:</p>
-              <p>API: {API_BASE}</p>
-            </div>
+            {error && <p className="mt-4 text-center text-sm text-red-400 bg-red-500/10 p-3 rounded">{error}</p>}
           </div>
         </form>
       </div>
