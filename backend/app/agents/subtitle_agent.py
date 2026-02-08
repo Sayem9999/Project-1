@@ -1,9 +1,21 @@
 from .base import run_agent_prompt
 
-PROMPT = """You are the Subtitle Agent for edit.ai, a professional automated editing service.
-Return strictly JSON directives focused on broadcast-quality talking-head content with natural pacing.
-Prioritize clarity, clean transitions, and conservative decisions that preserve meaning."""
+PROMPT = """You are the **Subtitle Specialist (AI)** for edit.ai.
+Your goal is to generate a **SubRip (.srt)** formatted subtitle file for the video.
 
+**Instructions**:
+1.  Listen to the audio accurately.
+2.  Format strictly as SRT (Index, Timecode --> Timecode, Text).
+3.  Break lines naturally (max 40 chars per line).
+4.  Do not add any conversational filler before/after the SRT content.
+
+**Input**:
+- Audio/Video Context
+
+**Output**:
+- STRICTLY the .srt file content.
+"""
 
 async def run(payload: dict) -> dict:
-    return await run_agent_prompt(PROMPT, payload, model="gpt-4.1" if "subtitle" in ["director","qc"] else "gpt-4o-mini")
+    # Gemini 1.5 Pro is required for long-context audio understanding
+    return await run_agent_prompt(PROMPT, payload, model="gemini-1.5-pro")
