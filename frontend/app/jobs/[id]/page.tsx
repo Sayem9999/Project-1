@@ -6,22 +6,33 @@ import { apiFetch } from '@/lib/api';
 
 type Job = { id: number; status: string; progress_message: string };
 
+import { AgentConsole } from '@/components/ui/AgentConsole';
+import { VideoPlayer } from '@/components/ui/VideoPlayer';
+
+// ... (imports)
+
 export default function JobStatusPage() {
   const params = useParams<{ id: string }>();
   const [job, setJob] = useState<Job | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState('');
 
   useEffect(() => {
-    // Initial fetch
     fetchJob();
-    const timer = setInterval(fetchJob, 2500);
+    const timer = setInterval(fetchJob, 2000); // Faster polling for console effect
     return () => clearInterval(timer);
 
     async function fetchJob() {
       const res = await apiFetch(`/jobs/${params.id}`);
       if (!res.ok) return;
-      setJob(await res.json());
+      const data = await res.json();
+      setJob(data);
+      if (data.status === 'complete' && !downloadUrl) {
+        // Construct download URL (using API base or proxy)
+        // Assuming API serves it at /jobs/:id/download
+        setDownloadUrl(`${process.env.NEXT_PUBLIC_API_BASE}/jobs/${params.id}/download`);
+      }
     }
-  }, [params.id]);
+  }, [params.id, downloadUrl]);
 
   // Calculate progress percentage based on message
   const getProgress = (status: string, message: string) => {
@@ -39,66 +50,75 @@ export default function JobStatusPage() {
   const isFailed = job?.status === 'failed';
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12">
-      <div className="glass-panel relative overflow-hidden rounded-2xl p-8 sm:p-12">
-        {/* Ambient Background */}
-        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-brand-cyan/10 blur-3xl"></div>
-        <div className="absolute top-1/2 -left-24 h-64 w-64 rounded-full bg-brand-magenta/10 blur-3xl"></div>
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        <div className="relative space-y-8 text-center">
+        {/* Left Column: Visuals */}
+        <div className="space-y-6">
           <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl text-glow">
-            {isComplete ? 'Production Complete' : isFailed ? 'Production Failed' : 'Production in Progress'}
+            {isComplete ? 'Production Ready' : isFailed ? 'Production Failed' : 'AI Production Live'}
           </h1>
 
-          <p className="text-lg text-slate-400">
-            {job?.progress_message || 'Initializing studio...'}
-          </p>
-
-          {/* Progress Bar */}
-          <div className="relative h-4 w-full overflow-hidden rounded-full bg-slate-800/50">
-            <div
-              className={`absolute top-0 left-0 h-full transition-all duration-1000 ease-out ${isFailed ? 'bg-red-500' : 'bg-gradient-to-r from-brand-cyan to-brand-violet'
-                }`}
-              style={{ width: `${progress}%` }}
-            >
-              {/* Shimmer effect */}
-              {!isComplete && !isFailed && (
-                <div className="absolute inset-0 animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/25 to-transparent"></div>
-              )}
+          {isComplete && downloadUrl ? (
+            <div className="animate-in zoom-in duration-500">
+              <VideoPlayer src={downloadUrl} />
+              <div className="mt-4 flex gap-4">
+                <a href={downloadUrl} download className="btn-primary flex-1 text-center py-3">
+                  Download Master File
+                </a>
+                <button className="px-4 py-3 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300">
+                  Share
+                </button>
+              </div>
             </div>
+          ) : (
+            <div className="aspect-video rounded-xl bg-slate-900/50 border border-slate-800 flex items-center justify-center relative overflow-hidden group">
+              {/* Loading Animation in place of video */}
+              <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
+              <div className="text-center space-y-4 relative z-10">
+                <div className="relative mx-auto w-16 h-16">
+                  <div className="absolute inset-0 rounded-full border-t-2 border-brand-cyan animate-spin"></div>
+                  <div className="absolute inset-2 rounded-full border-r-2 border-brand-violet animate-spin reverse"></div>
+                </div>
+                <p className="text-slate-500 text-sm font-mono animate-pulse">RENDERING PREVIEW...</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Console & Details */}
+        <div className="space-y-6">
+          {/* Agent Terminal */}
+          <div className="glass-panel p-1 rounded-xl">
+            <AgentConsole status={job?.status || 'loading'} lastMessage={job?.progress_message || ''} />
           </div>
 
-          {/* Status Details */}
-          <div className="flex justify-between text-xs font-mono text-slate-500 uppercase tracking-widest">
-            <span>Job ID: {params.id}</span>
-            <span>{Math.round(progress)}% Complete</span>
-          </div>
-
-          {/* Actions */}
-          <div className="pt-4">
-            {isComplete && (
-              <Link
-                href={`/jobs/${params.id}/download`}
-                className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-8 py-4 font-bold text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-transform hover:scale-105 active:scale-95"
-              >
-                <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                Download Video
-              </Link>
-            )}
-
-            {isFailed && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-400">
-                An error occurred during production. Please try again.
+          {/* Job Details Card */}
+          <div className="glass-panel p-6 rounded-xl space-y-4">
+            <h3 className="text-lg font-semibold text-white">Production Details</h3>
+            <dl className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <dt className="text-slate-500">Project ID</dt>
+                <dd className="font-mono text-slate-300">{params.id}</dd>
               </div>
-            )}
-
-            {!isComplete && !isFailed && (
-              <div className="text-slate-500">
-                <span className="inline-block animate-pulse">●</span> AI Director is working...
+              <div>
+                <dt className="text-slate-500">Status</dt>
+                <dd className={`font-mono ${isComplete ? 'text-emerald-400' : 'text-brand-cyan'}`}>
+                  {job?.status.toUpperCase()}
+                </dd>
               </div>
-            )}
+              <div>
+                <dt className="text-slate-500">Theme</dt>
+                <dd className="text-slate-300 capitalize">{job?.theme || 'Standard'}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Progress</dt>
+                <dd className="text-slate-300">{Math.round(progress)}%</dd>
+              </div>
+            </dl>
           </div>
         </div>
+
       </div>
     </div>
   );
