@@ -5,8 +5,11 @@ Background task processing with Redis broker
 import os
 from celery import Celery
 
-# Redis URL from environment (Render/Upstash provide this)
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# Redis URL from environment
+REDIS_URL = os.getenv("REDIS_URL")
+if not REDIS_URL:
+    # Fallback or disable if not present
+    REDIS_URL = "redis://localhost:6379/0"
 
 celery_app = Celery(
     "proedit",
