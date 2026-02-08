@@ -4,11 +4,22 @@ from .config import settings
 from .db import engine, Base
 from .routers import auth, jobs, agents, oauth, websocket
 
+import os
+
 app = FastAPI(title=settings.app_name)
+
+# CORS configuration - allow frontend origins
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+allowed_origins = [
+    FRONTEND_URL,
+    "http://localhost:3000",
+    "https://project-1-alpha-three.vercel.app",
+    "https://proedit.vercel.app",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
