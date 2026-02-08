@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { Logo } from '@/components/ui/Logo';
 
 export function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
@@ -29,12 +30,12 @@ export function Navbar() {
         >
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex h-20 items-center justify-between">
+
+                    // ...
+
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 group">
-                        <div className="h-8 w-8 rounded bg-gradient-to-br from-brand-cyan to-brand-violet group-hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all duration-300"></div>
-                        <span className="text-xl font-bold tracking-tight text-white group-hover:text-glow transition-all">
-                            edit.ai
-                        </span>
+                        <Logo />
                     </Link>
 
                     {/* Desktop Nav */}
