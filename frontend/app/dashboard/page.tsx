@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Navbar from '@/components/ui/Navbar';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
@@ -45,84 +44,90 @@ export default function DashboardPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'complete':
-                return <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Complete</span>;
+                return <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Complete</span>;
             case 'failed':
-                return <span className="px-2 py-1 rounded-full text-xs bg-red-500/20 text-red-400 border border-red-500/30">Failed</span>;
+                return <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">Failed</span>;
             case 'processing':
-                return <span className="px-2 py-1 rounded-full text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">Processing</span>;
+                return <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 animate-pulse">Processing</span>;
             default:
-                return <span className="px-2 py-1 rounded-full text-xs bg-gray-500/20 text-gray-400 border border-gray-500/30">Queued</span>;
+                return <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-500/10 text-gray-400 border border-gray-500/20">Queued</span>;
         }
     };
 
     return (
-        <main className="min-h-screen bg-[#0a0a0f]">
-            <Navbar />
-
-            <div className="container mx-auto px-6 pt-24 pb-16">
-                <div className="max-w-4xl mx-auto">
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">My Projects</h1>
-                            <p className="text-gray-400 text-sm">Your video editing history</p>
-                        </div>
-                        <Link
-                            href="/dashboard/upload"
-                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
-                        >
-                            + New Project
-                        </Link>
-                    </div>
-
-                    {loading ? (
-                        <div className="text-center py-16">
-                            <div className="w-12 h-12 mx-auto mb-4 relative">
-                                <div className="absolute inset-0 rounded-full border-t-2 border-cyan-500 animate-spin" />
-                            </div>
-                            <p className="text-gray-400">Loading projects...</p>
-                        </div>
-                    ) : jobs.length === 0 ? (
-                        <div className="text-center py-16 bg-[#12121a] border border-white/10 rounded-2xl">
-                            <div className="text-5xl mb-4">🎬</div>
-                            <h2 className="text-xl font-semibold text-white mb-2">No projects yet</h2>
-                            <p className="text-gray-400 mb-6">Upload your first video to get started</p>
-                            <Link
-                                href="/dashboard/upload"
-                                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
-                            >
-                                Upload Video
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {jobs.map(job => (
-                                <Link
-                                    key={job.id}
-                                    href={`/jobs/${job.id}`}
-                                    className="flex items-center justify-between p-4 bg-[#12121a] border border-white/10 rounded-xl hover:border-cyan-500/50 transition-colors"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center text-xl">
-                                            🎬
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-white">Project #{job.id}</p>
-                                            <p className="text-sm text-gray-400">{job.progress_message || 'Processing...'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        {getStatusBadge(job.status)}
-                                        <span className="text-xs text-gray-500">
-                                            {new Date(job.created_at).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
+        <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-white mb-2">My Projects</h1>
+                    <p className="text-gray-400">Manage and create your AI video projects</p>
                 </div>
             </div>
-        </main>
+
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="aspect-video bg-white/5 rounded-2xl animate-pulse" />
+                    ))}
+                </div>
+            ) : jobs.length === 0 ? (
+                <div className="text-center py-24 bg-white/5 border border-white/5 rounded-3xl">
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center text-4xl">
+                        🎬
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-3">No projects yet</h2>
+                    <p className="text-gray-400 mb-8 max-w-sm mx-auto">Upload your first video to start creating cinematic content with AI.</p>
+                    <Link
+                        href="/dashboard/upload"
+                        className="inline-flex items-center gap-2 px-8 py-4 bg-white text-black rounded-xl font-bold hover:bg-gray-100 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                        Create New Project
+                    </Link>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {/* Create New Card */}
+                    <Link href="/dashboard/upload" className="group relative aspect-[4/3] rounded-2xl border-2 border-dashed border-white/10 hover:border-cyan-500/50 bg-white/5 hover:bg-white/10 transition-all flex flex-col items-center justify-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
+                            <span className="text-2xl text-gray-400 group-hover:text-cyan-400">+</span>
+                        </div>
+                        <span className="font-semibold text-gray-400 group-hover:text-white">New Project</span>
+                    </Link>
+
+                    {/* Project Cards */}
+                    {jobs.map(job => (
+                        <Link
+                            key={job.id}
+                            href={`/jobs/${job.id}`}
+                            className="group relative aspect-[4/3] bg-[#12121a] rounded-2xl border border-white/10 hover:border-white/20 overflow-hidden transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-cyan-500/10"
+                        >
+                            {/* Thumbnail Placeholder */}
+                            <div className="absolute inset-x-0 top-0 h-2/3 bg-gradient-to-br from-gray-800 to-black group-hover:scale-105 transition-transform duration-500">
+                                <div className="w-full h-full flex items-center justify-center text-4xl opacity-50">
+                                    🎬
+                                </div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#12121a] to-transparent" />
+                            </div>
+
+                            {/* Status Line */}
+                            <div className="absolute top-4 right-4">
+                                {getStatusBadge(job.status)}
+                            </div>
+
+                            {/* Content */}
+                            <div className="absolute inset-x-0 bottom-0 p-5">
+                                <h3 className="text-lg font-bold text-white mb-1 group-hover:text-cyan-400 transition-colors">
+                                    Project #{job.id}
+                                </h3>
+                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                    <span>{new Date(job.created_at).toLocaleDateString()}</span>
+                                    <span>{job.status === 'processing' ? 'Processing...' : '03:24'}</span>
+                                </div>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }
