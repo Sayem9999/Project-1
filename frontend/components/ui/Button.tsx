@@ -6,6 +6,7 @@ interface ButtonProps extends HTMLMotionProps<"button"> {
     variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
     size?: 'sm' | 'md' | 'lg';
     loading?: boolean;
+    children: React.ReactNode;
 }
 
 export function Button({ className, variant = 'primary', size = 'md', loading, children, ...props }: ButtonProps) {
