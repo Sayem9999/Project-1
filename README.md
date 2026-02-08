@@ -60,6 +60,23 @@ Backend (`backend/.env`):
 Frontend:
 - `NEXT_PUBLIC_API_BASE`
 
+
+## Railway cloud deployment
+
+Use the Railway CLI to deploy backend and frontend as separate services:
+
+```bash
+export RAILWAY_TOKEN=...
+# optional deterministic routing
+export RAILWAY_SERVICE_ID=...
+export RAILWAY_FRONTEND_SERVICE_ID=...
+./scripts/deploy_cloud_railway.sh
+```
+
+Notes:
+- If `RAILWAY_SERVICE_ID` / `RAILWAY_FRONTEND_SERVICE_ID` are not set, Railway will deploy to the currently linked service for each directory.
+- Run this from the repository root.
+
 ## Local deployment (no Docker required)
 
 If Docker is unavailable, use the built-in deployment scripts:
