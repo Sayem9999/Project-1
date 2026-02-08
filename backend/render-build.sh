@@ -15,3 +15,6 @@ rm tools/ffmpeg.tar.xz
 
 echo "FFmpeg installed to ./tools/ffmpeg"
 ./tools/ffmpeg -version
+
+chmod +x start.sh
+

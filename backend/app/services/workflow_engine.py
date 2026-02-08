@@ -87,6 +87,7 @@ async def process_job(job_id: int, source_path: str):
         # FFmpeg command (similar to mock_n8n.py but internal)
         cmd = [
             ffmpeg_cmd, "-y", "-i", str(src),
+            "-threads", "1",  # Low memory mode
             "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2",
             "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
             str(output_abs)
