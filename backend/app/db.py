@@ -7,7 +7,12 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_async_engine(settings.database_url, future=True)
+# Handle Render's postgres:// scheme
+db_url = settings.database_url
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+
+engine = create_async_engine(db_url, future=True)
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
