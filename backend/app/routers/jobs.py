@@ -8,7 +8,7 @@ from ..deps import get_current_user
 from ..models import Job, User
 from ..schemas import JobResponse
 from ..services.storage import storage_service
-from ..services.n8n_client import trigger_edit_workflow
+
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 

@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     token_expiry_minutes: int = 60 * 24
     database_url: str = "sqlite+aiosqlite:///./storage/edit_ai.db"
     storage_root: str = "storage"
-    n8n_webhook_url: str = "http://n8n:5678/webhook/edit-ai-process"
     frontend_url: str = "http://localhost:3000"
     openai_api_key: str | None = None
 

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .db import engine, Base
-from .routers import auth, jobs, workflow, agents
+from .routers import auth, jobs, agents
 
 app = FastAPI(title=settings.app_name)
 
@@ -28,5 +28,4 @@ async def health() -> dict[str, str]:
 
 app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(jobs.router, prefix=settings.api_prefix)
-app.include_router(workflow.router, prefix=settings.api_prefix)
 app.include_router(agents.router, prefix=settings.api_prefix)

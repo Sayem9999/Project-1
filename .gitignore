@@ -10,3 +10,5 @@ coverage/
 .DS_Store
 
 .runtime/
+tools/
+storage/
