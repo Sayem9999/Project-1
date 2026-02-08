@@ -1,16 +1,26 @@
 """
-Cloudflare R2 Storage Service
-S3-compatible object storage for video files.
+Cloudflare R2 Storage Service with Free Tier Limits
+- 10GB storage cap
+- Auto-cleanup of old files
+- Per-file size limit (100MB)
 """
 import boto3
 from botocore.config import Config
 from pathlib import Path
 import uuid
+from datetime import datetime, timedelta
 from ..config import settings
 
 
+# Free tier limits
+MAX_STORAGE_BYTES = 10 * 1024 * 1024 * 1024  # 10 GB
+MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 MB per file
+CLEANUP_THRESHOLD = 0.85  # Start cleanup at 85% (8.5 GB)
+FILE_RETENTION_DAYS = 7  # Delete files older than 7 days
+
+
 class StorageService:
-    """Handles file uploads to Cloudflare R2 (or local storage as fallback)."""
+    """Handles file uploads to Cloudflare R2 with free tier limits."""
     
     def __init__(self):
         self.use_r2 = all([
@@ -29,89 +39,130 @@ class StorageService:
                 region_name="auto",
             )
             self.bucket = settings.r2_bucket_name
-            print("[Storage] Using Cloudflare R2")
+            print(f"[Storage] R2 enabled - Bucket: {self.bucket}, Limit: 10GB")
         else:
             self.s3_client = None
-            print("[Storage] Using local filesystem (R2 not configured)")
+            print("[Storage] Local filesystem (R2 not configured)")
+    
+    def get_storage_usage(self) -> dict:
+        """Get current storage usage in bytes and file count."""
+        if not self.use_r2 or not self.s3_client:
+            return {"bytes": 0, "files": 0, "percent": 0}
+        
+        total_bytes = 0
+        file_count = 0
+        
+        try:
+            paginator = self.s3_client.get_paginator('list_objects_v2')
+            for page in paginator.paginate(Bucket=self.bucket):
+                for obj in page.get('Contents', []):
+                    total_bytes += obj['Size']
+                    file_count += 1
+        except Exception as e:
+            print(f"[Storage] Error getting usage: {e}")
+            
+        return {
+            "bytes": total_bytes,
+            "files": file_count,
+            "percent": round((total_bytes / MAX_STORAGE_BYTES) * 100, 1),
+            "limit_gb": MAX_STORAGE_BYTES / (1024**3),
+            "used_gb": round(total_bytes / (1024**3), 2),
+        }
+    
+    def cleanup_old_files(self, force: bool = False) -> int:
+        """Delete files older than retention period. Returns count deleted."""
+        if not self.use_r2 or not self.s3_client:
+            return 0
+        
+        usage = self.get_storage_usage()
+        should_cleanup = force or (usage["percent"] >= CLEANUP_THRESHOLD * 100)
+        
+        if not should_cleanup:
+            return 0
+        
+        print(f"[Storage] Cleanup triggered at {usage['percent']}% usage")
+        
+        deleted_count = 0
+        cutoff_date = datetime.utcnow() - timedelta(days=FILE_RETENTION_DAYS)
+        files_to_delete = []
+        
+        try:
+            paginator = self.s3_client.get_paginator('list_objects_v2')
+            for page in paginator.paginate(Bucket=self.bucket):
+                for obj in page.get('Contents', []):
+                    if obj['LastModified'].replace(tzinfo=None) < cutoff_date:
+                        files_to_delete.append({'Key': obj['Key']})
+            
+            if files_to_delete:
+                # Delete in batches of 1000 (S3 limit)
+                for i in range(0, len(files_to_delete), 1000):
+                    batch = files_to_delete[i:i+1000]
+                    self.s3_client.delete_objects(
+                        Bucket=self.bucket,
+                        Delete={'Objects': batch}
+                    )
+                    deleted_count += len(batch)
+                
+                print(f"[Storage] Deleted {deleted_count} old files")
+        except Exception as e:
+            print(f"[Storage] Cleanup error: {e}")
+        
+        return deleted_count
     
     async def upload_file(self, local_path: str, folder: str = "uploads") -> str:
-        """
-        Upload a file to R2 or keep in local storage.
-        Returns the public URL or local path.
-        """
+        """Upload a file to R2 with size limits."""
         path = Path(local_path)
         
         if not path.exists():
             raise FileNotFoundError(f"File not found: {local_path}")
         
-        # Generate unique key
-        unique_id = uuid.uuid4().hex[:8]
-        key = f"{folder}/{unique_id}-{path.name}"
+        file_size = path.stat().st_size
+        
+        # Check file size limit
+        if file_size > MAX_FILE_SIZE_BYTES:
+            raise ValueError(f"File too large: {file_size / (1024**2):.1f}MB. Max: 100MB")
         
         if self.use_r2 and self.s3_client:
-            # Upload to R2
+            # Check storage capacity and cleanup if needed
+            usage = self.get_storage_usage()
+            if usage["bytes"] + file_size > MAX_STORAGE_BYTES:
+                self.cleanup_old_files(force=True)
+                # Re-check after cleanup
+                usage = self.get_storage_usage()
+                if usage["bytes"] + file_size > MAX_STORAGE_BYTES:
+                    raise ValueError("Storage limit reached (10GB). Try again later.")
+            
+            # Generate unique key
+            unique_id = uuid.uuid4().hex[:8]
+            key = f"{folder}/{unique_id}-{path.name}"
             content_type = self._get_content_type(path.suffix)
             
             with open(path, "rb") as f:
                 self.s3_client.upload_fileobj(
-                    f,
-                    self.bucket,
-                    key,
+                    f, self.bucket, key,
                     ExtraArgs={"ContentType": content_type}
                 )
             
-            # Return public URL
+            # Return public URL or presigned URL
             if settings.r2_public_url:
                 return f"{settings.r2_public_url}/{key}"
-            else:
-                # Generate presigned URL (valid for 7 days)
-                return self.s3_client.generate_presigned_url(
-                    "get_object",
-                    Params={"Bucket": self.bucket, "Key": key},
-                    ExpiresIn=604800,
-                )
+            return self.s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self.bucket, "Key": key},
+                ExpiresIn=604800,  # 7 days
+            )
         else:
-            # Fallback to local storage
             return str(path)
     
     async def delete_file(self, key: str) -> bool:
-        """Delete a file from R2."""
+        """Delete a single file from R2."""
         if self.use_r2 and self.s3_client:
             try:
                 self.s3_client.delete_object(Bucket=self.bucket, Key=key)
                 return True
             except Exception as e:
                 print(f"[Storage] Delete error: {e}")
-                return False
         return False
-    
-    def get_presigned_upload_url(self, filename: str, folder: str = "uploads") -> dict:
-        """
-        Generate a presigned URL for direct browser upload.
-        Returns dict with upload_url and final_key.
-        """
-        if not self.use_r2 or not self.s3_client:
-            raise Exception("R2 not configured - cannot generate presigned URL")
-        
-        unique_id = uuid.uuid4().hex[:8]
-        key = f"{folder}/{unique_id}-{filename}"
-        content_type = self._get_content_type(Path(filename).suffix)
-        
-        presigned_url = self.s3_client.generate_presigned_url(
-            "put_object",
-            Params={
-                "Bucket": self.bucket,
-                "Key": key,
-                "ContentType": content_type,
-            },
-            ExpiresIn=3600,  # 1 hour
-        )
-        
-        return {
-            "upload_url": presigned_url,
-            "key": key,
-            "public_url": f"{settings.r2_public_url}/{key}" if settings.r2_public_url else None,
-        }
     
     def _get_content_type(self, suffix: str) -> str:
         """Map file extension to MIME type."""
@@ -123,12 +174,9 @@ class StorageService:
             ".mkv": "video/x-matroska",
             ".srt": "text/plain",
             ".vtt": "text/vtt",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".png": "image/png",
         }
         return types.get(suffix.lower(), "application/octet-stream")
 
 
-# Singleton instance
+# Singleton
 storage_service = StorageService()

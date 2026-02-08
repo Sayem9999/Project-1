@@ -8,6 +8,7 @@ from ..deps import get_current_user
 from ..models import Job, User
 from ..schemas import JobResponse
 from ..services.storage import storage_service
+from ..services.storage_service import storage_service as r2_storage
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -24,23 +25,31 @@ async def upload_video(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    # Check file size before accepting (100MB limit)
+    file.file.seek(0, 2)  # Seek to end
+    file_size = file.file.tell()
+    file.file.seek(0)  # Reset to start
+    
+    if file_size > 100 * 1024 * 1024:  # 100 MB
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 100MB.")
+    
     source_path = await storage_service.save_upload(file)
-    # Note: We aren't saving pacing/mood/ratio to DB yet to avoid migration
-    # We pass them directly to the background task via job details (or a temp dict)
-    # For now, we'll pack them into the 'theme' field as JSON string if we wanted to save them,
-    # OR we just pass them to process_job explicitly.
-    # To keep it simple: we just use 'process_job' args.
     
     job = Job(user_id=current_user.id, source_path=source_path, theme=theme)
     session.add(job)
     await session.commit()
     await session.refresh(job)
     
-    # Trigger internal workflow
     from ..services.workflow_engine import process_job
     background_tasks.add_task(process_job, job.id, job.source_path, pacing, mood, ratio)
     
     return JobResponse.model_validate(job, from_attributes=True)
+
+
+@router.get("/storage/usage")
+async def get_storage_usage(current_user: User = Depends(get_current_user)):
+    """Get current R2 storage usage (admin info)."""
+    return r2_storage.get_storage_usage()
 
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -56,6 +65,13 @@ async def download_output(job_id: int, current_user: User = Depends(get_current_
     job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
     if not job or not job.output_path:
         raise HTTPException(status_code=404, detail="Rendered file unavailable")
+    
+    # If output_path is a URL (R2), redirect to it
+    if job.output_path.startswith("http"):
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=job.output_path)
+    
+    # Local file
     file_path = Path(job.output_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Rendered file missing")
