@@ -10,9 +10,26 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./storage/edit_ai.db"
     storage_root: str = "storage"
     frontend_url: str = "http://localhost:3000"
+    
+    # AI API Keys
     openai_api_key: str | None = None
     gemini_api_key: str | None = None
     groq_api_key: str | None = None
+    
+    # OAuth - Google
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    
+    # OAuth - GitHub
+    github_client_id: str | None = None
+    github_client_secret: str | None = None
+    
+    # Cloudflare R2 Storage
+    r2_account_id: str | None = None
+    r2_access_key_id: str | None = None
+    r2_secret_access_key: str | None = None
+    r2_bucket_name: str = "proedit-storage"
+    r2_public_url: str | None = None  # e.g., https://pub-xxx.r2.dev
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
