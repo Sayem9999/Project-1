@@ -65,6 +65,19 @@ async def root() -> dict[str, str]:
     return {"message": "Proedit API is running"}
 
 
+
+@app.get("/debug")
+async def debug_config() -> dict[str, Any]:
+    """Debug endpoint to check environment configuration."""
+    return {
+        "celery_enabled": bool(os.getenv("REDIS_URL")),
+        "redis_url_present": bool(os.getenv("REDIS_URL")),
+        "db_url_present": bool(os.getenv("DATABASE_URL")),
+        "frontend_url": os.getenv("FRONTEND_URL"),
+        "cors_origins": [str(origin) for origin in app.user_middleware[0].options.get("allow_origins", [])] if hasattr(app, "user_middleware") else "unknown",
+    }
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}

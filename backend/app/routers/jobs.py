@@ -14,8 +14,8 @@ from ..services.storage_service import storage_service as r2_storage
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
-# Check if Celery/Redis is available
-USE_CELERY = os.getenv("REDIS_URL") is not None
+# Check if Celery/Redis is available (handle empty strings)
+USE_CELERY = bool(os.getenv("REDIS_URL"))
 
 
 @router.post("/upload", response_model=JobResponse)
@@ -46,8 +46,16 @@ async def upload_video(
     
     if USE_CELERY:
         # Use Celery for background processing
-        from ..tasks.video_tasks import process_video_task
-        process_video_task.delay(job.id, job.source_path, pacing, mood, ratio)
+        try:
+            from ..tasks.video_tasks import process_video_task
+            process_video_task.delay(job.id, job.source_path, pacing, mood, ratio)
+        except Exception as e:
+            print(f"[Job] Celery dispatch failed: {e}. Falling back to inline.")
+            # Fallback to inline
+            from fastapi import BackgroundTasks
+            from ..services.workflow_engine import process_job
+            import asyncio
+            asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio))
     else:
         # Fallback to inline BackgroundTasks
         from fastapi import BackgroundTasks
