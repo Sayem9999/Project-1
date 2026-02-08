@@ -25,6 +25,7 @@ async def process_job(job_id: int, source_path: str):
             return
         job.status = "processing"
         job.progress_message = "Starting internal workflow..."
+        theme = job.theme  # Extract attribute while session is open
         await session.commit()
 
     try:
@@ -44,7 +45,7 @@ async def process_job(job_id: int, source_path: str):
                 # Pass attributes to sub-agents or just director
                 director_output = await director_agent.run({
                     "source_path": source_path,
-                    "theme": job.theme,  # Pass the theme
+                    "theme": theme, 
                 })
                 directives = director_output
                 # Fan out to other agents could go here
