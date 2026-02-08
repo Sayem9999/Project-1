@@ -87,3 +87,24 @@ Set backend CORS origins to include production frontend:
 ```env
 FRONTEND_ORIGINS=https://your-app.vercel.app
 ```
+
+
+## 6) Alternative: Deploy frontend on Railway (no Vercel)
+
+Use this if you want to avoid Vercel entirely.
+
+### Frontend deploy command
+```bash
+export RAILWAY_TOKEN=...
+./scripts/deploy_frontend_railway.sh
+```
+
+### Deploy both backend + frontend on Railway
+```bash
+export RAILWAY_TOKEN=...
+./scripts/deploy_cloud_railway.sh
+```
+
+### Required IDs for deterministic deploys
+- `RAILWAY_SERVICE_ID` (backend)
+- `RAILWAY_FRONTEND_SERVICE_ID` (frontend)

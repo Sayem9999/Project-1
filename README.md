@@ -81,3 +81,21 @@ See `DEPLOYMENT_GUIDE.md` for the full production runbook.
 
 
 Monorepo note: Vercel is configured at repository root (`vercel.json`) to build and serve `frontend/package.json`, preventing root-level 404 deployments.
+
+
+## Alternative to Vercel: Frontend on Railway
+
+If you do not want to use Vercel, you can deploy both services on Railway:
+
+```bash
+export RAILWAY_TOKEN=...
+./scripts/deploy_cloud_railway.sh
+```
+
+This uses:
+- backend service from `backend/` (`scripts/deploy_railway.sh`)
+- frontend service from `frontend/` (`scripts/deploy_frontend_railway.sh`)
+
+For deterministic targeting, set:
+- `RAILWAY_SERVICE_ID` (backend)
+- `RAILWAY_FRONTEND_SERVICE_ID` (frontend)
