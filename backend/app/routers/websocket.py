@@ -20,9 +20,13 @@ async def job_progress_websocket(websocket: WebSocket, job_id: int):
     """
     await websocket.accept()
     
+    if not REDIS_URL:
+        await websocket.close(code=1000, reason="Redis not configured")
+        return
+
     try:
         # Connect to Redis
-        r = redis.from_url(REDIS_URL)
+        r = redis.from_url(REDIS_URL, decode_responses=True)
         pubsub = r.pubsub()
         await pubsub.subscribe(f"job:{job_id}:progress")
         
