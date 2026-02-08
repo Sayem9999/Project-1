@@ -33,8 +33,26 @@ async def startup() -> None:
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            
+            # Migrate: Add OAuth columns if they don't exist (for existing databases)
+            from sqlalchemy import text
+            migration_queries = [
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_provider VARCHAR(50)",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_id VARCHAR(255)",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(255)",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500)",
+                "ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL",
+            ]
+            for query in migration_queries:
+                try:
+                    await conn.execute(text(query))
+                    print(f"[Migration] Executed: {query[:50]}...")
+                except Exception as me:
+                    # Column might already exist or other benign error
+                    print(f"[Migration] Skipped (already done or N/A): {str(me)[:50]}")
     except Exception as e:
         print(f"Startup DB Error: {e}")
+
 
 
 @app.get("/")
