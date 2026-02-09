@@ -39,6 +39,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate limiting middleware
+from .middleware.rate_limit import rate_limit_middleware
+app.middleware("http")(rate_limit_middleware)
+
+# Security headers middleware  
+from .middleware.security_headers import security_headers_middleware
+app.middleware("http")(security_headers_middleware)
+
 @app.middleware("http")
 async def logging_middleware(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
@@ -49,15 +57,28 @@ async def logging_middleware(request: Request, call_next):
     try:
         response = await call_next(request)
         process_time = time.time() - start_time
+        process_time_ms = round(process_time * 1000, 2)
         
-        logger.info(
-            "request_completed",
-            method=request.method,
-            path=request.url.path,
-            status_code=response.status_code,
-            duration=process_time
-        )
+        # Log slow requests at WARNING level
+        if process_time > 5.0:
+            logger.warning(
+                "slow_request",
+                method=request.method,
+                path=request.url.path,
+                status_code=response.status_code,
+                duration_seconds=round(process_time, 2)
+            )
+        else:
+            logger.info(
+                "request_completed",
+                method=request.method,
+                path=request.url.path,
+                status_code=response.status_code,
+                duration=process_time
+            )
+        
         response.headers["X-Request-ID"] = request_id
+        response.headers["X-Response-Time"] = f"{process_time_ms}ms"
         return response
     except Exception as e:
         process_time = time.time() - start_time
