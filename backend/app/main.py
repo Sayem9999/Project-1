@@ -120,6 +120,19 @@ async def startup() -> None:
         def run_migrations():
             # Assume alembic.ini is in the current working directory (backend root)
             alembic_cfg = Config("alembic.ini")
+            
+            # Explicitly set the URL to handle any async driver requirements
+            from app.config import settings
+            db_url = settings.database_url
+            if db_url:
+                if db_url.startswith("postgres://"):
+                    db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+                elif db_url.startswith("postgresql://") and "asyncpg" not in db_url:
+                    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+                elif db_url.startswith("sqlite://") and "aiosqlite" not in db_url:
+                    db_url = db_url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+            
+            alembic_cfg.set_main_option("sqlalchemy.url", db_url)
             command.upgrade(alembic_cfg, "head")
         
         # Run in thread pool to avoid blocking event loop
