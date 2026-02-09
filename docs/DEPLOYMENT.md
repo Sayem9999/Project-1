@@ -43,11 +43,11 @@ The `render.yaml` file defines the infrastructure as code, but sensitive secrets
 3.  **Connect Repo**: Select your `Project-1` repository.
 4.  **Auto-Discovery**: Render will read `render.yaml` and propose creating:
     - `proedit-api` (Web Service)
-    - `proedit-worker` (Background Worker)
     - `proedit-db` (Postgres)
+    - *Note: The background worker is now embedded in the Web Service to save costs on the Free Tier.*
 5.  **Apply**: Click "Apply".
 6.  **Configure Environment**:
-    - Go to each service's "Environment" tab.
+    - Go to the `proedit-api` service's "Environment" tab.
     - Add the **Missing** variables listed above (especially R2 and Stripe keys) that show as `sync: false` in the YAML.
 
 ### Method B: Manual Deployment
@@ -57,9 +57,7 @@ If not using Blueprints, create services manually:
 1.  **Web Service**:
     - Build Command: `cd backend && ./render-build.sh`
     - Start Command: `cd backend && ./start.sh`
-2.  **Background Worker**:
-    - Build Command: `cd backend && ./render-build.sh`
-    - Start Command: `cd backend && celery -A app.celery_app worker --loglevel=info`
+    - *Note: `start.sh` now starts both the API and the Background Worker under one service.*
 
 ### Method C: Frontend Deployment (Vercel) [Recommended]
 
