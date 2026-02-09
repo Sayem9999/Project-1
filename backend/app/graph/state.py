@@ -1,4 +1,5 @@
-from typing import TypedDict, List, Dict, Any, Optional
+from typing import TypedDict, List, Dict, Any, Optional, Annotated
+from operator import add
 
 class GraphState(TypedDict):
     """
@@ -27,5 +28,5 @@ class GraphState(TypedDict):
     description: Optional[str]
     
     # Execution
-    errors: List[str]
+    errors: Annotated[List[str], add]
     tier: str  # "pro" or "standard"
