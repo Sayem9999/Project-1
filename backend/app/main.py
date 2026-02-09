@@ -93,11 +93,19 @@ async def startup() -> None:
     try:
         from alembic.config import Config
         from alembic import command
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
         
-        # Assume alembic.ini is in the current working directory (backend root)
-        alembic_cfg = Config("alembic.ini")
-        # Run upgrade synchronously
-        command.upgrade(alembic_cfg, "head")
+        def run_migrations():
+            # Assume alembic.ini is in the current working directory (backend root)
+            alembic_cfg = Config("alembic.ini")
+            command.upgrade(alembic_cfg, "head")
+        
+        # Run in thread pool to avoid blocking event loop
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as pool:
+            await loop.run_in_executor(pool, run_migrations)
+        
         logger.info("startup_migrations_complete")
     except Exception as e:
         logger.error("startup_migrations_failed", error=str(e))
