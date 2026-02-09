@@ -37,11 +37,13 @@ class FFmpegCompiler:
         # Map outputs
         cmd.extend(self._build_output_mapping(timeline))
         
-        # Output settings
+        # Hardware-accelerated output settings
+        from .gpu_capabilities import gpu_detector
+        encoding_args = gpu_detector.get_encoding_args()
+        cmd.extend(encoding_args)
+        
+        # Audio and container settings
         cmd.extend([
-            "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", "23",
             "-c:a", "aac",
             "-b:a", "192k",
             "-movflags", "+faststart",

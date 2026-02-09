@@ -13,6 +13,9 @@ from .nodes.qc_gate import qc_gate_node
 from .nodes.compiler import compiler_node
 
 
+from .iteration_controller import create_iteration_node, should_revise
+
+
 def should_proceed_to_compile(state: GraphState) -> str:
     """
     Conditional edge: check if QC passed before compiling.
@@ -24,9 +27,9 @@ def should_proceed_to_compile(state: GraphState) -> str:
     if not validation_result.get("passed", True):
         return "abort"
     
-    # Block if QC not approved
+    # If QC not approved, check if we should iterate
     if not qc_result.get("approved", True):
-        return "abort"
+        return "check_iteration"
     
     return "compile"
 
@@ -41,6 +44,7 @@ workflow.add_node("audio", audio_node)
 workflow.add_node("visuals", visuals_node)
 workflow.add_node("validator", validator_node)
 workflow.add_node("qc_gate", qc_gate_node)
+workflow.add_node("iteration_control", create_iteration_node())
 workflow.add_node("compiler", compiler_node)
 
 # Define Edges
@@ -58,13 +62,24 @@ workflow.add_edge("visuals", "validator")
 # Validator -> QC Gate
 workflow.add_edge("validator", "qc_gate")
 
-# Conditional: QC Gate -> Compiler or Abort
+# Conditional: QC Gate -> Compiler or Iteration Check
 workflow.add_conditional_edges(
     "qc_gate",
     should_proceed_to_compile,
     {
         "compile": "compiler",
+        "check_iteration": "iteration_control",
         "abort": END
+    }
+)
+
+# Conditional: Iteration Check -> Director (Revise) or Abort
+workflow.add_conditional_edges(
+    "iteration_control",
+    should_revise,
+    {
+        "revise": "director",
+        "proceed": END  # Max iterations reached or no improvement
     }
 )
 
