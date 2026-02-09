@@ -32,7 +32,6 @@ async def login(payload: LoginRequest, session: AsyncSession = Depends(get_sessi
 
 
 @router.get("/me", response_model=UserResponse)
-@router.get("/me", response_model=UserResponse)
 async def me(current_user: User = Depends(get_current_user)):
     return UserResponse(
         id=current_user.id,

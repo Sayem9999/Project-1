@@ -59,8 +59,17 @@ if ! curl -fsS http://127.0.0.1:3000 >/dev/null; then
   exit 1
 fi
 
-backend_pid="$(pgrep -f "uvicorn app.main:app --host 0.0.0.0 --port 8000" | head -n 1)"
-frontend_pid="$(pgrep -f "node .next/standalone/server.js" | head -n 1)"
+backend_pid="$(pgrep -f "uvicorn app.main:app --host 0.0.0.0 --port 8000" | tail -n 1 || true)"
+frontend_pid="$(pgrep -f "next start" | tail -n 1 || true)"
+
+if [ -z "$backend_pid" ] || ! kill -0 "$backend_pid" 2>/dev/null; then
+  echo "Could not detect a live backend PID after startup"
+  exit 1
+fi
+if [ -z "$frontend_pid" ] || ! kill -0 "$frontend_pid" 2>/dev/null; then
+  echo "Could not detect a live frontend PID after startup"
+  exit 1
+fi
 printf '%s' "$backend_pid" > "$PID_DIR/backend.pid"
 printf '%s' "$frontend_pid" > "$PID_DIR/frontend.pid"
 

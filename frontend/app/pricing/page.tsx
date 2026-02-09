@@ -1,19 +1,18 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Check } from 'lucide-react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import TopBar from '@/components/dashboard/TopBar';
+import { API_BASE } from '@/lib/api';
 
 export default function PricingPage() {
-    const router = useRouter();
     const [loading, setLoading] = useState(false);
 
     const handlePurchase = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/payments/create-checkout-session`, {
+            const res = await fetch(`${API_BASE}/payments/create-checkout-session`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -21,6 +20,7 @@ export default function PricingPage() {
                 }
             });
             const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Checkout failed');
             if (data.url) {
                 window.location.href = data.url;
             } else {

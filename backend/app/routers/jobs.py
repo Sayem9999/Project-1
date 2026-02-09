@@ -98,6 +98,14 @@ async def get_storage_usage(current_user: User = Depends(get_current_user)):
     return r2_storage.get_storage_usage()
 
 
+
+
+@router.post("/storage/cleanup")
+async def trigger_storage_cleanup(current_user: User = Depends(get_current_user)):
+    """Trigger R2 cleanup for expired files and return deleted count."""
+    deleted = r2_storage.cleanup_old_files(force=True)
+    return {"deleted": deleted}
+
 @router.get("/{job_id}", response_model=JobResponse)
 async def get_job(job_id: int, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))

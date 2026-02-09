@@ -33,6 +33,8 @@ n8n: `http://localhost:5678`
 - `POST /api/jobs/upload`
 - `GET /api/jobs/{job_id}`
 - `GET /api/jobs/{job_id}/download`
+- `GET /api/jobs/storage/usage`
+- `POST /api/jobs/storage/cleanup`
 - `POST /api/workflow/n8n/callback/{job_id}`
 - `POST /api/agents/{director|cutter|subtitle|audio|color|qc}`
 
@@ -119,3 +121,8 @@ python scripts/smoke_e2e.py
 ```
 
 This generates a real sample video via FFmpeg, signs up a test user, uploads the video, polls job status, and downloads the final output.
+
+
+## Storage lifecycle controls
+- Use `GET /api/jobs/storage/usage` to inspect current storage consumption.
+- Use `POST /api/jobs/storage/cleanup` to force cleanup of old R2 objects based on retention settings.

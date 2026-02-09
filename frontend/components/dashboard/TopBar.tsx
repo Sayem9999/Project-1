@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
+import { API_BASE } from '@/lib/api';
 
 export default function TopBar() {
     const pathname = usePathname();
@@ -60,7 +60,7 @@ export default function TopBar() {
                 <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/50 text-xs font-semibold text-slate-300">
                     <span className="text-amber-400">🪙</span>
                     <span>{credits !== null ? credits : '...'} Credits</span>
-                    <button className="ml-2 w-5 h-5 rounded-full bg-cyan-500 text-black flex items-center justify-center hover:bg-cyan-400" title="Buy Credits">
+                    <button onClick={() => router.push('/pricing')} className="ml-2 w-5 h-5 rounded-full bg-cyan-500 text-black flex items-center justify-center hover:bg-cyan-400" title="Buy Credits">
                         +
                     </button>
                 </div>
