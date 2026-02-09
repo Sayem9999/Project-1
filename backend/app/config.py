@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     r2_bucket_name: str = "proedit-storage"
     r2_public_url: str | None = None  # e.g., https://pub-xxx.r2.dev
 
+    # Stripe (Optional)
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    stripe_price_id_pro: str | None = None
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 

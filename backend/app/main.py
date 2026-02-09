@@ -12,7 +12,7 @@ app = FastAPI(title=settings.app_name)
 
 # CORS configuration - allow frontend origins
 # Regex to match any Vercel deployment for this project
-origin_regex = r"https://.*\.vercel\.app|http://localhost:3000"
+origin_regex = r"https://.*\.vercel\.app|http://localhost:3000|https://.*\.onrender\.com"
 
 app.add_middleware(
     CORSMiddleware,

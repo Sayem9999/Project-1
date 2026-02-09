@@ -1,4 +1,3 @@
-import os
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy import select
@@ -6,19 +5,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..deps import get_current_user
 from ..models import User
+from ..config import settings
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
-# Initialize Stripe
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-PRICE_ID_PRO = os.getenv("STRIPE_PRICE_ID_PRO") # e.g. price_H5ggYJ...
-FRONTEND_URL = os.getenv("NEXT_PUBLIC_APP_URL", "http://localhost:3000")
-
+# Initialize Stripe if keys are present
+if settings.stripe_secret_key:
+    stripe.api_key = settings.stripe_secret_key
 
 @router.get("/debug")
 async def debug_payments():
-    return {"status": "ok", "stripe_key_configured": bool(settings.stripe_secret_key)}
+    return {
+        "status": "ok", 
+        "stripe_key_configured": bool(settings.stripe_secret_key),
+        "webhook_secret_configured": bool(settings.stripe_webhook_secret),
+        "price_id_configured": bool(settings.stripe_price_id_pro)
+    }
 
 @router.post("/create-checkout-session")
 async def create_checkout_session(
@@ -27,21 +29,21 @@ async def create_checkout_session(
     """
     Create a Stripe Checkout Session for buying credits.
     """
-    if not stripe.api_key:
-        raise HTTPException(status_code=503, detail="Stripe not configured")
+    if not settings.stripe_secret_key or not settings.stripe_price_id_pro:
+        raise HTTPException(status_code=503, detail="Stripe payments are not currently configured.")
         
     try:
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[
                 {
-                    "price": PRICE_ID_PRO, # Ensure this env var is set
+                    "price": settings.stripe_price_id_pro,
                     "quantity": 1,
                 },
             ],
             mode="payment",
-            success_url=f"{FRONTEND_URL}/dashboard?credits_added=true",
-            cancel_url=f"{FRONTEND_URL}/pricing",
+            success_url=f"{settings.frontend_url}/dashboard?credits_added=true",
+            cancel_url=f"{settings.frontend_url}/pricing",
             client_reference_id=str(current_user.id),
             metadata={
                 "user_id": str(current_user.id),
@@ -59,14 +61,14 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None),
     """
     Handle Stripe Webhooks (e.g. checkout.session.completed)
     """
-    if not WEBHOOK_SECRET:
+    if not settings.stripe_webhook_secret:
         raise HTTPException(status_code=503, detail="Webhook secret not configured")
 
     payload = await request.body()
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, stripe_signature, WEBHOOK_SECRET
+            payload, stripe_signature, settings.stripe_webhook_secret
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail="Invalid payload")
