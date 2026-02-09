@@ -73,11 +73,15 @@ export default function LandingPage() {
         {/* Hero Visual */}
         <div className="mt-20 relative max-w-5xl mx-auto">
           <div className="absolute -inset-1 bg-gradient-to-r from-brand-cyan to-brand-violet rounded-2xl blur opacity-30 animate-pulse-slow" />
-          <div className="relative rounded-2xl border border-white/10 bg-surface/50 backdrop-blur-xl overflow-hidden shadow-2xl">
-            <img src="/hero-dashboard-mockup.png" alt="Dashboard" className="w-full opacity-80" />
-            {/* Fallback visual if image missing */}
-            <div className="absolute inset-0 flex items-center justify-center text-gray-600 bg-grid-small-white/5">
-              <span className="text-sm border border-white/10 px-4 py-2 rounded-lg bg-black/50 backdrop-blur">Dashboard Preview</span>
+          <div className="relative rounded-2xl border border-white/10 bg-surface/50 backdrop-blur-xl overflow-hidden shadow-2xl min-h-[300px] lg:min-h-[500px]">
+            {/* Dashboard Preview Placeholder */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-brand-cyan/5 via-transparent to-brand-violet/5">
+              <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-brand-cyan/20 to-brand-violet/20 flex items-center justify-center mb-6">
+                <svg className="w-12 h-12 text-brand-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.55 2.63a1 1 0 010 1.74l-9.1 5.26a1 1 0 01-1.45-.87V5.24a1 1 0 011.45-.87l9.1 5.26z" />
+                </svg>
+              </div>
+              <span className="text-sm text-gray-500 border border-white/10 px-4 py-2 rounded-lg bg-black/30 backdrop-blur">Dashboard Preview</span>
             </div>
           </div>
         </div>
