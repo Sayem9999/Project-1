@@ -1,6 +1,7 @@
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
 sqlalchemy==2.0.36
+alembic
 aiosqlite==0.20.0
 python-multipart==0.0.19
 passlib[bcrypt]==1.7.4
@@ -37,3 +38,12 @@ ffmpeg-python>=0.2.0
 
 # Payments
 stripe>=8.0.0
+
+# Testing
+pytest
+pytest-asyncio
+httpx
+
+# Observability
+structlog
+sentry-sdk

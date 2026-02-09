@@ -1,12 +1,29 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Any
-from fastapi.middleware.cors import CORSMiddleware
+import time
+import uuid
+import asyncio
+import structlog
+import sentry_sdk
 from .config import settings
 from .db import engine, Base
 from .routers import auth, jobs, agents, oauth, websocket
+from .logging_config import configure_logging
 
 import os
+
+# Configure Logging
+configure_logging()
+logger = structlog.get_logger()
+
+# Initialize Sentry
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+    )
 
 app = FastAPI(title=settings.app_name)
 
@@ -23,50 +40,83 @@ app.add_middleware(
 )
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
-    print(f"Request: {request.method} {request.url} | Origin: {request.headers.get('origin')}")
-    response = await call_next(request)
-    return response
+async def logging_middleware(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(request_id=request_id)
+    
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        
+        logger.info(
+            "request_completed",
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration=process_time
+        )
+        response.headers["X-Request-ID"] = request_id
+        return response
+    except Exception as e:
+        process_time = time.time() - start_time
+        logger.error(
+            "request_failed",
+            method=request.method,
+            path=request.url.path,
+            duration=process_time,
+            error=str(e)
+        )
+        raise
 
 
 @app.on_event("startup")
 async def startup() -> None:
     import os
-    print(f"Startup: Gemini Key Present: {bool(settings.gemini_api_key)}")
-    print(f"Startup: OpenAI Key Present: {bool(settings.openai_api_key)}")
-    print(f"Startup: Groq Key Present: {bool(settings.groq_api_key)}")
-    print(f"Startup: Google OAuth Configured: {bool(settings.google_client_id)}")
-    print(f"Startup: Redis URL Present: {bool(os.getenv('REDIS_URL'))}")
-    print(f"Startup: R2 Storage Configured: {bool(settings.r2_account_id)}")
+    logger.info("startup_config",
+        gemini_key_present=bool(settings.gemini_api_key),
+        openai_key_present=bool(settings.openai_api_key),
+        groq_key_present=bool(settings.groq_api_key),
+        google_oauth_configured=bool(settings.google_client_id),
+        redis_url_present=bool(os.getenv('REDIS_URL')),
+        r2_storage_configured=bool(settings.r2_account_id)
+    )
     
     # Ensure storage directories
     os.makedirs("storage", exist_ok=True)
     os.makedirs("storage/uploads", exist_ok=True)
     os.makedirs("storage/outputs", exist_ok=True)
     
+    # Migrate using Alembic
+    logger.info("startup_migrations_start")
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            
-            # Migrate: Add OAuth columns if they don't exist
-            from sqlalchemy import text
-            migration_queries = [
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_provider VARCHAR(50)",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_id VARCHAR(255)",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(255)",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500)",
-                "ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL",
-                "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS thumbnail_path TEXT",
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS credits INTEGER DEFAULT 10",
-            ]
-            for query in migration_queries:
-                try:
-                    await conn.execute(text(query))
-                    print(f"[Migration] Executed: {query[:50]}...")
-                except Exception as me:
-                    print(f"[Migration] Skipped: {str(me)[:50]}")
+        from alembic.config import Config
+        from alembic import command
+        
+        # Assume alembic.ini is in the current working directory (backend root)
+        alembic_cfg = Config("alembic.ini")
+        # Run upgrade synchronously
+        command.upgrade(alembic_cfg, "head")
+        logger.info("startup_migrations_complete")
     except Exception as e:
-        print(f"Startup DB Error: {e}")
+        logger.error("startup_migrations_failed", error=str(e))
+
+    # Schedule background tasks
+    from .tasks.cleanup import run_cleanup_task
+    asyncio.create_task(periodic_cleanup_wrapper(run_cleanup_task))
+
+async def periodic_cleanup_wrapper(task_func):
+    """Run cleanup every 24 hours."""
+    while True:
+        try:
+            # Wait for 24 hours (86400 seconds)
+            # Check immediately on startup? Maybe wait 1 hour first.
+            await asyncio.sleep(60 * 60) # Wait 1 hour between checks/start
+            await task_func()
+        except Exception as e:
+            logger.error("background_task_failed", error=str(e))
+            await asyncio.sleep(60 * 5) # Retry after 5 min on error
 
 
 
@@ -97,8 +147,9 @@ app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(oauth.router, prefix=settings.api_prefix)
 app.include_router(jobs.router, prefix=settings.api_prefix)
 app.include_router(agents.router, prefix=settings.api_prefix)
-from .routers import payments
+from .routers import payments, admin
 app.include_router(payments.router, prefix=settings.api_prefix)
+app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(websocket.router)
 
 from fastapi.staticfiles import StaticFiles

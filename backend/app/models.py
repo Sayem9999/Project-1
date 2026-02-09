@@ -1,6 +1,6 @@
 from __future__ import annotations
 import enum
-import typing
+from typing import Optional, Union
 from datetime import datetime
 from sqlalchemy import String, DateTime, Enum, ForeignKey, Text, Column, Integer
 from sqlalchemy.orm import Mapped, mapped_column
@@ -19,28 +19,41 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Nullable for OAuth users
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=True)  # Nullable for OAuth users
     
     # OAuth fields
-    oauth_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)  # 'google', 'github', or null
-    oauth_id: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Provider's user ID
-    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    oauth_provider: Mapped[str] = mapped_column(String(50), nullable=True)  # 'google', 'github', or null
+    oauth_id: Mapped[str] = mapped_column(String(255), nullable=True)  # Provider's user ID
+    name: Mapped[str] = mapped_column(String(255), nullable=True)
+    avatar_url: Mapped[str] = mapped_column(String(500), nullable=True)
     
     credits: Mapped[int] = mapped_column(Integer, default=10)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    # jobs = relationship("Job", back_populates="user")
 
 
 class Job(Base):
     __tablename__ = "jobs"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), index=True)
-    source_path = Column(Text, nullable=False)
-    output_path = Column(Text, nullable=True)
-    thumbnail_path = Column(Text, nullable=True)
-    status = Column(Enum(JobStatus), default=JobStatus.queued, nullable=False)
-    theme = Column(String, default="professional", nullable=False)
-    progress_message = Column(Text, default="Upload complete, waiting for processing.")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    source_path: Mapped[str] = mapped_column(Text, nullable=False)
+    output_path: Mapped[str] = mapped_column(Text, nullable=True)
+    thumbnail_path: Mapped[str] = mapped_column(Text, nullable=True)
+    status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.queued, nullable=False)
+    theme: Mapped[str] = mapped_column(String, default="professional", nullable=False)
+    progress_message: Mapped[str] = mapped_column(Text, default="Upload complete, waiting for processing.")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships (if needed in future)
+    # user: Mapped["User"] = relationship("User", back_populates="jobs")
+
+
+class ProcessedWebhook(Base):
+    __tablename__ = "processed_webhooks"
+    
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    processed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

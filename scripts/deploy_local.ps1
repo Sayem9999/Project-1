@@ -55,28 +55,77 @@ $frontendJob = Start-Process -FilePath "cmd" -ArgumentList "/c npm run start" -W
 
 # Wait for health
 Write-Host "Waiting for services..."
+$backendHealth = $false
 for ($i = 1; $i -le 30; $i++) {
     try {
         $response = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -Method Get -ErrorAction Stop
-        if ($response.StatusCode -eq 200) { break }
+        if ($response.StatusCode -eq 200) { 
+            $backendHealth = $true
+            break 
+        }
     }
     catch {
         Start-Sleep -Seconds 1
     }
 }
+
+if (-not $backendHealth) {
+    Write-Error "Backend failed to start or failed health check."
+    exit 1
+}
+
+# Verify Backend PID is still running
+if (-not (Get-Process -Id $backendJob.Id -ErrorAction SilentlyContinue)) {
+    Write-Error "Backend process exited unexpectedly."
+    exit 1
+}
+
+$frontendHealth = $false
 for ($i = 1; $i -le 30; $i++) {
     try {
         $response = Invoke-WebRequest -Uri "http://127.0.0.1:3000" -Method Get -ErrorAction Stop
-        if ($response.StatusCode -eq 200) { break }
+        if ($response.StatusCode -eq 200) { 
+            $frontendHealth = $true
+            break 
+        }
     }
     catch {
         Start-Sleep -Seconds 1
     }
 }
 
-$backendJob.Id | Out-File "$PID_DIR\backend.pid" -NoNewline
-$frontendJob.Id | Out-File "$PID_DIR\frontend.pid" -NoNewline
+if (-not $frontendHealth) {
+    Write-Error "Frontend failed to start or failed health check."
+    exit 1
+}
 
-Write-Host "Deployment started."
+# Find actual Frontend Node PID (the one running next)
+# We look for a node process started recently with command line containing "next"
+$frontendPid = 0
+$candidates = Get-CimInstance Win32_Process | Where-Object { $_.Name -like "node.exe" -and $_.CommandLine -like "*next*" }
+# Simple heuristic: pick the one started most recently, or if multiple, the parent of the child?
+# Actually cleaner: rely on the fact we just started it.
+# But since we can't easily get children of the shell we started, let's look for the process whose ParentProcessId points to our shell... hard to track.
+# Better: Look for the process listening on port 3000.
+$netstat = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+if ($netstat) {
+    $frontendPid = $netstat.OwningProcess
+}
+
+if ($frontendPid -eq 0) {
+    Write-Warning "Could not determine Frontend PID via port 3000. Using shell PID (unreliable for stopping)."
+    $frontendPid = $frontendJob.Id
+}
+
+# Verify Frontend PID is still running
+if (-not (Get-Process -Id $frontendPid -ErrorAction SilentlyContinue)) {
+    Write-Error "Frontend process (PID $frontendPid) exited unexpectedly."
+    exit 1
+}
+
+$backendJob.Id | Out-File "$PID_DIR\backend.pid" -NoNewline
+$frontendPid | Out-File "$PID_DIR\frontend.pid" -NoNewline
+
+Write-Host "Deployment started successfully." -ForegroundColor Green
 Write-Host "Backend PID: $($backendJob.Id)"
-Write-Host "Frontend PID: $($frontendJob.Id)"
+Write-Host "Frontend PID: $frontendPid"

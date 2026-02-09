@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..deps import get_current_user
-from ..models import User
+from ..models import User, ProcessedWebhook
 from ..config import settings
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -75,6 +75,13 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None),
     except stripe.error.SignatureVerificationError as e:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
+    # Idempotency Check
+    event_id = event.get("id")
+    if event_id:
+        existing = await session.get(ProcessedWebhook, event_id)
+        if existing:
+            return {"status": "success", "message": "Already processed"}
+
     # Handle the event
     if event["type"] == "checkout.session.completed":
         session_data = event["data"]["object"]
@@ -94,6 +101,11 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None),
             if user:
                 user.credits = (user.credits or 0) + credits_to_add
                 session.add(user)
+                
+                # Mark as processed
+                if event_id:
+                    session.add(ProcessedWebhook(id=event_id))
+                    
                 await session.commit()
                 print(f"[Stripe] Success! User {user_id} now has {user.credits} credits.")
             else:

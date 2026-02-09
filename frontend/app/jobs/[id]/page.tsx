@@ -48,13 +48,33 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'complete':
-        return { color: 'emerald', icon: '✓', label: 'Complete', bgGlow: 'from-emerald-500/20' };
+        return {
+          badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+          icon: '✓',
+          label: 'Complete',
+          bgGlow: 'from-emerald-500/20'
+        };
       case 'failed':
-        return { color: 'red', icon: '✕', label: 'Failed', bgGlow: 'from-red-500/20' };
+        return {
+          badge: 'bg-red-500/20 text-red-400 border-red-500/30',
+          icon: '✕',
+          label: 'Failed',
+          bgGlow: 'from-red-500/20'
+        };
       case 'processing':
-        return { color: 'cyan', icon: '⟳', label: 'Processing', bgGlow: 'from-cyan-500/20' };
+        return {
+          badge: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+          icon: '⟳',
+          label: 'Processing',
+          bgGlow: 'from-cyan-500/20'
+        };
       default:
-        return { color: 'gray', icon: '○', label: 'Queued', bgGlow: 'from-gray-500/20' };
+        return {
+          badge: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+          icon: '○',
+          label: 'Queued',
+          bgGlow: 'from-gray-500/20'
+        };
     }
   };
 
@@ -116,7 +136,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
                   {/* Header */}
                   <div className="flex items-center justify-between mb-6">
                     <span className="text-sm text-gray-400">Job #{job.id}</span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium bg-${statusConfig.color}-500/20 text-${statusConfig.color}-400 border border-${statusConfig.color}-500/30`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusConfig.badge}`}>
                       {statusConfig.label}
                     </span>
                   </div>
@@ -174,8 +194,8 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
                     {stages.map((stage, i) => (
                       <div key={stage.key} className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${i < currentStage ? 'bg-emerald-500/20' :
-                            i === currentStage ? 'bg-cyan-500/20 animate-pulse' :
-                              'bg-white/5'
+                          i === currentStage ? 'bg-cyan-500/20 animate-pulse' :
+                            'bg-white/5'
                           }`}>
                           {stage.icon}
                         </div>

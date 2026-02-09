@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./storage/edit_ai.db"
     storage_root: str = "storage"
     frontend_url: str = "http://localhost:3000"
+    environment: str = "development"
+    sentry_dsn: str | None = None
     
     # AI API Keys
     openai_api_key: str | None = None
