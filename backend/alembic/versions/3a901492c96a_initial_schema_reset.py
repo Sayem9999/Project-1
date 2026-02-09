@@ -26,6 +26,12 @@ def upgrade() -> None:
     conn = op.get_bind()
     inspector = sa.inspect(conn)
     existing_tables = inspector.get_table_names()
+    
+    # Check for existing types (Enums) in PostgreSQL
+    existing_types = []
+    if conn.dialect.name == 'postgresql':
+        result = conn.execute(sa.text("SELECT typname FROM pg_type WHERE typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')"))
+        existing_types = [r[0] for r in result]
 
     if 'processed_webhooks' not in existing_tables:
         op.create_table('processed_webhooks',
@@ -50,13 +56,17 @@ def upgrade() -> None:
         op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
 
     if 'jobs' not in existing_tables:
+        # In PostgreSQL, we must handle the Enum type carefully to avoid DuplicateObject
+        has_jobstatus = 'jobstatus' in existing_types
+        job_status_enum = sa.Enum('queued', 'processing', 'complete', 'failed', name='jobstatus', create_type=not has_jobstatus)
+        
         op.create_table('jobs',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('source_path', sa.Text(), nullable=False),
         sa.Column('output_path', sa.Text(), nullable=True),
         sa.Column('thumbnail_path', sa.Text(), nullable=True),
-        sa.Column('status', sa.Enum('queued', 'processing', 'complete', 'failed', name='jobstatus'), nullable=False),
+        sa.Column('status', job_status_enum, nullable=False),
         sa.Column('theme', sa.String(), nullable=False),
         sa.Column('progress_message', sa.Text(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
