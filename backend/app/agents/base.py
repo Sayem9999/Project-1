@@ -1,14 +1,14 @@
 from openai import AsyncOpenAI
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from groq import Groq
 from ..config import settings
 
 # OpenAI Client
 openai_client = AsyncOpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
 
-# Gemini Configuration
-if settings.gemini_api_key:
-    genai.configure(api_key=settings.gemini_api_key)
+# Gemini Client (new unified SDK)
+gemini_client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
 
 # Groq Client
 groq_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
@@ -35,37 +35,20 @@ async def run_agent_prompt(system_prompt: str, payload: dict, model: str = "gemi
             print(f"Groq error: {e}")
             last_error = e
 
-    # 2. Try Gemini (Free Tier)
-    if settings.gemini_api_key:
-        # Dynamic Model Discovery
-        candidates = []
-        try:
-            candidates.append(model)
-            available_models = []
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    available_models.append(m.name)
-            candidates.extend(available_models)
-            candidates.extend(["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"])
-        except Exception as e:
-            print(f"Error listing Gemini models: {e}")
-            candidates = [model, "gemini-1.5-flash", "gemini-1.5-pro"]
-
-        seen = set()
-        gemini_models = []
-        for x in candidates:
-            simple_name = x.replace("models/", "")
-            if simple_name not in seen:
-                seen.add(simple_name)
-                gemini_models.append(x)
-
-        print(f"Attempting Gemini models: {gemini_models}")
+    # 2. Try Gemini (Free Tier) - Using new google.genai SDK
+    if gemini_client:
+        gemini_models = [model, "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
         
         for g_model in gemini_models:
             try:
+                print(f"Attempting Gemini model: {g_model}")
                 full_prompt = f"System: {system_prompt}\n\nUser Input: {str(payload)}"
-                model_instance = genai.GenerativeModel(g_model)
-                response = await model_instance.generate_content_async(full_prompt)
+                
+                response = await gemini_client.aio.models.generate_content(
+                    model=g_model,
+                    contents=full_prompt,
+                )
+                
                 if response.text:
                     print(f"Gemini {g_model} success!")
                     return {"raw_response": response.text}

@@ -16,7 +16,7 @@ greenlet
 gunicorn
 asyncpg
 psycopg2-binary
-google-generativeai>=0.8.3
+google-genai>=1.0.0
 groq
 # OAuth
 authlib

@@ -2,6 +2,10 @@ import pytest
 import asyncio
 import sys
 import os
+
+# Set required env vars BEFORE importing app modules
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest")
+
 # Add backend root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
