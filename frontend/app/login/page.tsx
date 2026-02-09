@@ -37,7 +37,10 @@ function LoginForm() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Login failed');
+      if (!res.ok) {
+        const detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+        throw new Error(detail || 'Login failed');
+      }
 
       localStorage.setItem('token', data.access_token);
       router.push('/dashboard/upload');

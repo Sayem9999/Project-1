@@ -27,12 +27,17 @@ export default function SignupPage() {
 
       const data = await res.json();
       if (!res.ok) {
+        // Handle detail which could be a string or a list of objects (FastAPI)
+        const detail = typeof data.detail === 'string'
+          ? data.detail
+          : JSON.stringify(data.detail);
+
         // Check if email already exists - redirect to login
-        if (data.detail?.toLowerCase().includes('already') || data.detail?.toLowerCase().includes('exist')) {
+        if (detail?.toLowerCase().includes('already') || detail?.toLowerCase().includes('exist')) {
           router.push(`/login?email=${encodeURIComponent(email)}&message=exists`);
           return;
         }
-        throw new Error(data.detail || 'Signup failed');
+        throw new Error(detail || 'Signup failed');
       }
 
       localStorage.setItem('token', data.access_token);
