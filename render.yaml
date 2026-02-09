@@ -30,6 +30,14 @@ services:
         sync: false
       - key: R2_PUBLIC_URL
         sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
 
   - type: worker
     name: proedit-worker
@@ -59,6 +67,8 @@ services:
       - key: R2_BUCKET_NAME
         sync: false
       - key: R2_PUBLIC_URL
+        sync: false
+      - key: GROQ_API_KEY
         sync: false
 
 databases:
