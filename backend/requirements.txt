@@ -47,3 +47,16 @@ httpx
 # Observability
 structlog
 sentry-sdk
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi
+prometheus-client
+
+# Resilience & Performance
+tenacity>=8.0.0
+orjson>=3.9.0
+
+# Media Intelligence
+scenedetect[opencv]>=0.6.0
+
+# Vector Store (pgvector)
+pgvector>=0.2.0
