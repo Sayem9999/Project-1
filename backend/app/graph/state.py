@@ -27,6 +27,12 @@ class GraphState(TypedDict):
     title: Optional[str]
     description: Optional[str]
     
+    # Validation & QC
+    validation_result: Optional[Dict[str, Any]]
+    qc_result: Optional[Dict[str, Any]]
+    retry_count: int
+    
     # Execution
     errors: Annotated[List[str], add]
     tier: str  # "pro" or "standard"
+

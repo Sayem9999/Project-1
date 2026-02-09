@@ -1,0 +1,81 @@
+# Source dependencies - unpinned ranges
+# Generate lock file with: pip-compile requirements.in -o requirements.lock
+
+# Core Framework
+fastapi>=0.115.0,<1.0
+uvicorn[standard]>=0.32.0,<1.0
+pydantic>=2.0.0,<3.0
+pydantic-settings>=2.0.0,<3.0
+
+# Database
+sqlalchemy>=2.0.0,<3.0
+alembic>=1.0.0
+aiosqlite>=0.20.0
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.0
+
+# Authentication
+passlib[bcrypt]>=1.7.0
+PyJWT>=2.0.0
+bcrypt>=4.0.0
+email-validator>=2.0.0
+
+# HTTP
+httpx>=0.28.0
+
+# AI Providers
+openai>=1.50.0
+google-genai>=1.0.0
+groq>=0.4.0
+
+# Environment
+python-dotenv>=1.0.0
+python-multipart>=0.0.19
+
+# OAuth
+authlib>=1.0.0
+itsdangerous>=2.0.0
+
+# Cloud Storage
+boto3>=1.30.0
+
+# Task Queue
+celery[redis]>=5.3.0
+redis>=5.0.0
+
+# Workflow
+langgraph>=0.0.10
+langchain>=0.1.0
+
+# Video/Audio
+moviepy>=1.0.3
+pydub>=0.25.0
+ffmpeg-python>=0.2.0
+
+# Payments
+stripe>=8.0.0
+
+# Observability
+structlog>=24.0.0
+sentry-sdk>=1.0.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-instrumentation-fastapi>=0.41b0
+prometheus-client>=0.19.0
+
+# Resilience & Performance
+tenacity>=8.0.0
+orjson>=3.9.0
+
+# Media Intelligence
+scenedetect[opencv]>=0.6.0
+
+# Vector Store
+pgvector>=0.2.0
+
+# Server
+gunicorn>=21.0.0
+greenlet>=3.0.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
