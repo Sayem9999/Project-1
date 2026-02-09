@@ -1,0 +1,64 @@
+{
+    "cases": [
+        {
+            "id": "talking_head_short",
+            "name": "Short Talking Head Video",
+            "input_video": "tests/eval/fixtures/talking_head_60s.mp4",
+            "duration_range": [
+                15,
+                45
+            ],
+            "min_cuts": 3,
+            "max_cuts": 15,
+            "min_qc_score": 7
+        },
+        {
+            "id": "gameplay_long",
+            "name": "Long Gameplay Video",
+            "input_video": "tests/eval/fixtures/gameplay_300s.mp4",
+            "duration_range": [
+                30,
+                120
+            ],
+            "min_cuts": 10,
+            "max_cuts": 50,
+            "min_qc_score": 6
+        },
+        {
+            "id": "tutorial_medium",
+            "name": "Medium Tutorial Video",
+            "input_video": "tests/eval/fixtures/tutorial_180s.mp4",
+            "duration_range": [
+                60,
+                120
+            ],
+            "min_cuts": 5,
+            "max_cuts": 25,
+            "min_qc_score": 7
+        },
+        {
+            "id": "podcast_interview",
+            "name": "Podcast Interview",
+            "input_video": "tests/eval/fixtures/podcast_600s.mp4",
+            "duration_range": [
+                60,
+                180
+            ],
+            "min_cuts": 8,
+            "max_cuts": 30,
+            "min_qc_score": 7
+        },
+        {
+            "id": "product_demo",
+            "name": "Product Demo",
+            "input_video": "tests/eval/fixtures/demo_120s.mp4",
+            "duration_range": [
+                30,
+                90
+            ],
+            "min_cuts": 5,
+            "max_cuts": 20,
+            "min_qc_score": 8
+        }
+    ]
+}
