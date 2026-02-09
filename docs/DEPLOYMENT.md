@@ -61,6 +61,21 @@ If not using Blueprints, create services manually:
     - Build Command: `cd backend && ./render-build.sh`
     - Start Command: `cd backend && celery -A app.celery_app worker --loglevel=info`
 
+### Method C: Frontend Deployment (Vercel) [Recommended]
+
+Since this is a Next.js app, Vercel is the easiest deployment option.
+
+1.  **Push Changes**: Ensure your code is on GitHub.
+2.  **Import Project**: Go to [Vercel Dashboard](https://vercel.com/new) and import your repository.
+3.  **Configure Project**:
+    - **Framework Preset**: Next.js (Auto-detected).
+    - **Root Directory**: `frontend` (Click "Edit" next to Root Directory and select the `frontend` folder).
+4.  **Environment Variables**:
+    - `NEXT_PUBLIC_API_BASE`: The URL of your Render Backend (e.g., `https://proedit-api.onrender.com/api`).
+    - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Your Stripe Public Key.
+    - `NEXT_PUBLIC_SENTRY_DSN`: Your Sentry DSN (if using Sentry).
+5.  **Deploy**: Click "Deploy".
+
 ## 3. Verifying Deployment
 
 1.  **Health Check**: Visit `https://<YOUR-APP-URL>.onrender.com/health` -> Should return `{"status": "ok"}`.

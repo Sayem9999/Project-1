@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Video, HardDrive, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
+import * as Sentry from "@sentry/nextjs";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
@@ -29,6 +30,10 @@ export default function AdminDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // ...
+
+    // ...
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -36,22 +41,27 @@ export default function AdminDashboardPage() {
             return;
         }
 
-        fetch(`${API_BASE}/admin/stats`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then(res => {
+        Sentry.startSpan({
+            name: "fetch-admin-stats",
+            op: "http.client",
+        }, async (span) => {
+            try {
+                const res = await fetch(`${API_BASE}/admin/stats`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
                 if (res.status === 403) throw new Error('Access Denied');
                 if (!res.ok) throw new Error('Failed to fetch stats');
-                return res.json();
-            })
-            .then(data => {
+
+                const data = await res.json();
                 setStats(data);
                 setLoading(false);
-            })
-            .catch(err => {
+            } catch (err: any) {
+                Sentry.captureException(err);
                 setError(err.message);
                 setLoading(false);
-            });
+            }
+        });
     }, [router]);
 
     if (loading) {
@@ -154,7 +164,7 @@ export default function AdminDashboardPage() {
                     <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
                         <div
                             className={`h-full rounded-full transition-all duration-1000 ${stats.storage.percent > 80 ? 'bg-red-500' :
-                                    stats.storage.percent > 50 ? 'bg-yellow-500' : 'bg-emerald-500'
+                                stats.storage.percent > 50 ? 'bg-yellow-500' : 'bg-emerald-500'
                                 }`}
                             style={{ width: `${Math.min(stats.storage.percent, 100)}%` }}
                         />
