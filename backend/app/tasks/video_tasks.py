@@ -48,7 +48,17 @@ try:
     celery_app = get_celery_app()
     
     @celery_app.task(bind=True, max_retries=2)
-    def process_video_task(self, job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9", tier: str = "pro"):
+    def process_video_task(
+        self,
+        job_id: int,
+        source_path: str,
+        pacing: str = "medium",
+        mood: str = "professional",
+        ratio: str = "16:9",
+        tier: str = "pro",
+        platform: str = "youtube",
+        brand_safety: str = "standard",
+    ):
         """
         Celery task for video processing.
         Wraps the async workflow engine.
@@ -64,7 +74,7 @@ try:
             
             try:
                 loop.run_until_complete(
-                    process_job(job_id, source_path, pacing, mood, ratio, tier)
+                    process_job(job_id, source_path, pacing, mood, ratio, tier, platform, brand_safety)
                 )
                 publish_progress(job_id, "complete", "Video processing complete!", 100)
                 return {"status": "complete", "job_id": job_id}
