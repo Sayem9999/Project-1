@@ -3,6 +3,7 @@ Celery Application Configuration
 Background task processing with Redis broker
 """
 import os
+import ssl
 from celery import Celery
 
 # Redis URL from environment
@@ -17,6 +18,16 @@ celery_app = Celery(
     backend=REDIS_URL,
     include=["app.tasks.video_tasks"]
 )
+
+if REDIS_URL.startswith("rediss://"):
+    celery_app.conf.update(
+        broker_use_ssl={
+            "ssl_cert_reqs": ssl.CERT_NONE
+        },
+        redis_backend_use_ssl={
+            "ssl_cert_reqs": ssl.CERT_NONE
+        }
+    )
 
 # Celery configuration
 celery_app.conf.update(

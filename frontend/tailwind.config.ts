@@ -4,19 +4,26 @@ export default {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+        display: ['Outfit', 'sans-serif'],
+      },
       colors: {
-        background: '#020617', // Slate 950+ (Deep Space)
-        surface: '#0f172a',    // Slate 900
-        surfaceHighlight: '#1e293b', // Slate 800
+        obsidian: {
+          950: '#020408', // Deep Space
+          900: '#050a14', // Void
+          800: '#0f172a', // Slate
+        },
         brand: {
           cyan: '#06b6d4',     // Cyan 500
           violet: '#8b5cf6',   // Violet 500
           fuchsia: '#d946ef',  // Fuchsia 500
           accent: '#22d3ee',   // Cyan 400
         },
-        success: '#10b981',    // Emerald 500
-        warning: '#f59e0b',    // Amber 500
-        error: '#ef4444',      // Red 500
+        sidebar: {
+          DEFAULT: 'rgba(2, 4, 8, 0.85)',
+          border: 'rgba(255, 255, 255, 0.08)',
+        }
       },
       animation: {
         'float': 'float 6s ease-in-out infinite',
@@ -24,6 +31,7 @@ export default {
         'shimmer': 'shimmer 2s linear infinite',
         'scan': 'scan 4s linear infinite',
         'slide-up': 'slideUp 0.5s ease-out forwards',
+        'glow': 'glow 3s ease-in-out infinite',
       },
       keyframes: {
         float: {
@@ -41,7 +49,15 @@ export default {
         slideUp: {
           '0%': { opacity: '0', transform: 'translateY(20px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        glow: {
+          '0%, 100%': { opacity: '0.5' },
+          '50%': { opacity: '1' },
         }
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-obsidian': 'linear-gradient(to bottom, #050a14, #020408)',
       }
     }
   },

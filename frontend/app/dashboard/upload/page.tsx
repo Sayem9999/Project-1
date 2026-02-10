@@ -1,6 +1,7 @@
 'use client';
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { Upload, X, Film, Zap, Layers, Monitor, Shield, Sparkles } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
@@ -17,9 +18,9 @@ export default function UploadPage() {
     pacing: 'medium',
     mood: 'professional',
     ratio: '16:9',
-    platform: 'youtube', // New
-    premium: true,       // New
-    brandSafety: 'standard' // New
+    platform: 'youtube',
+    premium: true,
+    brandSafety: 'standard'
   });
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -71,9 +72,9 @@ export default function UploadPage() {
       formData.append('pacing', settings.pacing);
       formData.append('mood', settings.mood);
       formData.append('ratio', settings.ratio);
-      formData.append('platform', settings.platform); // New
-      formData.append('tier', settings.premium ? 'pro' : 'standard'); // New
-      formData.append('brand_safety', settings.brandSafety); // New
+      formData.append('platform', settings.platform);
+      formData.append('tier', settings.premium ? 'pro' : 'standard');
+      formData.append('brand_safety', settings.brandSafety);
 
       const res = await fetch(`${API_BASE}/jobs/upload`, {
         method: 'POST',
@@ -87,10 +88,7 @@ export default function UploadPage() {
       }
 
       const job = await res.json();
-
-      // Refresh credits in TopBar
       window.dispatchEvent(new Event('credit-update'));
-
       router.push(`/jobs/${job.id}`);
     } catch (err: any) {
       setError(err.message || 'Upload failed');
@@ -98,187 +96,90 @@ export default function UploadPage() {
     }
   };
 
-  const themes = [
-    { id: 'cinematic', label: 'Cinematic', icon: '🎬' },
-    { id: 'energetic', label: 'Energetic', icon: '⚡' },
-    { id: 'minimal', label: 'Minimal', icon: '✨' },
-    { id: 'documentary', label: 'Documentary', icon: '📹' },
-  ];
-
-  const pacings = [
-    { id: 'slow', label: 'Slow & Dramatic' },
-    { id: 'medium', label: 'Balanced' },
-    { id: 'fast', label: 'Fast & Punchy' },
-  ];
-
-  const ratios = [
-    { id: '16:9', label: '16:9 YouTube' },
-    { id: '9:16', label: '9:16 TikTok' },
-    { id: '1:1', label: '1:1 Instagram' },
-  ];
-
-  const platforms = [
-    { id: 'youtube', label: 'YouTube', icon: '🟥' },
-    { id: 'tiktok', label: 'TikTok', icon: '🎵' },
-    { id: 'instagram', label: 'Instagram', icon: '📸' },
-    { id: 'linkedin', label: 'LinkedIn', icon: '💼' }
-  ];
-
   return (
-    <div className="max-w-5xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold text-white mb-2">
-          Create New Project
-        </h1>
-        <p className="text-gray-400">Upload your video and choose your style preferences</p>
-      </div>
+    <div className="h-[calc(100vh-8rem)] flex gap-8">
+      {/* Left Column: Configuration Wizard */}
+      <div className="w-[450px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
 
-      <div className="grid lg:grid-cols-2 gap-8">
-        {/* Upload Zone */}
-        <div
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          className={`relative rounded-2xl border-2 border-dashed transition-all ${dragActive
-            ? 'border-cyan-500 bg-cyan-500/10'
-            : file
-              ? 'border-emerald-500/50 bg-emerald-500/5'
-              : 'border-white/20 bg-[#12121a] hover:border-white/40'
-            }`}
-        >
-          {preview ? (
-            <div className="relative rounded-xl overflow-hidden bg-black" style={{ maxHeight: '300px' }}>
-              <video src={preview} className="w-full h-full object-contain max-h-[300px]" controls />
-              <button
-                onClick={() => { setFile(null); setPreview(null); }}
-                className="absolute top-3 right-3 p-2 bg-black/50 rounded-lg text-white hover:bg-black/70 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                <span className="px-3 py-1 bg-black/50 rounded-lg text-sm text-white truncate max-w-[200px]">
-                  {file?.name}
-                </span>
-                <span className="px-3 py-1 bg-emerald-500/20 rounded-lg text-sm text-emerald-400">
-                  Ready
-                </span>
-              </div>
-            </div>
-          ) : (
-            <label className="flex flex-col items-center justify-center p-12 cursor-pointer aspect-video">
-              <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center">
-                <svg className="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-              </div>
-              <p className="text-lg font-medium text-white mb-1">Drop your video here</p>
-              <p className="text-sm text-gray-400 mb-4">or click to browse</p>
-              <span className="px-4 py-2 bg-white/10 rounded-lg text-sm text-white">
-                Select File
-              </span>
-              <p className="text-xs text-gray-500 mt-4">MP4, MOV, AVI up to 100MB</p>
-              <input type="file" accept="video/*" onChange={handleFileChange} className="hidden" />
-            </label>
-          )}
+        <div className="space-y-2">
+          <h1 className="text-3xl font-display font-bold">New Project</h1>
+          <p className="text-gray-400">Configure your creative vision.</p>
         </div>
 
-        {/* Settings */}
-        <div className="space-y-6">
+        {/* Settings Panel */}
+        <div className="space-y-8 glass-panel p-6 rounded-2xl">
 
-          {/* Pipeline Tier */}
-          <div className="p-4 rounded-xl border border-white/10 bg-[#1a1a24]">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-white">Hollywood Pipeline (Pro)</label>
-              <div
-                onClick={() => setSettings(s => ({ ...s, premium: !s.premium }))}
-                className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${settings.premium ? 'bg-cyan-500' : 'bg-gray-600'}`}
+          {/* Pipeline Selector */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-300">Processing Pipeline</label>
+            <div className="bg-obsidian-900 rounded-xl p-1 flex relative">
+              <div className={`absolute inset-y-1 w-1/2 bg-white/10 rounded-lg transition-all duration-300 ${settings.premium ? 'translate-x-full left-[-4px]' : 'left-1'}`} />
+              <button
+                onClick={() => setSettings(s => ({ ...s, premium: false }))}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg relative z-10 transition-colors ${!settings.premium ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
               >
-                <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${settings.premium ? 'translate-x-6' : ''}`} />
-              </div>
+                <Zap className="w-4 h-4" />
+                <span className="font-medium">Standard</span>
+              </button>
+              <button
+                onClick={() => setSettings(s => ({ ...s, premium: true }))}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg relative z-10 transition-colors ${settings.premium ? 'text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                <Sparkles className={`w-4 h-4 ${settings.premium ? 'text-brand-cyan' : ''}`} />
+                <span className={`font-medium ${settings.premium ? 'gradient-text bg-gradient-to-r from-brand-cyan to-brand-violet' : ''}`}>Pro Studio</span>
+              </button>
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-500 px-1">
               {settings.premium
-                ? "Includes: Specialist Agents, Media Intel, Hybrid Memory, Multi-Stage QC"
-                : "Standard fast editing (Legacy pipeline)"}
+                ? "Includes: Multi-Agent Director, Deep Media Intelligence, & Hybrid Memory."
+                : "Basic automated editing sequence."}
             </p>
           </div>
 
           {/* Platform */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-3">Target Platform</label>
-            <div className="grid grid-cols-2 gap-2">
-              {platforms.map((p) => (
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-300">Target Platform</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: 'youtube', label: 'YouTube', icon: <Monitor className="w-4 h-4" /> },
+                { id: 'tiktok', label: 'TikTok', icon: <Film className="w-4 h-4" /> },
+                { id: 'instagram', label: 'Instagram', icon: <Layers className="w-4 h-4" /> },
+                { id: 'linkedin', label: 'LinkedIn', icon: <Shield className="w-4 h-4" /> }
+              ].map(p => (
                 <button
                   key={p.id}
                   onClick={() => setSettings(s => ({ ...s, platform: p.id }))}
-                  className={`flex items-center gap-2 py-2 px-3 rounded-lg border text-sm font-medium transition-all ${settings.platform === p.id
-                    ? 'border-cyan-500 bg-cyan-500/10 text-white'
-                    : 'border-white/10 text-gray-400 hover:text-white'
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 text-left ${settings.platform === p.id
+                      ? 'bg-brand-cyan/10 border-brand-cyan text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]'
+                      : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10 hover:text-white'
                     }`}
                 >
-                  <span>{p.icon}</span>
-                  {p.label}
+                  {p.icon}
+                  <span className="text-sm font-medium">{p.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Theme */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-3">Style Theme</label>
+          {/* Style & Mood */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-300">Creative Direction</label>
             <div className="grid grid-cols-2 gap-3">
-              {themes.map((theme) => (
+              {[
+                { id: 'cinematic', label: 'Cinematic' },
+                { id: 'energetic', label: 'High Energy' },
+                { id: 'minimal', label: 'Minimalist' },
+                { id: 'documentary', label: 'Docu-Style' },
+              ].map(theme => (
                 <button
                   key={theme.id}
                   onClick={() => setSettings(s => ({ ...s, theme: theme.id }))}
-                  className={`p-4 rounded-xl border text-left transition-all ${settings.theme === theme.id
-                    ? 'border-cyan-500 bg-cyan-500/10'
-                    : 'border-white/10 bg-[#12121a] hover:border-white/20'
+                  className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${settings.theme === theme.id
+                      ? 'bg-white text-black border-white'
+                      : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30'
                     }`}
                 >
-                  <span className="text-2xl mb-2 block">{theme.icon}</span>
-                  <span className="text-sm font-medium text-white">{theme.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Pacing */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-3">Pacing</label>
-            <div className="flex gap-2">
-              {pacings.map((pace) => (
-                <button
-                  key={pace.id}
-                  onClick={() => setSettings(s => ({ ...s, pacing: pace.id }))}
-                  className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-all ${settings.pacing === pace.id
-                    ? 'border-cyan-500 bg-cyan-500/10 text-white'
-                    : 'border-white/10 text-gray-400 hover:text-white'
-                    }`}
-                >
-                  {pace.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Aspect Ratio */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-3">Aspect Ratio</label>
-            <div className="flex gap-2">
-              {ratios.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setSettings(s => ({ ...s, ratio: r.id }))}
-                  className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-all ${settings.ratio === r.id
-                    ? 'border-cyan-500 bg-cyan-500/10 text-white'
-                    : 'border-white/10 text-gray-400 hover:text-white'
-                    }`}
-                >
-                  {r.label}
+                  {theme.label}
                 </button>
               ))}
             </div>
@@ -286,45 +187,88 @@ export default function UploadPage() {
 
           {/* Error */}
           {error && (
-            <div className={`p-4 rounded-lg text-sm border ${error.includes('credits') ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
-              <p className="font-semibold">{error}</p>
-              {error.includes('credits') && (
-                <button className="mt-2 px-3 py-1.5 bg-amber-500 text-black text-xs font-bold rounded-lg hover:bg-amber-400 transition-colors">
-                  Get More Credits
-                </button>
-              )}
+            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-3">
+              <Shield className="w-5 h-5 flex-shrink-0" />
+              <p>{error}</p>
             </div>
           )}
+        </div>
+      </div>
 
-          {/* Submit */}
-          <div className="space-y-3">
-            <button
-              onClick={handleUpload}
-              disabled={!file || uploading}
-              className={`w-full py-4 rounded-xl text-lg font-semibold transition-all ${file && !uploading
-                ? 'bg-gradient-to-r from-cyan-500 to-violet-500 text-white hover:opacity-90 shadow-lg shadow-cyan-500/20'
-                : 'bg-white/10 text-gray-500 cursor-not-allowed'
-                }`}
-            >
-              {uploading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Processing...
-                </span>
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <span>✨ Start {settings.premium ? 'Pro ' : ''}AI Editing</span>
-                  <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full border border-white/10">{settings.premium ? '2 Credits' : '1 Credit'}</span>
-                </span>
-              )}
-            </button>
-            <p className="text-center text-xs text-gray-500">
-              Estimated time: ~{settings.premium ? '4-5' : '2-3'} minutes • Cost: {settings.premium ? '2 Credits' : '1 Credit'}
-            </p>
-          </div>
+      {/* Right Column: Immersive Drop Zone */}
+      <div className="flex-1 rounded-3xl overflow-hidden relative group">
+        {/* Dynamic Background */}
+        <div className="absolute inset-0 bg-obsidian-900">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-violet/5 rounded-full blur-[120px] animate-pulse-slow" />
+          {dragActive && (
+            <div className="absolute inset-0 bg-brand-cyan/10 backdrop-blur-sm z-20 transition-all duration-300 border-4 border-brand-cyan border-dashed rounded-3xl m-4" />
+          )}
+        </div>
+
+        <div
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+          className="relative z-10 w-full h-full flex flex-col"
+        >
+          {preview ? (
+            <div className="relative w-full h-full bg-black flex items-center justify-center">
+              <video src={preview} className="max-w-full max-h-full" controls />
+
+              {/* Overlay Controls */}
+              <div className="absolute top-6 right-6 flex gap-3">
+                <button
+                  onClick={() => { setFile(null); setPreview(null); }}
+                  className="p-3 bg-black/60 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full backdrop-blur-md transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-white mb-1">{file?.name}</h3>
+                    <p className="text-sm text-gray-400">{(file?.size ? (file.size / 1024 / 1024).toFixed(2) : 0)} MB • Ready for Analysis</p>
+                  </div>
+                  <button
+                    onClick={handleUpload}
+                    disabled={uploading}
+                    className="px-8 py-4 bg-brand-cyan hover:bg-brand-accent text-black font-bold rounded-xl transition-all hover:scale-105 disabled:opacity-50 disabled:scale-100 flex items-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]"
+                  >
+                    {uploading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-5 h-5" />
+                        <span>Launch Pipeline</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <label className="flex-1 flex flex-col items-center justify-center cursor-pointer p-12 hover:bg-white/5 transition-colors duration-300 group/drop">
+              <div className="w-32 h-32 rounded-full bg-white/5 flex items-center justify-center mb-8 relative group-hover/drop:scale-110 transition-transform duration-500">
+                <div className="absolute inset-0 bg-gradient-to-tr from-brand-cyan/20 to-brand-violet/20 rounded-full animate-spin-slow opacity-50" />
+                <Upload className="w-12 h-12 text-gray-400 group-hover/drop:text-white transition-colors" />
+              </div>
+              <h2 className="text-3xl font-bold text-white mb-2 text-center">Drag & Drop Footage</h2>
+              <p className="text-gray-400 text-center max-w-sm mb-8">
+                Support for MP4, MOV, and AVI up to 2GB. <br />
+                <span className="text-brand-cyan">Pro Tip:</span> Upload raw footage for best results.
+              </p>
+              <span className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-colors">
+                Browse Files
+              </span>
+              <input type="file" accept="video/*" onChange={handleFileChange} className="hidden" />
+            </label>
+          )}
         </div>
       </div>
     </div>

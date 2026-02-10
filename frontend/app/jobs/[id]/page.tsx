@@ -2,9 +2,9 @@
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Navbar from '@/components/ui/Navbar';
 import MediaStats from '@/components/dashboard/MediaStats';
 import QCScoreBoard from '@/components/dashboard/QCScoreBoard';
+import { ArrowLeft, Download, RotateCcw, Share2, MoreHorizontal, Film, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
@@ -13,8 +13,8 @@ interface Job {
   status: string;
   progress_message: string;
   output_path?: string;
+  thumbnail_path?: string;
   created_at: string;
-  // New fields for Phase 5
   media_intelligence?: any;
   qc_result?: any;
   director_plan?: any;
@@ -51,240 +51,200 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
     return () => clearInterval(interval);
   }, [resolvedParams.id, router]);
 
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'complete':
-        return {
-          badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-          icon: '✓',
-          label: 'Complete',
-          bgGlow: 'from-emerald-500/20'
-        };
-      case 'failed':
-        return {
-          badge: 'bg-red-500/20 text-red-400 border-red-500/30',
-          icon: '✕',
-          label: 'Failed',
-          bgGlow: 'from-red-500/20'
-        };
-      case 'processing':
-        return {
-          badge: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-          icon: '⟳',
-          label: 'Processing',
-          bgGlow: 'from-cyan-500/20'
-        };
-      default:
-        return {
-          badge: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-          icon: '○',
-          label: 'Queued',
-          bgGlow: 'from-gray-500/20'
-        };
-    }
-  };
-
-  const statusConfig = job ? getStatusConfig(job.status) : getStatusConfig('pending');
-
   const stages = [
-    { key: 'intel', label: 'Media Intelligence', icon: '🧠' },
-    { key: 'director', label: 'Strategic Planning', icon: '🎬' },
-    { key: 'platform', label: 'Platform Adaptation', icon: '📱' },
-    { key: 'specialists', label: 'Parallel Specialists', icon: '✨' },
-    { key: 'render', label: 'Rendering', icon: '🔧' },
-    { key: 'qc', label: 'Final QC & Eval', icon: '🛡️' },
+    { key: 'intel', label: 'Intelligence', icon: <Activity className="w-4 h-4" /> },
+    { key: 'director', label: 'Startagy', icon: <Film className="w-4 h-4" /> },
+    { key: 'platform', label: 'Adaptation', icon: <Share2 className="w-4 h-4" /> },
+    { key: 'render', label: 'Rendering', icon: <Download className="w-4 h-4" /> },
+    { key: 'qc', label: 'QC & Eval', icon: <CheckCircle2 className="w-4 h-4" /> },
   ];
 
   const getCurrentStage = (message: string) => {
     if (!message) return 0;
-    if (message.includes('Intel') || message.includes('Analyzing')) return 0;
-    if (message.includes('Director') || message.includes('MAX')) return 1;
-    if (message.includes('Platform') || message.includes('Adapt')) return 2;
-    if (message.includes('Specialist') || message.includes('parallel') || message.includes('AI Smart Cutting')) return 3;
-    if (message.includes('Render') || message.includes('Compiling') || message.includes('FFmpeg')) return 4;
-    if (message.includes('Review') || message.includes('Quality') || message.includes('QC')) return 5;
-    if (message.includes('complete') || message.includes('Ready')) return 6; // Finished
+    if (message.includes('Intel')) return 0;
+    if (message.includes('Director')) return 1;
+    if (message.includes('Platform') || message.includes('Adapt') || message.includes('Specialist')) return 2;
+    if (message.includes('Render') || message.includes('Compiling')) return 3;
+    if (message.includes('Review') || message.includes('Quality') || message.includes('QC')) return 4;
+    if (message.includes('complete') || message.includes('Ready')) return 5;
     return 0;
   };
 
   const currentStage = job ? getCurrentStage(job.progress_message) : 0;
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-4">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold mb-2">Error Loading Project</h2>
+        <p className="text-gray-400 mb-6">{error}</p>
+        <Link href="/dashboard">
+          <button className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium transition-colors">
+            Back to Dashboard
+          </button>
+        </Link>
+      </div>
+    );
+  }
+
+  if (!job) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh]">
+        <div className="w-16 h-16 relative mb-6">
+          <div className="absolute inset-0 border-4 border-white/10 rounded-full" />
+          <div className="absolute inset-0 border-4 border-t-brand-cyan rounded-full animate-spin" />
+        </div>
+        <p className="text-gray-400 animate-pulse">Loading Studio...</p>
+      </div>
+    );
+  }
+
+  const isComplete = job.status === 'complete';
+  const videoUrl = job.output_path
+    ? (job.output_path.startsWith('http') ? job.output_path : `${API_BASE.replace('/api', '')}/${job.output_path}`)
+    : null;
+
   return (
-    <main className="min-h-screen bg-[#0a0a0f]">
-      <Navbar />
-
-      <div className="container mx-auto px-6 pt-24 pb-16">
-        <div className="max-w-4xl mx-auto">
-          {error ? (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
-                <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-2">Job Not Found</h2>
-              <p className="text-gray-400 mb-6">{error}</p>
-              <Link href="/dashboard/upload" className="text-cyan-400 hover:underline">
-                ← Back to Upload
-              </Link>
-            </div>
-          ) : !job ? (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 mx-auto mb-4 relative">
-                <div className="absolute inset-0 rounded-full border-t-2 border-cyan-500 animate-spin" />
-              </div>
-              <p className="text-gray-400">Loading job...</p>
-            </div>
-          ) : (
-            <>
-              {/* Status Card */}
-              <div className={`relative overflow-hidden rounded-2xl border border-white/10 bg-[#12121a] p-8 mb-8`}>
-                {/* Background Glow */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${statusConfig.bgGlow} to-transparent opacity-50`} />
-
-                <div className="relative z-10">
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-6">
-                    <span className="text-sm text-gray-400">Job #{job.id}</span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusConfig.badge}`}>
-                      {statusConfig.label}
-                    </span>
-                  </div>
-
-                  {/* Progress Indicator */}
-                  {job.status === 'processing' && (
-                    <div className="flex justify-center mb-8">
-                      <div className="relative w-32 h-32">
-                        <svg className="w-full h-full -rotate-90">
-                          <circle cx="64" cy="64" r="56" className="fill-none stroke-white/10" strokeWidth="8" />
-                          <circle
-                            cx="64" cy="64" r="56"
-                            className="fill-none stroke-cyan-500"
-                            strokeWidth="8"
-                            strokeLinecap="round"
-                            strokeDasharray={`${(currentStage + 1) / stages.length * 352} 352`}
-                            style={{ transition: 'stroke-dasharray 0.5s ease' }}
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-3xl font-bold text-white">{Math.min(100, Math.round((currentStage + 1) / stages.length * 100))}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {job.status === 'complete' && (
-                    <div className="flex justify-center mb-8">
-                      <div className="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                        <svg className="w-12 h-12 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Status Message */}
-                  <p className="text-center text-lg text-white font-medium mb-2">
-                    {job.progress_message || 'Preparing...'}
-                  </p>
-
-                  {job.status === 'processing' && (
-                    <p className="text-center text-sm text-gray-400">
-                      Stage {Math.min(currentStage + 1, stages.length)} of {stages.length}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Data Visualization Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                {/* Media Intelligence Stats */}
-                {job.media_intelligence && (
-                  <div className="lg:col-span-2">
-                    <MediaStats intelligence={job.media_intelligence} />
-                  </div>
-                )}
-
-                {/* QC Score Board */}
-                {job.qc_result && (
-                  <div className="lg:col-span-2">
-                    <QCScoreBoard qcResult={job.qc_result} />
-                  </div>
-                )}
-              </div>
-
-              {/* Stage Timeline */}
-              {job.status !== 'complete' && job.status !== 'failed' && (
-                <div className="bg-[#12121a] border border-white/10 rounded-2xl p-6 mb-8">
-                  <h3 className="text-sm font-medium text-gray-400 mb-4">Hollywood Pipeline</h3>
-                  <div className="space-y-4">
-                    {stages.map((stage, i) => (
-                      <div key={stage.key} className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-colors duration-500 ${i < currentStage ? 'bg-emerald-500/20 text-emerald-400' :
-                            i === currentStage ? 'bg-cyan-500/20 text-cyan-400 animate-pulse' :
-                              'bg-white/5 text-gray-600'
-                          }`}>
-                          {stage.icon}
-                        </div>
-                        <div className="flex-1">
-                          <p className={`text-sm font-medium transition-colors ${i <= currentStage ? 'text-white' : 'text-gray-500'
-                            }`}>{stage.label}</p>
-                          {i === currentStage && (
-                            <p className="text-xs text-cyan-400 mt-1">Processing...</p>
-                          )}
-                        </div>
-                        {i < currentStage && (
-                          <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                        {i === currentStage && (
-                          <div className="w-5 h-5 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              {job.status === 'complete' && job.output_path && (
-                <div className="space-y-4">
-                  <a
-                    href={`${API_BASE}/jobs/${job.id}/download`}
-                    className="flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-cyan-500/20"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download Master
-                  </a>
-                  <Link
-                    href="/dashboard/upload"
-                    className="flex items-center justify-center gap-2 w-full py-4 bg-white/10 rounded-xl text-white font-medium hover:bg-white/20 transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Create Another Project
-                  </Link>
-                </div>
-              )}
-
-              {job.status === 'failed' && (
-                <div className="text-center">
-                  <Link
-                    href="/dashboard/upload"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 rounded-xl text-white font-medium hover:bg-white/20 transition-colors"
-                  >
-                    Try Again
-                  </Link>
-                </div>
-              )}
-            </>
-          )}
+    <div className="max-w-[1600px] mx-auto space-y-8 pb-12">
+      {/* Header Actions */}
+      <div className="flex items-center justify-between">
+        <Link href="/dashboard" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+          <span className="text-sm font-medium">Back to Projects</span>
+        </Link>
+        <div className="flex items-center gap-3">
+          <span className="px-3 py-1 bg-white/5 rounded-lg text-xs font-mono text-gray-500">ID: {job.id}</span>
+          <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white">
+            <MoreHorizontal className="w-5 h-5" />
+          </button>
         </div>
       </div>
-    </main>
+
+      {/* Cinematic Player Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Video Player Container */}
+          <div className="aspect-video bg-black rounded-3xl overflow-hidden relative group border border-white/10 shadow-2xl shadow-black/50">
+            {videoUrl && isComplete ? (
+              <video src={videoUrl} controls className="w-full h-full object-contain" />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center relative bg-obsidian-900">
+                {/* Ambient Glow */}
+                <div className="absolute inset-0 bg-gradient-radial from-brand-cyan/5 to-transparent opacity-50 animate-pulse-slow" />
+
+                {/* Processing Visual */}
+                <div className="relative z-10 text-center">
+                  <div className="w-20 h-20 mx-auto mb-6 relative">
+                    <div className="absolute inset-0 border-4 border-brand-cyan/20 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-t-brand-cyan rounded-full animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xs font-mono font-bold text-brand-cyan">{Math.round((currentStage / stages.length) * 100)}%</span>
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2 blink">{job.progress_message || 'Initializing...'}</h3>
+                  <p className="text-sm text-brand-cyan font-mono">Running Agents: {stages[Math.min(currentStage, stages.length - 1)].label}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Pipeline Visualizer */}
+          <div className="glass-panel p-6 rounded-2xl relative overflow-hidden">
+            <div className="flex items-center justify-between relative z-10">
+              {stages.map((stage, i) => {
+                const isActive = i === currentStage;
+                const isPast = i < currentStage;
+                return (
+                  <div key={stage.key} className="flex flex-col items-center gap-3 relative z-10 flex-1">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-brand-cyan text-black scale-110 shadow-glow' :
+                        isPast ? 'bg-emerald-500 text-black' :
+                          'bg-white/5 text-gray-600'
+                      }`}>
+                      {isPast ? <CheckCircle2 className="w-5 h-5" /> : stage.icon}
+                    </div>
+                    <span className={`text-xs font-medium transition-colors ${isActive ? 'text-white' : 'text-gray-500'}`}>{stage.label}</span>
+
+                    {/* Connecting Line */}
+                    {i < stages.length - 1 && (
+                      <div className="absolute top-5 left-1/2 w-full h-[2px] -z-10">
+                        <div className="w-full h-full bg-white/5" />
+                        <div
+                          className="absolute inset-0 bg-brand-cyan transition-all duration-700"
+                          style={{ width: isPast ? '100%' : isActive ? '50%' : '0%' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Data Bento */}
+        <div className="space-y-6">
+          {/* Download / Action Card */}
+          {isComplete && (
+            <div className="glass-panel p-6 rounded-2xl flex flex-col gap-4">
+              <div className="flex items-center gap-4 mb-2">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white">Export Ready</h3>
+                  <p className="text-xs text-gray-400">Successfully rendered in 1080p</p>
+                </div>
+              </div>
+              <a
+                href={`${API_BASE}/jobs/${job.id}/download`}
+                className="w-full py-3 bg-white text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Download Video
+              </a>
+              <div className="grid grid-cols-2 gap-3">
+                <button className="py-3 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                  <Share2 className="w-4 h-4" /> Share
+                </button>
+                <Link href="/dashboard/upload" className="py-3 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                  <RotateCcw className="w-4 h-4" /> New
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Intelligence Stats */}
+          <div className="glass-panel p-6 rounded-2xl">
+            <h3 className="text-sm font-bold text-gray-400 mb-4 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-brand-cyan" />
+              MEDIA INTELLIGENCE
+            </h3>
+            <MediaStats intelligence={job.media_intelligence} />
+          </div>
+
+          {/* QC Score */}
+          <div className="glass-panel p-6 rounded-2xl">
+            <h3 className="text-sm font-bold text-gray-400 mb-4 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-brand-violet" />
+              QUALITY CONTROL
+            </h3>
+            {/* Using a simplified version or the component if it fits */}
+            <div className="scale-95 origin-top-left -mb-4">
+              <QCScoreBoard qcResult={job.qc_result} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
+}
+
+function Shield({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944 11.955 11.955 0 012.382 7.984C2.382 7.984 1 18 12 18c11 0 10-10.016 10-10.016z" />
+    </svg>
+  )
 }
