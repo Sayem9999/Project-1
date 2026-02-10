@@ -1,10 +1,11 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Activity, HardDrive, LayoutDashboard, Shield, Users, Video, Edit2, RefreshCw, Search, ArrowLeft, Database, Server, HeartPulse } from 'lucide-react';
+import { Activity, HardDrive, LayoutDashboard, Shield, Users, Video, Edit2, RefreshCw, Search, ArrowLeft, Database, Server, HeartPulse, Network, Wrench } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Sentry from '@sentry/nextjs';
 import { apiRequest, ApiError, clearAuth } from '@/lib/api';
+import SystemMap from '@/components/admin/SystemMap';
 
 interface SystemStats {
   users: { total: number; active_24h?: number };
@@ -70,7 +71,7 @@ interface CreditLedgerEntry {
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs' | 'credits'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs' | 'credits' | 'system'>('overview');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [health, setHealth] = useState<AdminHealth | null>(null);
   const [users, setUsers] = useState<UserData[]>([]);
@@ -451,15 +452,15 @@ export default function AdminDashboardPage() {
           { id: 'users', label: 'Users', icon: Users },
           { id: 'jobs', label: 'Jobs', icon: Video },
           { id: 'credits', label: 'Credits', icon: Activity },
+          { id: 'system', label: 'System Map', icon: Network },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeTab === tab.id
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.id
                 ? 'bg-gradient-to-r from-cyan-500 to-violet-500 text-white shadow-lg shadow-cyan-500/20'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
+              }`}
           >
             <tab.icon className="w-4 h-4" />
             {tab.label}
@@ -693,11 +694,10 @@ export default function AdminDashboardPage() {
                     <button
                       key={status}
                       onClick={() => setJobFilter(status as any)}
-                      className={`px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
-                        jobFilter === status
+                      className={`px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${jobFilter === status
                           ? 'bg-brand-cyan text-black'
                           : 'bg-white/5 text-gray-400 hover:text-white'
-                      }`}
+                        }`}
                     >
                       {status}
                     </button>
@@ -717,7 +717,7 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                                {filteredJobs.map((job) => {
+                {filteredJobs.map((job) => {
                   const stalled = isStalledJob(job);
                   const lastActivity = job.updated_at || job.created_at;
                   return (
@@ -784,6 +784,35 @@ export default function AdminDashboardPage() {
                 })}
               </tbody>
             </table>
+          </motion.div>
+        )}
+
+        {activeTab === 'system' && (
+          <motion.div
+            key="system"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-white">Codebase Architecture</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => apiRequest('/maintenance/audit', { method: 'POST', auth: true })}
+                  className="px-4 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm font-bold flex items-center gap-2 hover:bg-cyan-500/20 transition-all"
+                >
+                  <Search className="w-4 h-4" /> Run Audit
+                </button>
+                <button
+                  onClick={() => apiRequest('/maintenance/heal', { method: 'POST', auth: true, body: { error_trace: "manual_trigger" } })}
+                  className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-bold flex items-center gap-2 hover:bg-emerald-500/20 transition-all"
+                >
+                  <HeartPulse className="w-4 h-4" /> Auto-Heal
+                </button>
+              </div>
+            </div>
+            <SystemMap />
           </motion.div>
         )}
 
@@ -1019,8 +1048,8 @@ function StatusBadge({ status }: { status: string }) {
     status === 'complete'
       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
       : status === 'failed'
-      ? 'bg-red-500/10 border-red-500/30 text-red-400'
-      : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400 animate-pulse';
+        ? 'bg-red-500/10 border-red-500/30 text-red-400'
+        : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400 animate-pulse';
 
   return (
     <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase border ${styles}`}>

@@ -10,7 +10,7 @@ import sentry_sdk
 import re
 from .config import settings
 from .db import engine, Base, SessionLocal
-from .routers import auth, jobs, agents, oauth, websocket
+from .routers import auth, jobs, agents, oauth, websocket, maintenance
 from .logging_config import configure_logging
 from .models import User
 
@@ -241,16 +241,14 @@ async def debug_redis() -> dict[str, Any]:
     except Exception as e:
         message = redact(str(e))
         return {"configured": True, "reachable": False, "error": message}
-
-
-
 app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(oauth.router, prefix=settings.api_prefix)
-app.include_router(jobs.router, prefix=settings.api_prefix)
 app.include_router(agents.router, prefix=settings.api_prefix)
-from .routers import payments, admin
+from .routers import payments, admin, jobs
 app.include_router(payments.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
+app.include_router(jobs.router, prefix=settings.api_prefix)
+app.include_router(maintenance.router, prefix=settings.api_prefix)
 app.include_router(websocket.router)
 
 from fastapi.staticfiles import StaticFiles
