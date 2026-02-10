@@ -9,7 +9,7 @@ from app.models import User
 @pytest.mark.asyncio
 async def test_stripe_webhook_add_credits(client: AsyncClient, session):
     # Create user first
-    signup_payload = {"email": "payer@example.com", "password": "securepassword123"}
+    signup_payload = {"email": "payer@example.com", "password": "SecurePassword123"}
     res = await client.post("/api/auth/signup", json=signup_payload)
     token = res.json()["access_token"]
     

@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     storage_root: str = "storage"
     frontend_url: str = "http://localhost:3000"
     environment: str = "development"
+    rate_limit_enabled: bool = True
     sentry_dsn: str | None = None
     
     # AI API Keys
