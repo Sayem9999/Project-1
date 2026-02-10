@@ -1,10 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Clock, MoreVertical, Play, Film } from 'lucide-react';
 import Image from 'next/image';
-import { apiRequest, ApiError, clearAuth, API_ORIGIN } from '@/lib/api';
+import { apiRequest, ApiError, clearAuth, API_ORIGIN, getWebSocketUrl } from '@/lib/api';
 
 interface Job {
     id: number;
@@ -21,7 +21,13 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [userName, setUserName] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const socketsRef = useRef<Record<number, WebSocket>>({});
     const activeCount = jobs.filter((job) => job.status === 'processing').length;
+
+    const processingJobs = useMemo(
+        () => jobs.filter((job) => job.status === 'processing' || job.status === 'queued'),
+        [jobs]
+    );
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -52,6 +58,62 @@ export default function DashboardPage() {
 
         load();
     }, [router]);
+
+    useEffect(() => {
+        processingJobs.forEach((job) => {
+            if (socketsRef.current[job.id]) return;
+            const ws = new WebSocket(getWebSocketUrl(`/ws/jobs/${job.id}`));
+            socketsRef.current[job.id] = ws;
+
+            ws.onmessage = (event) => {
+                try {
+                    const payload = JSON.parse(event.data);
+                    setJobs((prev) =>
+                        prev.map((j) =>
+                            j.id === job.id
+                                ? {
+                                      ...j,
+                                      status: payload.status ?? j.status,
+                                      progress_message: payload.message ?? j.progress_message,
+                                  }
+                                : j
+                        )
+                    );
+                    if (payload.status === 'complete' || payload.status === 'failed') {
+                        ws.close();
+                        delete socketsRef.current[job.id];
+                    }
+                } catch {
+                    // ignore parse errors
+                }
+            };
+
+            ws.onerror = () => {
+                ws.close();
+                delete socketsRef.current[job.id];
+            };
+
+            ws.onclose = () => {
+                delete socketsRef.current[job.id];
+            };
+        });
+
+        // Cleanup sockets for jobs that are no longer processing
+        Object.keys(socketsRef.current).forEach((id) => {
+            const jobId = Number(id);
+            if (!processingJobs.find((job) => job.id === jobId)) {
+                socketsRef.current[jobId]?.close();
+                delete socketsRef.current[jobId];
+            }
+        });
+    }, [processingJobs]);
+
+    useEffect(() => {
+        return () => {
+            Object.values(socketsRef.current).forEach((ws) => ws.close());
+            socketsRef.current = {};
+        };
+    }, []);
 
     const getStatusParams = (status: string) => {
         switch (status) {
@@ -211,7 +273,11 @@ export default function DashboardPage() {
                                                 <Clock className="w-3 h-3" />
                                                 {new Date(job.created_at).toLocaleDateString()}
                                             </span>
-                                            {job.status === 'processing' && <span className="text-brand-cyan animate-pulse">Encoding...</span>}
+                                            {job.status === 'processing' && (
+                                                <span className="text-brand-cyan animate-pulse">
+                                                    {job.progress_message || 'Processing...'}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 

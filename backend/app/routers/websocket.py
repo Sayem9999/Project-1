@@ -4,6 +4,7 @@ WebSocket endpoint for real-time job progress streaming
 import os
 import json
 import asyncio
+import time
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import redis.asyncio as redis
 
@@ -24,6 +25,8 @@ async def job_progress_websocket(websocket: WebSocket, job_id: int):
         await websocket.close(code=1000, reason="Redis not configured")
         return
 
+    r = None
+    pubsub = None
     try:
         # Connect to Redis
         r = redis.from_url(REDIS_URL, decode_responses=True)
@@ -36,12 +39,9 @@ async def job_progress_websocket(websocket: WebSocket, job_id: int):
             await websocket.send_text(latest.decode() if isinstance(latest, bytes) else latest)
         
         # Listen for updates
+        last_ping = time.monotonic()
         while True:
-            message = await asyncio.wait_for(
-                pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0),
-                timeout=30.0  # Send ping every 30s
-            )
-            
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
             if message and message.get("data"):
                 data = message["data"]
                 if isinstance(data, bytes):
@@ -55,20 +55,23 @@ async def job_progress_websocket(websocket: WebSocket, job_id: int):
                         break
                 except:
                     pass
-                    
-    except asyncio.TimeoutError:
-        # Send ping to keep connection alive
-        try:
-            await websocket.send_json({"type": "ping"})
-        except:
-            pass
+            else:
+                # Send ping to keep connection alive every ~25s
+                if time.monotonic() - last_ping > 25:
+                    try:
+                        await websocket.send_json({"type": "ping"})
+                        last_ping = time.monotonic()
+                    except:
+                        break
     except WebSocketDisconnect:
         pass
     except Exception as e:
         print(f"[WebSocket] Error: {e}")
     finally:
         try:
-            await pubsub.unsubscribe(f"job:{job_id}:progress")
-            await r.close()
+            if pubsub:
+                await pubsub.unsubscribe(f"job:{job_id}:progress")
+            if r:
+                await r.close()
         except:
             pass

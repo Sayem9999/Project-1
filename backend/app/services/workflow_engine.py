@@ -91,6 +91,22 @@ def parse_json_safe(raw: str) -> dict:
         return {}
 
 
+def normalize_agent_result(result: object) -> dict:
+    """Convert agent output into a plain dict safely."""
+    if not result:
+        return {}
+    if hasattr(result, "model_dump"):
+        try:
+            return result.model_dump()  # type: ignore[no-any-return]
+        except Exception:
+            return {}
+    if isinstance(result, dict):
+        if "raw_response" in result:
+            return parse_json_safe(result.get("raw_response", "{}"))
+        return result
+    return {}
+
+
 async def process_job(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9", tier: str = "pro", platform: str = "youtube", brand_safety: str = "standard"):
     """
     Master Workflow Router
@@ -155,7 +171,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             }
             
             plan = await director_agent.run(director_payload)
-            director_plan = plan.model_dump()
+            director_plan = normalize_agent_result(plan)
             print(f"[Workflow] Director Plan: {director_plan.get('strategy', 'No strategy')}")
 
             # === PHASE 3: Parallel Specialists (30-60%) ===
@@ -182,9 +198,9 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             vfx_data = results[4] if not isinstance(results[4], Exception) else None
             script_data = results[5] if not isinstance(results[5], Exception) else None
             
-            # Use model_dump for compatibility if needed, or access directly
-            vfx_res = vfx_data.model_dump() if vfx_data else {}
-            transition_res = transition_data.model_dump() if transition_data else {}
+            # Normalize agent outputs (can be Pydantic or raw dict)
+            vfx_res = normalize_agent_result(vfx_data)
+            transition_res = normalize_agent_result(transition_data)
             
             print(f"[Workflow] Transitions: {transition_res.get('style_note', 'None')}")
             print(f"[Workflow] VFX: {vfx_res.get('style_note', 'None')}")

@@ -8,7 +8,7 @@ from ..db import get_session
 from ..errors import CreditError, NotFoundError, ErrorCode, AppBaseException
 from ..config import settings
 from ..deps import get_current_user
-from ..models import Job, User
+from ..models import Job, User, CreditLedger
 from ..schemas import JobResponse
 from ..services.storage import storage_service
 from ..services.storage_service import storage_service as r2_storage
@@ -64,7 +64,21 @@ async def upload_video(
     if settings.credits_enabled:
         current_user.credits = (current_user.credits or 0) - COST_PER_JOB
         session.add(current_user)
-    
+
+    await session.flush()
+
+    if settings.credits_enabled:
+        session.add(
+            CreditLedger(
+                user_id=current_user.id,
+                job_id=job.id,
+                delta=-COST_PER_JOB,
+                balance_after=current_user.credits or 0,
+                reason=f"{tier}_job",
+                source="job",
+            )
+        )
+
     await session.commit()
     await session.refresh(job)
     

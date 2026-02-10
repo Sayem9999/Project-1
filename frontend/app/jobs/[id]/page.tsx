@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, use } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MediaStats from '@/components/dashboard/MediaStats';
@@ -8,7 +8,7 @@ import { ArrowLeft, Download, RotateCcw, Share2, MoreHorizontal, Film, Activity,
 
 import BrandSafetyCard from '@/components/dashboard/BrandSafetyCard';
 import ABTestVariants from '@/components/dashboard/ABTestVariants';
-import { apiRequest, ApiError, clearAuth, API_ORIGIN } from '@/lib/api';
+import { apiRequest, ApiError, clearAuth, API_ORIGIN, getWebSocketUrl } from '@/lib/api';
 
 interface Job {
   id: number;
@@ -17,6 +17,9 @@ interface Job {
   output_path?: string;
   thumbnail_path?: string;
   created_at: string;
+  updated_at?: string;
+  tier?: string;
+  credits_cost?: number;
   media_intelligence?: any;
   qc_result?: any;
   director_plan?: any;
@@ -29,6 +32,21 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   const router = useRouter();
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState('');
+  const socketRef = useRef<WebSocket | null>(null);
+
+  const fetchJob = useCallback(async () => {
+    try {
+      const data = await apiRequest<Job>(`/jobs/${resolvedParams.id}`, { auth: true });
+      setJob(data);
+    } catch (err: any) {
+      if (err instanceof ApiError && err.isAuth) {
+        clearAuth();
+        router.push('/login');
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : 'Job not found');
+    }
+  }, [resolvedParams.id, router]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -37,24 +55,45 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
       return;
     }
 
-    const fetchJob = async () => {
+    fetchJob();
+    const interval = setInterval(fetchJob, 15000);
+    return () => clearInterval(interval);
+  }, [fetchJob, router]);
+
+  useEffect(() => {
+    if (!resolvedParams.id) return;
+    const ws = new WebSocket(getWebSocketUrl(`/ws/jobs/${resolvedParams.id}`));
+    socketRef.current = ws;
+
+    ws.onmessage = (event) => {
       try {
-        const data = await apiRequest<Job>(`/jobs/${resolvedParams.id}`, { auth: true });
-        setJob(data);
-      } catch (err: any) {
-        if (err instanceof ApiError && err.isAuth) {
-          clearAuth();
-          router.push('/login');
-          return;
+        const payload = JSON.parse(event.data);
+        setJob((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: payload.status ?? prev.status,
+                progress_message: payload.message ?? prev.progress_message,
+              }
+            : prev
+        );
+        if (payload.status === 'complete' || payload.status === 'failed') {
+          ws.close();
+          fetchJob();
         }
-        setError(err instanceof ApiError ? err.message : 'Job not found');
+      } catch {
+        // ignore
       }
     };
 
-    fetchJob();
-    const interval = setInterval(fetchJob, 3000);
-    return () => clearInterval(interval);
-  }, [resolvedParams.id, router]);
+    ws.onerror = () => {
+      ws.close();
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [fetchJob, resolvedParams.id]);
 
   const stages = [
     { key: 'intel', label: 'Intelligence', icon: <Activity className="w-4 h-4" /> },
@@ -110,6 +149,21 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   const videoUrl = job.output_path
     ? (job.output_path.startsWith('http') ? job.output_path : `${API_ORIGIN}/${job.output_path}`)
     : null;
+  const thumbnailUrl = job.thumbnail_path
+    ? (job.thumbnail_path.startsWith('http') ? job.thumbnail_path : `${API_ORIGIN}/${job.thumbnail_path}`)
+    : null;
+  const lastUpdated = job.updated_at ? new Date(job.updated_at) : new Date(job.created_at);
+
+  const timelineSteps = useMemo(() => {
+    return stages.map((stage, index) => {
+      const isComplete = index < currentStage;
+      const isActive = index === currentStage;
+      return {
+        ...stage,
+        status: isComplete ? 'complete' : isActive ? 'active' : 'pending',
+      };
+    });
+  }, [stages, currentStage]);
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-8 pb-12">
@@ -186,6 +240,35 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
               })}
             </div>
           </div>
+
+          {/* Timeline */}
+          <div className="glass-panel p-6 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-gray-400">Timeline</h3>
+              <span className="text-xs text-gray-500">Last update: {lastUpdated.toLocaleString()}</span>
+            </div>
+            <div className="space-y-4">
+              {timelineSteps.map((step) => (
+                <div key={step.key} className="flex items-start gap-4">
+                  <div
+                    className={`mt-1 w-3 h-3 rounded-full border ${
+                      step.status === 'complete'
+                        ? 'bg-emerald-400 border-emerald-400'
+                        : step.status === 'active'
+                        ? 'bg-brand-cyan border-brand-cyan animate-pulse'
+                        : 'bg-white/10 border-white/10'
+                    }`}
+                  />
+                  <div>
+                    <div className="text-sm text-white font-semibold">{step.label}</div>
+                    <div className="text-xs text-gray-500">
+                      {step.status === 'active' ? job.progress_message || 'In progress' : step.status}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Right Side: Data Bento */}
@@ -209,6 +292,30 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
                 <Download className="w-4 h-4" />
                 Download Video
               </Link>
+              <div className="space-y-2">
+                {videoUrl && (
+                  <a
+                    href={videoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300 flex items-center justify-between"
+                  >
+                    <span>Open Output File</span>
+                    <span className="text-brand-cyan">MP4</span>
+                  </a>
+                )}
+                {thumbnailUrl && (
+                  <a
+                    href={thumbnailUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300 flex items-center justify-between"
+                  >
+                    <span>Open Thumbnail</span>
+                    <span className="text-brand-violet">JPG</span>
+                  </a>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <button className="py-3 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2">
                   <Share2 className="w-4 h-4" /> Share

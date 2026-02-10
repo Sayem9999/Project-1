@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Activity, HardDrive, LayoutDashboard, Shield, Users, Video, Edit2, RefreshCw, Search } from 'lucide-react';
+import { Activity, HardDrive, LayoutDashboard, Shield, Users, Video, Edit2, RefreshCw, Search, ArrowLeft, Database, Server, HeartPulse } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Sentry from '@sentry/nextjs';
 import { apiRequest, ApiError, clearAuth } from '@/lib/api';
@@ -17,6 +17,7 @@ interface UserData {
   email: string;
   full_name: string | null;
   credits: number;
+  is_admin?: boolean;
   created_at: string;
 }
 
@@ -29,12 +30,45 @@ interface JobData {
   created_at: string;
 }
 
+interface AdminHealth {
+  db: { reachable: boolean; error?: string };
+  redis: { configured: boolean; reachable: boolean; latency_ms?: number; error?: string };
+  storage: { used_gb: number; limit_gb: number; percent: number; files: number };
+  llm: Record<
+    string,
+    {
+      configured: boolean;
+      is_healthy: boolean;
+      success_rate: number;
+      avg_latency_ms: number;
+    }
+  >;
+}
+
+interface CreditLedgerEntry {
+  id: number;
+  user_id: number;
+  user_email: string;
+  delta: number;
+  balance_after: number;
+  reason?: string | null;
+  source: string;
+  job_id?: number | null;
+  created_by?: number | null;
+  created_by_email?: string | null;
+  created_at: string;
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs' | 'credits'>('overview');
   const [stats, setStats] = useState<SystemStats | null>(null);
+  const [health, setHealth] = useState<AdminHealth | null>(null);
   const [users, setUsers] = useState<UserData[]>([]);
   const [jobs, setJobs] = useState<JobData[]>([]);
+  const [ledger, setLedger] = useState<CreditLedgerEntry[]>([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -42,6 +76,8 @@ export default function AdminDashboardPage() {
   const [userSearch, setUserSearch] = useState('');
   const [jobSearch, setJobSearch] = useState('');
   const [jobFilter, setJobFilter] = useState<'all' | 'processing' | 'complete' | 'failed'>('all');
+  const quickCreditAdds = [1, 5, 10];
+  const [creditForm, setCreditForm] = useState({ userId: '', delta: 1, reason: '' });
 
   const fetchData = useCallback(async () => {
     const token = localStorage.getItem('token');
@@ -51,15 +87,17 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const [statsData, usersData, jobsData] = await Promise.all([
+      const [statsData, usersData, jobsData, healthData] = await Promise.all([
         apiRequest<SystemStats>('/admin/stats', { auth: true }),
         apiRequest<UserData[]>('/admin/users', { auth: true }),
         apiRequest<JobData[]>('/admin/jobs', { auth: true }),
+        apiRequest<AdminHealth>('/admin/health', { auth: true }),
       ]);
 
       setStats(statsData);
       setUsers(usersData);
       setJobs(jobsData);
+      setHealth(healthData);
       setLoading(false);
       setAccessDenied(false);
     } catch (err: any) {
@@ -85,9 +123,34 @@ export default function AdminDashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  const handleUpdateCredits = async (userId: number, newCredits: number) => {
+  const fetchLedger = useCallback(async () => {
+    if (accessDenied) return;
+    setLedgerLoading(true);
+    setLedgerError(null);
     try {
-      await apiRequest(`/admin/users/${userId}/credits?credits=${newCredits}`, {
+      const data = await apiRequest<CreditLedgerEntry[]>('/admin/credits/ledger?limit=200', { auth: true });
+      setLedger(data);
+    } catch (err: any) {
+      if (err instanceof ApiError && err.isAuth) {
+        clearAuth();
+        router.push('/login');
+        return;
+      }
+      setLedgerError(err instanceof ApiError ? err.message : 'Failed to load ledger');
+    } finally {
+      setLedgerLoading(false);
+    }
+  }, [accessDenied, router]);
+
+  useEffect(() => {
+    if (activeTab === 'credits') {
+      fetchLedger();
+    }
+  }, [activeTab, fetchLedger]);
+
+  const handleUpdateCredits = async (userId: number, newCredits: number, reason = 'manual_set') => {
+    try {
+      await apiRequest(`/admin/users/${userId}/credits?credits=${newCredits}&reason=${encodeURIComponent(reason)}`, {
         method: 'PATCH',
         auth: true,
       });
@@ -95,6 +158,19 @@ export default function AdminDashboardPage() {
       fetchData();
     } catch (err) {
       console.error('Failed to update credits', err);
+    }
+  };
+
+  const handleAddCredits = async (userId: number, delta: number, reason = 'manual_adjustment') => {
+    try {
+      await apiRequest(`/admin/users/${userId}/credits/add?delta=${delta}&reason=${encodeURIComponent(reason)}`, {
+        method: 'PATCH',
+        auth: true,
+      });
+      fetchData();
+      fetchLedger();
+    } catch (err) {
+      console.error('Failed to add credits', err);
     }
   };
 
@@ -161,6 +237,12 @@ export default function AdminDashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
+            onClick={() => router.push('/dashboard')}
+            className="px-4 py-2 rounded-xl border border-white/10 text-white text-sm font-semibold flex items-center gap-2 hover:bg-white/10 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          </button>
+          <button
             onClick={fetchData}
             className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-semibold flex items-center gap-2"
           >
@@ -192,11 +274,56 @@ export default function AdminDashboardPage() {
         />
       </div>
 
+      {health && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">System Health</h3>
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <HeartPulse className="w-4 h-4" /> Live
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+                <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
+                  <Database className="w-4 h-4" /> Database
+                </div>
+                <div className={`text-sm font-semibold ${health.db.reachable ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {health.db.reachable ? 'Connected' : 'Offline'}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+                <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
+                  <Server className="w-4 h-4" /> Redis
+                </div>
+                <div className={`text-sm font-semibold ${health.redis.reachable ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {health.redis.configured ? (health.redis.reachable ? 'Connected' : 'Error') : 'Not Configured'}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
+            <h3 className="text-sm font-semibold text-gray-400 mb-4">LLM Providers</h3>
+            <div className="space-y-3">
+              {Object.entries(health.llm || {}).map(([name, item]) => (
+                <div key={name} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-300 capitalize">{name}</span>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${item.is_healthy ? 'bg-emerald-500/10 text-emerald-300' : 'bg-red-500/10 text-red-300'}`}>
+                    {item.is_healthy ? 'Healthy' : item.configured ? 'Down' : 'Disabled'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 bg-slate-900/50 p-1.5 rounded-2xl border border-white/5 w-fit">
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboard },
           { id: 'users', label: 'Users', icon: Users },
           { id: 'jobs', label: 'Jobs', icon: Video },
+          { id: 'credits', label: 'Credits', icon: Activity },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -294,7 +421,14 @@ export default function AdminDashboardPage() {
                           {user.email[0].toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-white font-medium">{user.full_name || 'Anonymous'}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-white font-medium">{user.full_name || 'Anonymous'}</p>
+                            {user.is_admin && (
+                              <span className="text-[10px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                                Admin
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500">{user.email}</p>
                         </div>
                       </div>
@@ -333,9 +467,23 @@ export default function AdminDashboardPage() {
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-5 text-right">
-                      <button className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors">
-                        View Details
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {quickCreditAdds.map((delta) => (
+                          <button
+                            key={delta}
+                            onClick={() => handleAddCredits(user.id, delta, "quick_add")}
+                            className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200 transition-colors"
+                          >
+                            +{delta}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setEditingCredits({ id: user.id, credits: user.credits })}
+                          className="text-[10px] font-bold text-gray-400 hover:text-white transition-colors"
+                        >
+                          Set
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -410,6 +558,124 @@ export default function AdminDashboardPage() {
                 ))}
               </tbody>
             </table>
+          </motion.div>
+        )}
+
+        {activeTab === 'credits' && (
+          <motion.div
+            key="credits"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
+          >
+            <div className="bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Grant / Revoke Credits</h3>
+                  <p className="text-xs text-gray-500">Add or remove credits with a reason for the ledger.</p>
+                </div>
+                <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
+                  <select
+                    value={creditForm.userId}
+                    onChange={(e) => setCreditForm((s) => ({ ...s, userId: e.target.value }))}
+                    className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                  >
+                    <option value="">Select user</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.email}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    value={creditForm.delta}
+                    onChange={(e) => setCreditForm((s) => ({ ...s, delta: Number(e.target.value) }))}
+                    className="w-28 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                    placeholder="+/- credits"
+                  />
+                  <input
+                    type="text"
+                    value={creditForm.reason}
+                    onChange={(e) => setCreditForm((s) => ({ ...s, reason: e.target.value }))}
+                    className="min-w-[200px] bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                    placeholder="Reason (optional)"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!creditForm.userId || !creditForm.delta) return;
+                      handleAddCredits(
+                        Number(creditForm.userId),
+                        creditForm.delta,
+                        creditForm.reason || 'manual_adjustment'
+                      );
+                      setCreditForm((s) => ({ ...s, reason: '' }));
+                    }}
+                    className="px-4 py-2 rounded-xl bg-brand-cyan text-black text-sm font-semibold hover:bg-brand-accent transition-colors"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-900/30 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl">
+              <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Credit Ledger</h3>
+                  <p className="text-xs text-gray-500">Most recent credit changes.</p>
+                </div>
+                <button
+                  onClick={fetchLedger}
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" /> Refresh
+                </button>
+              </div>
+              {ledgerError && (
+                <div className="px-6 py-3 text-xs text-red-300 bg-red-500/10 border-b border-red-500/20">
+                  {ledgerError}
+                </div>
+              )}
+              {ledgerLoading ? (
+                <div className="p-8 text-center text-gray-400">Loading ledger...</div>
+              ) : (
+                <>
+                  {ledger.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">No credit activity yet.</div>
+                  ) : (
+                    <table className="w-full text-left">
+                      <thead className="bg-white/5 text-gray-400 text-xs font-bold uppercase tracking-widest border-b border-white/5">
+                        <tr>
+                          <th className="px-6 py-4">User</th>
+                          <th className="px-6 py-4">Delta</th>
+                          <th className="px-6 py-4">Balance</th>
+                          <th className="px-6 py-4">Reason</th>
+                          <th className="px-6 py-4">Source</th>
+                          <th className="px-6 py-4">When</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {ledger.map((entry) => (
+                          <tr key={entry.id} className="hover:bg-white/5 transition-colors">
+                            <td className="px-6 py-4 text-sm text-white">{entry.user_email}</td>
+                            <td className={`px-6 py-4 text-sm font-mono ${entry.delta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {entry.delta >= 0 ? '+' : ''}
+                              {entry.delta}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-amber-400 font-mono">{entry.balance_after}</td>
+                            <td className="px-6 py-4 text-xs text-gray-400">{entry.reason || '—'}</td>
+                            <td className="px-6 py-4 text-xs text-gray-500">{entry.source}</td>
+                            <td className="px-6 py-4 text-xs text-gray-500">{new Date(entry.created_at).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

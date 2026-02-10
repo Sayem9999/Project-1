@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel, EmailStr, field_validator
 from .config import settings
 from .models import JobStatus
@@ -57,6 +57,8 @@ class AdminUserResponse(BaseModel):
     full_name: str | None = None
     avatar_url: str | None = None
     credits: int = 0
+    monthly_credits: int | None = None
+    last_credit_reset: date | None = None
     is_admin: bool = False
     oauth_provider: str | None = None
     created_at: datetime
@@ -72,6 +74,7 @@ class JobResponse(BaseModel):
     output_path: str | None
     thumbnail_path: str | None
     created_at: datetime
+    updated_at: datetime | None = None
     
     # Phase 5 Fields
     media_intelligence: dict | None = None
@@ -98,3 +101,17 @@ class AgentInput(BaseModel):
 class AgentOutput(BaseModel):
     agent: str
     directives: dict
+
+
+class CreditLedgerResponse(BaseModel):
+    id: int
+    user_id: int
+    user_email: EmailStr
+    delta: int
+    balance_after: int
+    reason: str | None = None
+    source: str
+    job_id: int | None = None
+    created_by: int | None = None
+    created_by_email: EmailStr | None = None
+    created_at: datetime

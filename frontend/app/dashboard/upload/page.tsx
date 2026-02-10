@@ -1,16 +1,18 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X, Film, Zap, Layers, Monitor, Shield, Sparkles } from 'lucide-react';
-import { apiRequest, ApiError, clearAuth } from '@/lib/api';
+import { apiUpload, ApiError, clearAuth } from '@/lib/api';
 
 export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const uploadAbortRef = useRef<null | (() => void)>(null);
 
   const [settings, setSettings] = useState({
     theme: 'cinematic',
@@ -56,6 +58,7 @@ export default function UploadPage() {
     if (!file) return;
 
     setUploading(true);
+    setUploadProgress(0);
     setError('');
 
     const token = localStorage.getItem('token');
@@ -76,11 +79,13 @@ export default function UploadPage() {
       formData.append('tier', settings.premium ? 'pro' : 'standard');
       formData.append('brand_safety', settings.brandSafety);
 
-      const job = await apiRequest<{ id: number }>('/jobs/upload', {
-        method: 'POST',
+      const { promise, abort } = apiUpload<{ id: number }>('/jobs/upload', {
         body: formData,
         auth: true,
+        onProgress: setUploadProgress,
       });
+      uploadAbortRef.current = abort;
+      const job = await promise;
       window.dispatchEvent(new Event('credit-update'));
       router.push(`/jobs/${job.id}`);
     } catch (err: any) {
@@ -91,7 +96,18 @@ export default function UploadPage() {
       }
       setError(err instanceof ApiError ? err.message : 'Upload failed');
       setUploading(false);
+      uploadAbortRef.current = null;
     }
+  };
+
+  const handleCancelUpload = () => {
+    if (uploadAbortRef.current) {
+      uploadAbortRef.current();
+      uploadAbortRef.current = null;
+    }
+    setUploading(false);
+    setUploadProgress(0);
+    setError('Upload canceled.');
   };
 
   return (
@@ -238,7 +254,7 @@ export default function UploadPage() {
                     {uploading ? (
                       <>
                         <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                        <span>Uploading...</span>
+                        <span>Uploading {uploadProgress}%</span>
                       </>
                     ) : (
                       <>
@@ -247,7 +263,26 @@ export default function UploadPage() {
                       </>
                     )}
                   </button>
+                  {uploading && (
+                    <button
+                      onClick={handleCancelUpload}
+                      className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
+                {uploading && (
+                  <div className="mt-4">
+                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-brand-cyan transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">Uploading your video. Don&apos;t close this tab.</p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
