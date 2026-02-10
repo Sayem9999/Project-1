@@ -1,4 +1,5 @@
 import asyncio
+import asyncio.subprocess
 import json
 import subprocess
 import shutil
@@ -13,7 +14,7 @@ from ..agents import (
     color_agent, qc_agent, metadata_agent, transition_agent,
     vfx_agent, keyframe_agent, thumbnail_agent, script_agent
 )
-from .memory_service import memory_service
+from .memory.hybrid_memory import hybrid_memory
 
 # Redis for progress publishing (optional)
 REDIS_URL = os.getenv("REDIS_URL")
@@ -122,7 +123,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
         # === PHASE 1: Analysis (10%) ===
         await update_status(job_id, "processing", "[FRAME] Analyzing keyframes...")
         publish_progress(job_id, "processing", "Analyzing video keyframes...", 10)
-        memory_context = memory_service.get_context()
+        memory_context = await hybrid_memory.get_agent_context(job.user_id)
         
         keyframe_payload = {"source_path": source_path, "pacing": pacing}
         keyframe_resp = await keyframe_agent.run(keyframe_payload)
@@ -152,8 +153,8 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                 "feedback": current_feedback
             }
             
-            director_resp = await director_agent.run(director_payload)
-            director_plan = parse_json_safe(director_resp.get("raw_response", "{}"))
+            plan = await director_agent.run(director_payload)
+            director_plan = plan.model_dump()
             print(f"[Workflow] Director Plan: {director_plan.get('strategy', 'No strategy')}")
 
             # === PHASE 3: Parallel Specialists (30-60%) ===
@@ -173,13 +174,16 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             results = await asyncio.gather(*specialist_tasks, return_exceptions=True)
             publish_progress(job_id, "processing", "Specialist analysis complete!", 55)
             
-            # Parse results safely
-            cutter_res = parse_json_safe(results[0].get("raw_response", "{}")) if isinstance(results[0], dict) else {}
-            color_res = parse_json_safe(results[1].get("raw_response", "{}")) if isinstance(results[1], dict) else {}
-            audio_res = parse_json_safe(results[2].get("raw_response", "{}")) if isinstance(results[2], dict) else {}
-            transition_res = parse_json_safe(results[3].get("raw_response", "{}")) if isinstance(results[3], dict) else {}
-            vfx_res = parse_json_safe(results[4].get("raw_response", "{}")) if isinstance(results[4], dict) else {}
-            script_res = parse_json_safe(results[5].get("raw_response", "{}")) if isinstance(results[5], dict) else {}
+            cutter_data = results[0] if not isinstance(results[0], Exception) else None
+            color_data = results[1] if not isinstance(results[1], Exception) else None
+            audio_data = results[2] if not isinstance(results[2], Exception) else None
+            transition_data = results[3] if not isinstance(results[3], Exception) else None
+            vfx_data = results[4] if not isinstance(results[4], Exception) else None
+            script_data = results[5] if not isinstance(results[5], Exception) else None
+            
+            # Use model_dump for compatibility if needed, or access directly
+            vfx_res = vfx_data.model_dump() if vfx_data else {}
+            transition_res = transition_data.model_dump() if transition_data else {}
             
             print(f"[Workflow] Transitions: {transition_res.get('style_note', 'None')}")
             print(f"[Workflow] VFX: {vfx_res.get('style_note', 'None')}")
@@ -199,10 +203,9 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             vf_filters = ["scale=1280:720:force_original_aspect_ratio=decrease", "pad=1280:720:(ow-iw)/2:(oh-ih)/2"]
             
             # Add VFX filters
-            if vfx_res.get("effects"):
-                for effect in vfx_res.get("effects", [])[:2]:
-                    if "filter" in effect:
-                        vf_filters.append(effect["filter"])
+            for effect in vfx_res.get("effects", []):
+                if isinstance(effect, dict) and "filter" in effect:
+                    vf_filters.append(effect["filter"])
             
             # Watermark for free tier
             watermark_text = "Proedit.ai (Free)"
@@ -244,16 +247,15 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                 publish_progress(job_id, "processing", "Quality control review...", 85)
                 
                 qc_payload = {"user_request": {"pacing": pacing, "mood": mood}, "director_plan": director_plan}
-                qc_resp = await qc_agent.run(qc_payload)
-                qc_data = parse_json_safe(qc_resp.get("raw_response", "{}"))
+                qc_data = await qc_agent.run(qc_payload)
                 
-                if qc_data.get("approved", True):
+                if qc_data.approved:
                     print("[Workflow] QC Approved!")
                     break
                 else:
-                    current_feedback = qc_data.get("feedback", "Improvements needed.")
+                    current_feedback = qc_data.feedback or "Improvements needed."
                     print(f"[Workflow] QC Rejected: {current_feedback}")
-                    memory_service.add_feedback(current_feedback)
+                    await hybrid_memory.record_feedback(job.user_id, current_feedback)
                     continue 
 
         # === PHASE 6: Post-Production (90-100%) ===
@@ -340,9 +342,10 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         }
         
         # Run Graph
-        print("[Graph] Streaming workflow...")
+        print("[Graph] Streaming workflow (with checkpointing)...")
+        config = {"configurable": {"thread_id": str(job_id)}}
         final_state = {}
-        async for event in graph_app.astream(initial_state):
+        async for event in graph_app.astream(initial_state, config=config):
             for node_name, state in event.items():
                 final_state = state # Keep track of latest state
                 

@@ -1,6 +1,7 @@
 """
 Platform Agent - Adapt video output for different social platforms.
 """
+from typing import Optional
 from .base import run_agent_with_schema
 from .schemas import PlatformOutput
 
@@ -62,5 +63,6 @@ async def run(payload: dict, job_id: int = None) -> PlatformOutput:
         payload,
         PlatformOutput,
         agent_name="platform",
+        task_type="creative",
         job_id=job_id
     )

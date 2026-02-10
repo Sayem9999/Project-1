@@ -8,8 +8,9 @@ from dataclasses import dataclass
 
 from ..state import GraphState
 from ...agents.base import run_agent_with_schema
-from ...agents.schemas import QCOutput
+from ...agents.schemas import QCOutput, EvalOutput
 from ...agents.routing_policy import provider_router, RoutingPolicy
+from ...agents import eval_optimizer
 
 logger = structlog.get_logger()
 
@@ -97,35 +98,35 @@ class QCGate:
         }
         
         try:
-            # Use QC-specific provider (separate from main agents)
-            qc_provider = provider_router.get_qc_provider()
-            model = qc_provider.models[0] if qc_provider else "gemini-1.5-flash"
+            # Use technical and specialized context for evaluation
+            eval_payload = {
+                "media_intelligence": state.get("media_intelligence", {}),
+                "user_request": state.get("user_request", {}),
+                "hook_result": state.get("hook_result", {}),
+                "platform_result": state.get("platform_result", {}),
+                "cuts": state.get("cuts", []),
+                "audio_tracks": state.get("audio_tracks", [])
+            }
             
-            result = await run_agent_with_schema(
-                system_prompt=QC_GATE_PROMPT,
-                payload=payload,
-                schema=QCOutput,
-                agent_name="qc_gate",
-                job_id=job_id,
-                model=model
-            )
+            qc_result = await eval_optimizer.run(eval_payload, job_id=job_id)
             
-            qc_result = result.model_dump()
+            # Convert EvalOutput to dict for state storage
+            qc_dict = qc_result.model_dump()
             
-            # Apply minimum score threshold
-            if qc_result.get("score", 0) < self.config.min_score:
-                qc_result["approved"] = False
-                if "Score below threshold" not in qc_result.get("verdict", ""):
-                    qc_result["verdict"] = f"Score {qc_result.get('score')}/10 below minimum {self.config.min_score}"
+            # Map EvalOutput.overall_score to approved if not already set
+            if not qc_dict.get("approved") and qc_dict.get("overall_score", 0) >= self.config.min_score:
+                # Still check if there are critical issues
+                if not qc_dict.get("critical_issues"):
+                    qc_dict["approved"] = True
             
             logger.info(
                 "qc_gate_complete",
                 job_id=job_id,
-                approved=qc_result.get("approved"),
-                score=qc_result.get("score")
+                approved=qc_dict.get("approved"),
+                score=qc_dict.get("overall_score")
             )
             
-            return qc_result
+            return qc_dict
             
         except Exception as e:
             logger.error("qc_gate_failed", job_id=job_id, error=str(e))

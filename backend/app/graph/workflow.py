@@ -11,6 +11,11 @@ from .nodes.visuals import visuals_node
 from .nodes.validator import validator_node
 from .nodes.qc_gate import qc_gate_node
 from .nodes.compiler import compiler_node
+from .nodes.hook import hook_node
+from .nodes.platform import platform_node
+from .nodes.brand_safety import brand_safety_node
+from .nodes.ab_test import ab_test_node
+from .nodes.media_intelligence import media_intelligence_node
 
 
 from .iteration_controller import create_iteration_node, should_revise
@@ -38,6 +43,7 @@ def should_proceed_to_compile(state: GraphState) -> str:
 workflow = StateGraph(GraphState)
 
 # Add Nodes
+workflow.add_node("media_intelligence", media_intelligence_node)
 workflow.add_node("director", director_node)
 workflow.add_node("cutter", cutter_node)
 workflow.add_node("audio", audio_node)
@@ -46,21 +52,33 @@ workflow.add_node("validator", validator_node)
 workflow.add_node("qc_gate", qc_gate_node)
 workflow.add_node("iteration_control", create_iteration_node())
 workflow.add_node("compiler", compiler_node)
+workflow.add_node("hook", hook_node)
+workflow.add_node("platform", platform_node)
+workflow.add_node("brand_safety", brand_safety_node)
+workflow.add_node("ab_test", ab_test_node)
 
 # Define Edges
-workflow.set_entry_point("director")
-workflow.add_edge("director", "cutter")
+workflow.set_entry_point("media_intelligence")
+workflow.add_edge("media_intelligence", "director")
+workflow.add_edge("director", "platform")
+workflow.add_edge("platform", "cutter")
 
 # Fork: Cutter -> (Audio, Visuals)
 workflow.add_edge("cutter", "audio")
 workflow.add_edge("cutter", "visuals")
 
-# Join: (Audio, Visuals) -> Validator
-workflow.add_edge("audio", "validator")
-workflow.add_edge("visuals", "validator")
+# Visuals -> Hook
+workflow.add_edge("visuals", "hook")
 
-# Validator -> QC Gate
-workflow.add_edge("validator", "qc_gate")
+# Join: (Audio, Hook) -> Validator
+workflow.add_edge("audio", "validator")
+workflow.add_edge("hook", "validator")
+
+# Validator -> Brand Safety
+workflow.add_edge("validator", "brand_safety")
+
+# Brand Safety -> QC Gate
+workflow.add_edge("brand_safety", "qc_gate")
 
 # Conditional: QC Gate -> Compiler or Iteration Check
 workflow.add_conditional_edges(
@@ -83,7 +101,13 @@ workflow.add_conditional_edges(
     }
 )
 
-workflow.add_edge("compiler", END)
+workflow.add_edge("compiler", "ab_test")
+workflow.add_edge("ab_test", END)
+
+from langgraph.checkpoint.memory import MemorySaver
+
+# ... existing code ...
 
 # Compile
-app = workflow.compile()
+checkpointer = MemorySaver()
+app = workflow.compile(checkpointer=checkpointer)

@@ -28,8 +28,14 @@ class DirectorOutput(BaseModel):
 # ============================================================================
 # Cutter Agent
 # ============================================================================
+class CutItem(BaseModel):
+    start: float
+    end: float
+    reason: str
+
 class CutterOutput(BaseModel):
     """Output from SLICE - the Cutter Agent."""
+    cuts: list[CutItem] = Field(..., description="List of segments to keep")
     ffmpeg_select_filter: str = Field(..., description="FFmpeg filter for cuts")
     reasoning: str = Field(..., description="Why this creates intended pacing")
     estimated_cuts: Literal["Many jump cuts", "Moderate transitions", "Minimal cuts"]
@@ -234,6 +240,23 @@ class ABTestOutput(BaseModel):
     rationale: str
 
 
+# Eval Agent
+class EvalScore(BaseModel):
+    category: str
+    score: int = Field(..., ge=1, le=10)
+    reason: str
+
+
+class EvalOutput(BaseModel):
+    """Output from EVAL - the technical and aesthetic evaluator."""
+    overall_score: int = Field(..., ge=1, le=10)
+    scores: list[EvalScore]
+    approved: bool
+    verdict: str
+    critical_issues: list[str] = []
+    optimization_suggestions: list[str] = []
+
+
 # ============================================================================
 # Schema Registry - Map agent names to their output schemas
 # ============================================================================
@@ -255,4 +278,5 @@ AGENT_SCHEMAS = {
     "platform": PlatformOutput,
     "brand_safety": BrandSafetyOutput,
     "ab_test": ABTestOutput,
+    "eval": EvalOutput,
 }

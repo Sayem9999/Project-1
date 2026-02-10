@@ -30,7 +30,16 @@ class GraphState(TypedDict):
     # Validation & QC
     validation_result: Optional[Dict[str, Any]]
     qc_result: Optional[Dict[str, Any]]
+    brand_safety_result: Optional[Dict[str, Any]]
     retry_count: int
+    
+    # Specialists
+    hook_result: Optional[Dict[str, Any]]
+    platform_result: Optional[Dict[str, Any]]
+    ab_test_result: Optional[Dict[str, Any]]
+    
+    # Intelligence (Phase 3)
+    media_intelligence: Optional[Dict[str, Any]]
     
     # Execution
     errors: Annotated[List[str], add]

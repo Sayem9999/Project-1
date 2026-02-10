@@ -42,6 +42,9 @@ def parse_json_response(text: str) -> dict:
     return json.loads(text.strip())
 
 
+from .routing_policy import provider_router, RoutingPolicy, TaskType
+from .telemetry import AgentSpan
+
 async def run_agent_with_schema(
     system_prompt: str,
     payload: dict,
@@ -49,7 +52,7 @@ async def run_agent_with_schema(
     agent_name: str = "unknown",
     job_id: Optional[int] = None,
     max_retries: int = 2,
-    model: str = "gemini-1.5-flash"
+    task_type: TaskType = "simple"
 ) -> T:
     """
     Run an agent prompt and validate output against a Pydantic schema.
@@ -60,83 +63,58 @@ async def run_agent_with_schema(
     last_error = None
     
     for attempt in range(max_retries + 1):
-        start_time = time.time()
-        
-        logger.info(
-            "agent_attempt",
-            agent=agent_name,
-            job_id=job_id,
-            attempt=attempt + 1,
-            max_retries=max_retries
-        )
-        
-        try:
-            # Get raw response
-            result = await run_agent_prompt(
-                system_prompt, 
-                payload, 
-                model=model,
-                agent_name=agent_name,
-                job_id=job_id
-            )
-            
-            raw_text = result.get("raw_response", "")
-            
-            # Parse JSON
+        with AgentSpan(agent_name, job_id=job_id, attempt=attempt + 1) as span:
             try:
-                parsed = parse_json_response(raw_text)
-            except json.JSONDecodeError as e:
-                logger.warning(
-                    "agent_json_parse_failed",
-                    agent=agent_name,
-                    job_id=job_id,
-                    error=str(e)
-                )
-                if attempt < max_retries:
-                    # Add repair instruction to payload for retry
-                    payload["_repair_request"] = f"Your last response was not valid JSON. Error: {e}. Please return ONLY valid JSON."
-                    continue
-                raise
-            
-            # Validate against schema
-            try:
-                validated = schema.model_validate(parsed)
-                latency_ms = (time.time() - start_time) * 1000
-                
-                logger.info(
-                    "agent_success",
-                    agent=agent_name,
-                    job_id=job_id,
-                    latency_ms=round(latency_ms, 2),
-                    attempt=attempt + 1
+                # Get raw response using routing policy
+                result = await run_agent_prompt(
+                    system_prompt, 
+                    payload, 
+                    task_type=task_type,
+                    agent_name=agent_name,
+                    job_id=job_id
                 )
                 
-                return validated
+                raw_text = result.get("raw_response", "")
+                model_used = result.get("model", "unknown")
+                span.model = model_used
                 
-            except ValidationError as e:
-                logger.warning(
-                    "agent_validation_failed",
-                    agent=agent_name,
-                    job_id=job_id,
-                    errors=e.error_count(),
-                    details=str(e)
-                )
-                if attempt < max_retries:
-                    payload["_repair_request"] = f"Your response did not match the required schema. Errors: {e}. Please fix and return valid JSON."
-                    continue
-                raise
+                # Parse JSON
+                try:
+                    parsed = parse_json_response(raw_text)
+                except json.JSONDecodeError as e:
+                    logger.warning(
+                        "agent_json_parse_failed",
+                        agent=agent_name,
+                        job_id=job_id,
+                        error=str(e)
+                    )
+                    if attempt < max_retries:
+                        payload["_repair_request"] = f"Your last response was not valid JSON. Error: {e}. Please return ONLY valid JSON."
+                        continue
+                    raise
                 
-        except Exception as e:
-            last_error = e
-            logger.error(
-                "agent_error",
-                agent=agent_name,
-                job_id=job_id,
-                attempt=attempt + 1,
-                error=str(e)
-            )
-            if attempt >= max_retries:
-                raise
+                # Validate against schema
+                try:
+                    validated = schema.model_validate(parsed)
+                    return validated
+                    
+                except ValidationError as e:
+                    logger.warning(
+                        "agent_validation_failed",
+                        agent=agent_name,
+                        job_id=job_id,
+                        errors=e.error_count(),
+                        details=str(e)
+                    )
+                    if attempt < max_retries:
+                        payload["_repair_request"] = f"Your response did not match the required schema. Errors: {e}. Please fix and return valid JSON."
+                        continue
+                    raise
+                    
+            except Exception as e:
+                last_error = e
+                if attempt >= max_retries:
+                    raise
     
     raise RuntimeError(f"Agent {agent_name} failed after {max_retries + 1} attempts. Last error: {last_error}")
 
@@ -144,74 +122,86 @@ async def run_agent_with_schema(
 async def run_agent_prompt(
     system_prompt: str, 
     payload: dict, 
-    model: str = "gemini-1.5-flash",
+    task_type: TaskType = "simple",
     agent_name: str = "unknown",
     job_id: Optional[int] = None
 ) -> dict:
     """
     Run an agent prompt and return raw response.
-    Tries Groq -> Gemini -> OpenAI with automatic fallback.
+    Uses ProviderRouter for policy-driven selection.
     """
-    last_error = None
+    policy = RoutingPolicy(task_type=task_type)
+    provider = provider_router.select_provider(policy)
     
-    # 1. Try Groq First (Most Reliable Free Tier)
-    if groq_client:
-        try:
-            logger.debug("agent_api_attempt", api="groq", agent=agent_name, job_id=job_id)
-            chat_completion = groq_client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": str(payload)},
-                ],
-                model="llama-3.3-70b-versatile",
-            )
-            if chat_completion.choices[0].message.content:
-                logger.debug("agent_api_success", api="groq", agent=agent_name)
-                return {"raw_response": chat_completion.choices[0].message.content}
-        except Exception as e:
-            logger.warning("agent_api_failed", api="groq", agent=agent_name, error=str(e))
-            last_error = e
+    if not provider:
+        raise RuntimeError(f"No healthy provider found for task {task_type}")
 
-    # 2. Try Gemini (Free Tier) - Using new google.genai SDK
-    if gemini_client:
-        gemini_models = [model, "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
-        
-        for g_model in gemini_models:
-            try:
-                logger.debug("agent_api_attempt", api="gemini", model=g_model, agent=agent_name)
-                full_prompt = f"System: {system_prompt}\n\nUser Input: {str(payload)}"
+    last_error = None
+    start_time = time.time()
+    
+    # Try the selected provider and its models
+    for model in provider.models:
+        try:
+            logger.debug("agent_api_attempt", provider=provider.name, model=model, agent=agent_name)
+            
+            response_text = ""
+            
+            if provider.name == "groq" and groq_client:
+                chat_completion = groq_client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": str(payload)},
+                    ],
+                    model=model,
+                )
+                response_text = chat_completion.choices[0].message.content
                 
+            elif provider.name == "gemini" and gemini_client:
+                full_prompt = f"System: {system_prompt}\n\nUser Input: {str(payload)}"
                 response = await gemini_client.aio.models.generate_content(
-                    model=g_model,
+                    model=model,
                     contents=full_prompt,
                 )
+                response_text = response.text
                 
-                if response.text:
-                    logger.debug("agent_api_success", api="gemini", model=g_model, agent=agent_name)
-                    return {"raw_response": response.text}
-            except Exception as e:
-                logger.warning("agent_api_failed", api="gemini", model=g_model, error=str(e))
-                last_error = e
-                continue
-        
-        logger.warning("agent_all_gemini_failed", agent=agent_name, last_error=str(last_error))
+            elif provider.name == "openai" and openai_client:
+                response = await openai_client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": str(payload)},
+                    ],
+                )
+                response_text = response.choices[0].message.content
 
-    # 3. Fallback to OpenAI
-    if openai_client:
-        try:
-            logger.debug("agent_api_attempt", api="openai", agent=agent_name)
-            response = await openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": str(payload)},
-                ],
-            )
-            logger.debug("agent_api_success", api="openai", agent=agent_name)
-            return {"raw_response": response.choices[0].message.content}
+            if response_text:
+                latency_ms = (time.time() - start_time) * 1000
+                provider_router.record_success(provider.name, int(latency_ms))
+                return {
+                    "raw_response": response_text,
+                    "model": model,
+                    "provider": provider.name
+                }
+                
         except Exception as e:
-            logger.warning("agent_api_failed", api="openai", error=str(e))
+            logger.warning("agent_api_failed", provider=provider.name, model=model, error=str(e))
             last_error = e
+            provider_router.record_failure(provider.name, str(e))
+            continue
 
-    # No API worked
-    raise RuntimeError(f"All AI APIs failed. Last error: {last_error}. Configure GROQ_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY.")
+    # Fallback if selected provider failed
+    logger.warning("agent_provider_fallback", old_provider=provider.name, agent=agent_name)
+    
+    # Simple hardcoded fallback to Gemini
+    if provider.name != "gemini" and gemini_client:
+        try:
+            response = await gemini_client.aio.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=f"System: {system_prompt}\n\nUser Input: {str(payload)}",
+            )
+            if response.text:
+                return {"raw_response": response.text, "model": "gemini-1.5-flash", "provider": "gemini"}
+        except:
+            pass
+
+    raise RuntimeError(f"All attempts failed for agent {agent_name}. Last error: {last_error}")

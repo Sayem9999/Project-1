@@ -49,4 +49,9 @@ Captions should be READABLE and TIMED perfectly.
 """
 
 async def run(payload: dict) -> dict:
-    return await run_agent_prompt(PROMPT, payload, model="llama-3.3-70b-versatile")
+    return await run_agent_prompt(
+        PROMPT, 
+        payload, 
+        task_type="creative", 
+        agent_name="script"
+    )

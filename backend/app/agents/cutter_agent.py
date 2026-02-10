@@ -28,5 +28,17 @@ Remember: When in doubt, CUT.
 """
 
 
-async def run(payload: dict) -> dict:
-    return await run_agent_prompt(PROMPT, payload, model="llama-3.3-70b-versatile")
+from .base import run_agent_with_schema
+from .schemas import CutterOutput
+
+# ... (PROMPT remains the same)
+
+async def run(payload: dict) -> CutterOutput:
+    return await run_agent_with_schema(
+        PROMPT, 
+        payload, 
+        CutterOutput, 
+        agent_name="cutter",
+        task_type="analytical",
+        job_id=payload.get("job_id")
+    )

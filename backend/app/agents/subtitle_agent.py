@@ -17,5 +17,9 @@ Your goal is to generate a **SubRip (.srt)** formatted subtitle file for the vid
 """
 
 async def run(payload: dict) -> dict:
-    # Gemini 1.5 Pro is required for long-context audio understanding
-    return await run_agent_prompt(PROMPT, payload, model="gemini-1.5-pro")
+    return await run_agent_prompt(
+        PROMPT, 
+        payload, 
+        task_type="multimodal",
+        agent_name="subtitle"
+    )

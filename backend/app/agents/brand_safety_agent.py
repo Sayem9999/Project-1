@@ -1,6 +1,7 @@
 """
 Brand Safety Agent - Content moderation and policy compliance checks.
 """
+from typing import Optional
 from .base import run_agent_with_schema
 from .schemas import BrandSafetyOutput
 
@@ -57,12 +58,13 @@ Be thorough but not paranoid. Protect the creator.
 """
 
 
-async def run(payload: dict, job_id: int = None) -> BrandSafetyOutput:
+async def run(payload: dict, job_id: Optional[int] = None) -> BrandSafetyOutput:
     """Run the brand safety agent with schema validation."""
     return await run_agent_with_schema(
         PROMPT,
         payload,
         BrandSafetyOutput,
         agent_name="brand_safety",
+        task_type="qc",
         job_id=job_id
     )

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 
 logger = structlog.get_logger()
 
-TaskType = Literal["creative", "analytical", "qc", "simple", "complex"]
+TaskType = Literal["creative", "analytical", "qc", "simple", "complex", "multimodal"]
 QualityTier = Literal["premium", "standard", "fast"]
 
 
@@ -96,6 +96,7 @@ TASK_QUALITY_MAP: Dict[TaskType, QualityTier] = {
     "qc": "premium",  # QC needs high quality
     "simple": "fast",
     "complex": "premium",
+    "multimodal": "premium",
 }
 
 

@@ -39,5 +39,17 @@ Create a director's vision that will make this video UNFORGETTABLE.
 """
 
 
-async def run(payload: dict) -> dict:
-    return await run_agent_prompt(PROMPT, payload, model="llama-3.3-70b-versatile")
+from .base import run_agent_with_schema
+from .schemas import DirectorOutput
+
+# ... (PROMPT remains the same)
+
+async def run(payload: dict) -> DirectorOutput:
+    return await run_agent_with_schema(
+        PROMPT, 
+        payload, 
+        DirectorOutput, 
+        agent_name="director",
+        task_type="creative",
+        job_id=payload.get("job_id")
+    )

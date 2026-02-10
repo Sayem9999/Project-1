@@ -22,4 +22,9 @@ Return STRICTLY JSON:
 """
 
 async def run(payload: dict) -> dict:
-    return await run_agent_prompt(PROMPT, payload, model="gemini-1.5-pro")
+    return await run_agent_prompt(
+        PROMPT, 
+        payload, 
+        task_type="creative", 
+        agent_name="metadata"
+    )

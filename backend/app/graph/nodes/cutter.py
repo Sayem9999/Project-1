@@ -27,6 +27,7 @@ async def cutter_node(state: GraphState) -> GraphState:
     try:
         # Build enhanced payload with shot boundaries
         payload = {
+            "job_id": state.get("job_id"),
             "plan": plan,
             "shot_boundaries": shot_metadata.get("shots", []),
             "scene_count": shot_metadata.get("scene_count", 0),
@@ -36,12 +37,8 @@ async def cutter_node(state: GraphState) -> GraphState:
         if revision_prompt:
             payload["revision_feedback"] = revision_prompt
         
-        resp = await cutter_agent.run(payload)
-        raw = resp.get("raw_response", "{}")
-        clean = raw.replace("```json", "").replace("```", "").strip()
-        cuts_data = json.loads(clean)
-        
-        cuts = cuts_data.get("cuts", [])
+        cuts_data = await cutter_agent.run(payload)
+        cuts = [cut.model_dump() for cut in cuts_data.cuts]
         
         # Validate cuts against shot boundaries
         validated_cuts = _validate_cuts_against_shots(cuts, shot_metadata.get("shots", []))

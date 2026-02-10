@@ -1,6 +1,7 @@
 """
 Hook Agent - Optimize first 3 seconds for maximum viewer retention.
 """
+from typing import Optional
 from .base import run_agent_with_schema
 from .schemas import HookOutput
 
@@ -44,5 +45,6 @@ async def run(payload: dict, job_id: int = None) -> HookOutput:
         payload,
         HookOutput,
         agent_name="hook",
+        task_type="creative",
         job_id=job_id
     )

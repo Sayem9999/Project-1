@@ -1,6 +1,7 @@
 """
 A/B Test Agent - Generate multiple variants for testing and optimization.
 """
+from typing import Optional
 from .base import run_agent_with_schema
 from .schemas import ABTestOutput
 
@@ -49,12 +50,13 @@ Create variants that are TESTABLE and MEASURABLE.
 """
 
 
-async def run(payload: dict, job_id: int = None) -> ABTestOutput:
+async def run(payload: dict, job_id: Optional[int] = None) -> ABTestOutput:
     """Run the A/B test agent with schema validation."""
     return await run_agent_with_schema(
         PROMPT,
         payload,
         ABTestOutput,
         agent_name="ab_test",
+        task_type="creative",
         job_id=job_id
     )
