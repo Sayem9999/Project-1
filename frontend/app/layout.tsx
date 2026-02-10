@@ -1,5 +1,6 @@
 import './globals.css';
 import { ToastProvider } from '@/components/ui/Toast';
+import SystemBanner from '@/components/ui/SystemBanner';
 
 export const metadata = {
   title: 'Proedit.ai - AI Video Editing',
@@ -11,6 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <ToastProvider>
+          <SystemBanner />
           {children}
         </ToastProvider>
       </body>

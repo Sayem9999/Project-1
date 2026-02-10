@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
+import { apiRequest, ApiError, setAuthToken, setStoredUser } from '@/lib/api';
 
 function GoogleCallbackContent() {
     const router = useRouter();
@@ -17,23 +16,18 @@ function GoogleCallbackContent() {
             return;
         }
 
-        fetch(`${API_BASE}/auth/oauth/google/callback?code=${encodeURIComponent(code)}`, {
-            method: 'POST',
-        })
-            .then(res => {
-                if (!res.ok) throw new Error('Authentication failed');
-                return res.json();
-            })
+        apiRequest<{ access_token: string; user?: unknown }>(
+            `/auth/oauth/google/callback?code=${encodeURIComponent(code)}`,
+            { method: 'POST' }
+        )
             .then(data => {
-                localStorage.setItem('token', data.access_token);
-                if (data.user) {
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                }
+                setAuthToken(data.access_token);
+                if (data.user) setStoredUser(data.user);
                 router.push('/dashboard/upload');
             })
             .catch(err => {
                 console.error('OAuth error:', err);
-                setError('Authentication failed. Please try again.');
+                setError(err instanceof ApiError ? err.message : 'Authentication failed. Please try again.');
             });
     }, [searchParams, router]);
 

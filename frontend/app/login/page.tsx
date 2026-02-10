@@ -3,8 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
+import { apiRequest, ApiError, setAuthToken, setStoredUser } from '@/lib/api';
 
 function LoginForm() {
   const router = useRouter();
@@ -31,22 +30,22 @@ function LoginForm() {
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const data = await apiRequest<{ access_token: string }>('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: { email, password },
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        const detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
-        throw new Error(detail || 'Login failed');
+      setAuthToken(data.access_token);
+      try {
+        const me = await apiRequest('/auth/me', { auth: true });
+        setStoredUser(me);
+      } catch {
+        // no-op for now
       }
-
-      localStorage.setItem('token', data.access_token);
       router.push('/dashboard/upload');
     } catch (err: any) {
-      setError(err.message);
+      const message = err instanceof ApiError ? err.message : 'Login failed';
+      setError(message);
       setLoading(false);
     }
   };
@@ -54,8 +53,7 @@ function LoginForm() {
   const handleGoogleLogin = async () => {
     setOauthLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/oauth/google`);
-      const data = await res.json();
+      const data = await apiRequest<{ auth_url?: string }>('/auth/oauth/google');
       if (data.auth_url) {
         window.location.href = data.auth_url;
       }

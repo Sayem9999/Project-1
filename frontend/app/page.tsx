@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Play, Wand2, Layers, Zap, Music, Video, Star } from 'lucide-react';
+import { ArrowRight, Play, Wand2, Layers, Zap, Music, Video, Star, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
@@ -43,19 +43,19 @@ export default function LandingPage() {
         >
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-brand-cyan mb-8 animate-float">
             <Star className="w-3 h-3 fill-brand-cyan" />
-            <span>v4.0 Hollywood Pipeline is Live</span>
+            <span>Hollywood Pipeline v4 is live</span>
           </div>
 
           <h1 className="text-5xl lg:text-7xl font-bold mb-6 tracking-tight leading-tight">
             AI Video Editing <br />
             <span className="bg-gradient-to-r from-brand-cyan via-brand-violet to-brand-fuchsia bg-clip-text text-transparent">
-              Reimagined.
+              Directed.
             </span>
           </h1>
 
           <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Stop removing silence manually. Let our <strong>Hollywood Pipeline</strong> agents
-            cut, color, and score your video in minutes.
+            Upload raw footage. Our studio-grade agents plan, cut, color, and score your edit.
+            You review the final export, not a timeline.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -69,6 +69,12 @@ export default function LandingPage() {
               <Play className="w-4 h-4 mr-2" /> Watch Demo
             </Button>
           </div>
+
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400">
+            <span className="px-3 py-1 rounded-full border border-white/10 bg-white/5">Multi-agent pipeline</span>
+            <span className="px-3 py-1 rounded-full border border-white/10 bg-white/5">QC scoring built-in</span>
+            <span className="px-3 py-1 rounded-full border border-white/10 bg-white/5">Platform-ready exports</span>
+          </div>
         </motion.div>
 
         {/* Hero Visual */}
@@ -76,15 +82,93 @@ export default function LandingPage() {
           <div className="absolute -inset-1 bg-gradient-to-r from-brand-cyan to-brand-violet rounded-2xl blur opacity-30 animate-pulse-slow" />
           <div className="relative rounded-2xl border border-white/10 bg-surface/50 backdrop-blur-xl overflow-hidden shadow-2xl min-h-[300px] lg:min-h-[500px]">
             {/* Dashboard Preview Placeholder */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-brand-cyan/5 via-transparent to-brand-violet/5">
-              <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-brand-cyan/20 to-brand-violet/20 flex items-center justify-center mb-6">
-                <svg className="w-12 h-12 text-brand-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.55 2.63a1 1 0 010 1.74l-9.1 5.26a1 1 0 01-1.45-.87V5.24a1 1 0 011.45-.87l9.1 5.26z" />
-                </svg>
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-cyan/5 via-transparent to-brand-violet/5" />
+            <div className="relative grid grid-cols-1 lg:grid-cols-3 gap-6 p-8 lg:p-12">
+              <div className="lg:col-span-2 space-y-4">
+                <div className="text-xs text-gray-500 uppercase tracking-widest">Pipeline Run</div>
+                <div className="space-y-3">
+                  {[
+                    'Director: Creative strategy',
+                    'Cutter: Timing and pacing',
+                    'Audio: Mix and cleanup',
+                    'Colorist: Grade and look',
+                    'QC: Safety and polish',
+                  ].map((step, i) => (
+                    <div key={step} className="flex items-center gap-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${i < 3 ? 'bg-brand-cyan' : 'bg-white/10'}`} />
+                      <div className="text-sm text-gray-300">{step}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 flex items-center gap-3 text-xs text-gray-500">
+                  <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10">Pro Pipeline</span>
+                  <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10">1080p Export</span>
+                  <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10">Auto QC</span>
+                </div>
               </div>
-              <span className="text-sm text-gray-500 border border-white/10 px-4 py-2 rounded-lg bg-black/30 backdrop-blur">Dashboard Preview</span>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-6 space-y-4">
+                <div className="text-xs uppercase tracking-widest text-gray-500">Project Snapshot</div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-400">Status</span>
+                    <span className="text-brand-cyan font-semibold">Processing</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-400">Platform</span>
+                    <span className="text-white">YouTube</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-400">Scene Count</span>
+                    <span className="text-white">12</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-400">QC</span>
+                    <span className="text-emerald-400">Pass</span>
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-white/10 text-xs text-gray-500">
+                  Render in progress. Your export will be ready shortly.
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Workflow */}
+      <section className="py-20 container mx-auto px-6 relative z-10">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl lg:text-4xl font-bold mb-3">From upload to export in three steps</h2>
+          <p className="text-gray-400">No timeline. No plugins. Just a clean studio flow.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="relative overflow-hidden">
+            <div className="w-12 h-12 rounded-lg bg-brand-cyan/20 flex items-center justify-center mb-4 text-brand-cyan">
+              <Upload className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Upload</h3>
+            <p className="text-gray-400 text-sm">
+              Drop raw footage and set the platform, mood, and pace in seconds.
+            </p>
+          </Card>
+          <Card className="relative overflow-hidden">
+            <div className="w-12 h-12 rounded-lg bg-brand-violet/20 flex items-center justify-center mb-4 text-brand-violet">
+              <Layers className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Agents Run</h3>
+            <p className="text-gray-400 text-sm">
+              Director, cutter, audio, and color teams coordinate the edit.
+            </p>
+          </Card>
+          <Card className="relative overflow-hidden">
+            <div className="w-12 h-12 rounded-lg bg-brand-fuchsia/20 flex items-center justify-center mb-4 text-brand-fuchsia">
+              <Video className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Export</h3>
+            <p className="text-gray-400 text-sm">
+              Review your final cut, download, and share anywhere.
+            </p>
+          </Card>
         </div>
       </section>
 
@@ -138,9 +222,9 @@ export default function LandingPage() {
             <div className="w-12 h-12 rounded-lg bg-brand-accent/20 flex items-center justify-center mb-4 text-brand-accent">
               <Video className="w-6 h-6" />
             </div>
-            <h3 className="text-xl font-bold mb-2">MoviePy Engine</h3>
+            <h3 className="text-xl font-bold mb-2">Render Engine</h3>
             <p className="text-gray-400 text-sm">
-              High-quality rendering with Python-based VFX pipelines.
+              High quality rendering with platform-ready presets and clean exports.
             </p>
           </Card>
         </div>
@@ -149,9 +233,9 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="py-32 container mx-auto px-6 text-center relative z-10">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-4xl lg:text-5xl font-bold mb-6">Ready to upgrade your workflow(c)</h2>
+          <h2 className="text-4xl lg:text-5xl font-bold mb-6">Ready to upgrade your workflow?</h2>
           <p className="text-xl text-gray-400 mb-10">
-            Join thousands of creators saving hours on every video.
+            Launch your first project and see the pipeline in action.
           </p>
           <Link href="/signup">
             <Button size="lg" className="w-full sm:w-auto px-12 py-6 text-lg">
@@ -164,7 +248,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-12 bg-black/50">
         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
-          <p>(c) 2026 Proedit.ai. All rights reserved.</p>
+          <p>Copyright 2026 Proedit.ai. All rights reserved.</p>
           <div className="flex gap-6 mt-4 md:mt-0">
             <a href="#" className="hover:text-white transition-colors">Privacy</a>
             <a href="#" className="hover:text-white transition-colors">Terms</a>

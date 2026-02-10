@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Check } from 'lucide-react';
 import Sidebar from '@/components/dashboard/Sidebar';
 import TopBar from '@/components/dashboard/TopBar';
+import { apiRequest, ApiError, clearAuth } from '@/lib/api';
 
 export default function PricingPage() {
     const router = useRouter();
@@ -12,23 +13,23 @@ export default function PricingPage() {
     const handlePurchase = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/payments/create-checkout-session`, {
+            const data = await apiRequest<{ url?: string }>('/payments/create-checkout-session', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+                auth: true
             });
-            const data = await res.json();
             if (data.url) {
                 window.location.href = data.url;
             } else {
                 alert('Checkout failed');
             }
         } catch (error) {
+            if (error instanceof ApiError && error.isAuth) {
+                clearAuth();
+                router.push('/login');
+                return;
+            }
             console.error('Purchase error:', error);
-            alert('Something went wrong');
+            alert(error instanceof ApiError ? error.message : 'Something went wrong');
         } finally {
             setLoading(false);
         }

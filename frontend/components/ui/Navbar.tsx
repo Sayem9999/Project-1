@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 export default function Navbar() {
     const pathname = usePathname();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [user, setUser] = useState<{ name?: string; email?: string; avatar_url?: string } | null>(null);
+    const [user, setUser] = useState<{ full_name?: string; email?: string; avatar_url?: string } | null>(null);
     const [showDropdown, setShowDropdown] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
@@ -90,7 +90,7 @@ export default function Navbar() {
                                         <Image src={user.avatar_url} alt="" width={36} height={36} className="w-9 h-9 rounded-full ring-2 ring-white/20" unoptimized />
                                     ) : (
                                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center text-sm font-bold text-white">
-                                            {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                                            {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                                         </div>
                                     )}
                                 </button>
@@ -100,15 +100,15 @@ export default function Navbar() {
                                         <div className="fixed inset-0" onClick={() => setShowDropdown(false)} />
                                         <div className="absolute right-0 mt-3 w-64 py-2 bg-[#0f0f14] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
                                             <div className="px-4 py-3 border-b border-white/10 bg-gradient-to-r from-cyan-500/10 to-violet-500/10">
-                                                <p className="text-sm font-semibold text-white">{user?.name || 'User'}</p>
+                                                <p className="text-sm font-semibold text-white">{user?.full_name || 'User'}</p>
                                                 <p className="text-xs text-gray-400 truncate">{user?.email}</p>
                                             </div>
                                             <div className="py-2">
                                                 <Link href="/dashboard/upload" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors">
-                                                    <span className="text-lg">📤</span> New Project
+                                                    <span className="text-xs uppercase tracking-widest text-gray-500">New</span> Project
                                                 </Link>
                                                 <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors">
-                                                    <span className="text-lg">📁</span> My Projects
+                                                    <span className="text-xs uppercase tracking-widest text-gray-500">All</span> My Projects
                                                 </Link>
                                             </div>
                                             <div className="border-t border-white/10 py-2">
@@ -116,7 +116,7 @@ export default function Navbar() {
                                                     onClick={handleLogout}
                                                     className="flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 w-full transition-colors"
                                                 >
-                                                    <span className="text-lg">👋</span> Sign Out
+                                                    <span className="text-xs uppercase tracking-widest text-red-400">Exit</span> Sign Out
                                                 </button>
                                             </div>
                                         </div>

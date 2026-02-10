@@ -2,8 +2,7 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X, Film, Zap, Layers, Monitor, Shield, Sparkles } from 'lucide-react';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
+import { apiRequest, ApiError, clearAuth } from '@/lib/api';
 
 export default function UploadPage() {
   const router = useRouter();
@@ -77,47 +76,20 @@ export default function UploadPage() {
       formData.append('tier', settings.premium ? 'pro' : 'standard');
       formData.append('brand_safety', settings.brandSafety);
 
-      const res = await fetch(`${API_BASE}/jobs/upload`, {
+      const job = await apiRequest<{ id: number }>('/jobs/upload', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData,
+        auth: true,
       });
-
-      if (!res.ok) {
-        let data: any = null;
-        try {
-          data = await res.json();
-        } catch {
-          data = null;
-        }
-
-        const detail = data?.detail ?? data?.message ?? data;
-        let message = 'Upload failed';
-        if (typeof detail === 'string') {
-          message = detail;
-        } else if (detail && typeof detail === 'object') {
-          message = detail.message || JSON.stringify(detail);
-        } else if (detail) {
-          message = String(detail);
-        }
-
-        if (
-          res.status === 401 ||
-          (res.status === 403 && message.toLowerCase().includes('not authenticated'))
-        ) {
-          localStorage.removeItem('token');
-          router.push('/login');
-          return;
-        }
-
-        throw new Error(message);
-      }
-
-      const job = await res.json();
       window.dispatchEvent(new Event('credit-update'));
       router.push(`/jobs/${job.id}`);
     } catch (err: any) {
-      setError(err.message || 'Upload failed');
+      if (err instanceof ApiError && err.isAuth) {
+        clearAuth();
+        router.push('/login');
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : 'Upload failed');
       setUploading(false);
     }
   };

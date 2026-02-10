@@ -1,11 +1,10 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Video, HardDrive, Activity, LayoutDashboard, Search, Edit2 } from 'lucide-react';
+import { Users, Video, HardDrive, Activity, LayoutDashboard, Edit2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Sentry from "@sentry/nextjs";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
+import { apiRequest, ApiError, clearAuth } from '@/lib/api';
 
 interface SystemStats {
     users: { total: number };
@@ -16,7 +15,7 @@ interface SystemStats {
 interface UserData {
     id: number;
     email: string;
-    name: string | null;
+    full_name: string | null;
     credits: number;
     created_at: string;
 }
@@ -38,6 +37,7 @@ export default function AdminDashboardPage() {
     const [jobs, setJobs] = useState<JobData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [accessDenied, setAccessDenied] = useState(false);
     const [editingCredits, setEditingCredits] = useState<{ id: number; credits: number } | null>(null);
 
     const fetchData = useCallback(async () => {
@@ -48,28 +48,32 @@ export default function AdminDashboardPage() {
         }
 
         try {
-            const [statsRes, usersRes, jobsRes] = await Promise.all([
-                fetch(`${API_BASE}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
-                fetch(`${API_BASE}/admin/users`, { headers: { Authorization: `Bearer ${token}` } }),
-                fetch(`${API_BASE}/admin/jobs`, { headers: { Authorization: `Bearer ${token}` } })
-            ]);
-
-            if (statsRes.status === 403) throw new Error('Access Denied');
-            if (!statsRes.ok || !usersRes.ok || !jobsRes.ok) throw new Error('Failed to fetch admin data');
-
             const [statsData, usersData, jobsData] = await Promise.all([
-                statsRes.json(),
-                usersRes.json(),
-                jobsRes.json()
+                apiRequest<SystemStats>('/admin/stats', { auth: true }),
+                apiRequest<UserData[]>('/admin/users', { auth: true }),
+                apiRequest<JobData[]>('/admin/jobs', { auth: true })
             ]);
 
             setStats(statsData);
             setUsers(usersData);
             setJobs(jobsData);
             setLoading(false);
+            setAccessDenied(false);
         } catch (err: any) {
             Sentry.captureException(err);
-            setError(err.message);
+            if (err instanceof ApiError) {
+                if (err.status === 403) {
+                    setAccessDenied(true);
+                }
+                if (err.isAuth) {
+                    clearAuth();
+                    router.push('/login');
+                    return;
+                }
+                setError(err.message);
+            } else {
+                setError('Failed to fetch admin data');
+            }
             setLoading(false);
         }
     }, [router]);
@@ -79,16 +83,13 @@ export default function AdminDashboardPage() {
     }, [fetchData]);
 
     const handleUpdateCredits = async (userId: number, newCredits: number) => {
-        const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`${API_BASE}/admin/users/${userId}/credits?credits=${newCredits}`, {
+            await apiRequest(`/admin/users/${userId}/credits?credits=${newCredits}`, {
                 method: 'PATCH',
-                headers: { Authorization: `Bearer ${token}` },
+                auth: true
             });
-            if (res.ok) {
-                setEditingCredits(null);
-                fetchData();
-            }
+            setEditingCredits(null);
+            fetchData();
         } catch (err) {
             console.error("Failed to update credits", err);
         }
@@ -99,6 +100,28 @@ export default function AdminDashboardPage() {
             <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
         </div>
     );
+
+    if (accessDenied) {
+        return (
+            <div className="min-h-[60vh] flex items-center justify-center">
+                <div className="max-w-md w-full bg-slate-900/40 border border-white/10 rounded-3xl p-8 text-center">
+                    <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center">
+                        <Activity className="w-6 h-6" />
+                    </div>
+                    <h2 className="text-xl font-bold text-white mb-2">Admin Access Required</h2>
+                    <p className="text-gray-400 mb-6">
+                        Your account does not have admin privileges. Contact the owner to enable access.
+                    </p>
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="px-6 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    >
+                        Back to Dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
@@ -128,6 +151,12 @@ export default function AdminDashboardPage() {
                     ))}
                 </div>
             </div>
+
+            {error && (
+                <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                    {error}
+                </div>
+            )}
 
             <AnimatePresence mode="wait">
                 {activeTab === 'overview' && stats && (
@@ -178,7 +207,7 @@ export default function AdminDashboardPage() {
                                                     {user.email[0].toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="text-white font-medium">{user.name || 'Anonymous'}</p>
+                                                    <p className="text-white font-medium">{user.full_name || 'Anonymous'}</p>
                                                     <p className="text-xs text-gray-500">{user.email}</p>
                                                 </div>
                                             </div>

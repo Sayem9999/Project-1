@@ -4,8 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Clock, MoreVertical, Play, Film } from 'lucide-react';
 import Image from 'next/image';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
+import { apiRequest, ApiError, clearAuth, API_ORIGIN } from '@/lib/api';
 
 interface Job {
     id: number;
@@ -20,6 +19,9 @@ export default function DashboardPage() {
     const router = useRouter();
     const [jobs, setJobs] = useState<Job[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userName, setUserName] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const activeCount = jobs.filter((job) => job.status === 'processing').length;
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -28,20 +30,27 @@ export default function DashboardPage() {
             return;
         }
 
-        fetch(`${API_BASE}/jobs`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then(res => {
-                if (!res.ok) throw new Error('Failed to fetch');
-                return res.json();
-            })
-            .then(data => {
+        const load = async () => {
+            try {
+                const [me, data] = await Promise.all([
+                    apiRequest<{ full_name?: string; email?: string }>('/auth/me', { auth: true }),
+                    apiRequest<Job[]>('/jobs', { auth: true })
+                ]);
+                setUserName(me.full_name || me.email || 'Creator');
                 setJobs(data);
                 setLoading(false);
-            })
-            .catch(() => {
+            } catch (err) {
+                if (err instanceof ApiError && err.isAuth) {
+                    clearAuth();
+                    router.push('/login');
+                    return;
+                }
+                setError(err instanceof ApiError ? err.message : 'Failed to load dashboard');
                 setLoading(false);
-            });
+            }
+        };
+
+        load();
     }, [router]);
 
     const getStatusParams = (status: string) => {
@@ -65,9 +74,9 @@ export default function DashboardPage() {
                     <div className="absolute top-0 right-0 w-64 h-64 bg-brand-cyan/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-brand-cyan/20 transition-colors duration-700" />
 
                     <div className="relative z-10">
-                        <h2 className="text-3xl font-display font-bold mb-2">Welcome back, Sayem</h2>
+                        <h2 className="text-3xl font-display font-bold mb-2">Welcome back, {userName || 'Creator'}</h2>
                         <p className="text-gray-400 mb-8 max-w-lg">
-                            Your studio is ready. You have <span className="text-white font-semibold">3 active projects</span> and your latest export is ready for review.
+                            Your studio is ready. You have <span className="text-white font-semibold">{activeCount}</span> active projects and <span className="text-white font-semibold">{jobs.length}</span> total exports.
                         </p>
 
                         <div className="flex items-center gap-4">
@@ -116,6 +125,17 @@ export default function DashboardPage() {
                             <div key={i} className="aspect-[16/9] rounded-2xl bg-white/5 animate-pulse" />
                         ))}
                     </div>
+                ) : error ? (
+                    <div className="glass-panel border border-red-500/20 rounded-3xl p-10 text-center">
+                        <div className="text-sm text-red-400 mb-2">Dashboard Error</div>
+                        <p className="text-gray-400 mb-6">{error}</p>
+                        <button
+                            onClick={() => router.refresh()}
+                            className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium transition-colors"
+                        >
+                            Retry
+                        </button>
+                    </div>
                 ) : jobs.length === 0 ? (
                     <div className="glass-panel border-dashed border-2 border-white/10 rounded-3xl p-12 text-center">
                         <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-brand-cyan/20 to-brand-violet/20 flex items-center justify-center text-4xl">
@@ -152,8 +172,8 @@ export default function DashboardPage() {
                                         {job.thumbnail_path || job.output_path ? (
                                             <Image
                                                 src={job.thumbnail_path
-                                                    ? (job.thumbnail_path.startsWith('http') ? job.thumbnail_path : `${API_BASE.replace('/api', '')}/${job.thumbnail_path}`)
-                                                    : (job.output_path?.startsWith('http') ? job.output_path : `${API_BASE.replace('/api', '')}/${job.output_path}`)}
+                                                    ? (job.thumbnail_path.startsWith('http') ? job.thumbnail_path : `${API_ORIGIN}/${job.thumbnail_path}`)
+                                                    : (job.output_path?.startsWith('http') ? job.output_path : `${API_ORIGIN}/${job.output_path}`)}
                                                 alt={`Project ${job.id}`}
                                                 fill
                                                 sizes="(max-width: 1024px) 100vw, 25vw"

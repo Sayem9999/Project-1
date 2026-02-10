@@ -1,35 +1,34 @@
 'use client';
 import { usePathname } from 'next/navigation';
-import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-
-// Ensure this matches the backend port
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
+import { apiRequest, ApiError, clearAuth, setStoredUser } from '@/lib/api';
 
 export default function TopBar() {
     const pathname = usePathname();
-    const router = useRouter();
     const [credits, setCredits] = useState<number | null>(null);
+    const [displayName, setDisplayName] = useState<string>('U');
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
     // Format pathname for breadcrumbs (e.g. /dashboard/upload -> Dashboard / Upload)
     const segments = pathname.split('/').filter(Boolean);
 
     useEffect(() => {
         const fetchCredits = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
             try {
-                const res = await fetch(`${API_BASE}/auth/me`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setCredits(data.credits);
-                }
+                const data = await apiRequest<{ credits?: number; full_name?: string; email?: string; avatar_url?: string }>(
+                    '/auth/me',
+                    { auth: true }
+                );
+                setCredits(data.credits ?? 0);
+                setDisplayName(data.full_name || data.email || 'U');
+                setAvatarUrl(data.avatar_url || null);
+                setStoredUser(data);
             } catch (err) {
+                if (err instanceof ApiError && err.isAuth) {
+                    clearAuth();
+                    return;
+                }
                 console.error("Failed to fetch credits", err);
             }
         };
@@ -85,14 +84,20 @@ export default function TopBar() {
 
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-cyan to-brand-violet p-[1px]">
                         <div className="w-full h-full rounded-xl bg-obsidian-900 overflow-hidden">
-                            <Image
-                                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
-                                alt="User"
-                                width={40}
-                                height={40}
-                                className="w-full h-full object-cover"
-                                unoptimized
-                            />
+                            {avatarUrl ? (
+                                <Image
+                                    src={avatarUrl}
+                                    alt="User"
+                                    width={40}
+                                    height={40}
+                                    className="w-full h-full object-cover"
+                                    unoptimized
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white">
+                                    {displayName.charAt(0).toUpperCase()}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -8,8 +8,7 @@ import { ArrowLeft, Download, RotateCcw, Share2, MoreHorizontal, Film, Activity,
 
 import BrandSafetyCard from '@/components/dashboard/BrandSafetyCard';
 import ABTestVariants from '@/components/dashboard/ABTestVariants';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
+import { apiRequest, ApiError, clearAuth, API_ORIGIN } from '@/lib/api';
 
 interface Job {
   id: number;
@@ -40,14 +39,15 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
 
     const fetchJob = async () => {
       try {
-        const res = await fetch(`${API_BASE}/jobs/${resolvedParams.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error('Job not found');
-        const data = await res.json();
+        const data = await apiRequest<Job>(`/jobs/${resolvedParams.id}`, { auth: true });
         setJob(data);
       } catch (err: any) {
-        setError(err.message);
+        if (err instanceof ApiError && err.isAuth) {
+          clearAuth();
+          router.push('/login');
+          return;
+        }
+        setError(err instanceof ApiError ? err.message : 'Job not found');
       }
     };
 
@@ -108,7 +108,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
 
   const isComplete = job.status === 'complete';
   const videoUrl = job.output_path
-    ? (job.output_path.startsWith('http') ? job.output_path : `${API_BASE.replace('/api', '')}/${job.output_path}`)
+    ? (job.output_path.startsWith('http') ? job.output_path : `${API_ORIGIN}/${job.output_path}`)
     : null;
 
   return (
@@ -202,13 +202,13 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
                   <p className="text-xs text-gray-400">Successfully rendered in 1080p</p>
                 </div>
               </div>
-              <a
-                href={`${API_BASE}/jobs/${job.id}/download`}
+              <Link
+                href={`/jobs/${job.id}/download`}
                 className="w-full py-3 bg-white text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
               >
                 <Download className="w-4 h-4" />
                 Download Video
-              </a>
+              </Link>
               <div className="grid grid-cols-2 gap-3">
                 <button className="py-3 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2">
                   <Share2 className="w-4 h-4" /> Share

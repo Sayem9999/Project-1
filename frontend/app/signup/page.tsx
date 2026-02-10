@@ -3,8 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
+import { apiRequest, ApiError, setAuthToken, setStoredUser } from '@/lib/api';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -20,31 +19,29 @@ export default function SignupPage() {
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE}/auth/signup`, {
+      const data = await apiRequest<{ access_token: string }>('/auth/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: { email, password },
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        // Handle detail which could be a string or a list of objects (FastAPI)
-        const detail = typeof data.detail === 'string'
-          ? data.detail
-          : JSON.stringify(data.detail);
-
-        // Check if email already exists - redirect to login
-        if (detail?.toLowerCase().includes('already') || detail?.toLowerCase().includes('exist')) {
+      setAuthToken(data.access_token);
+      try {
+        const me = await apiRequest('/auth/me', { auth: true });
+        setStoredUser(me);
+      } catch {
+        // no-op for now
+      }
+      router.push('/dashboard/upload');
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        if (err.code === 'email_already_exists') {
           router.push(`/login?email=${encodeURIComponent(email)}&message=exists`);
           return;
         }
-        throw new Error(detail || 'Signup failed');
+        setError(err.message);
+      } else {
+        setError('Signup failed');
       }
-
-      localStorage.setItem('token', data.access_token);
-      router.push('/dashboard/upload');
-    } catch (err: any) {
-      setError(err.message);
       setLoading(false);
     }
   };
@@ -52,8 +49,7 @@ export default function SignupPage() {
   const handleGoogleSignup = async () => {
     setOauthLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/oauth/google`);
-      const data = await res.json();
+      const data = await apiRequest<{ auth_url?: string }>('/auth/oauth/google');
       if (data.auth_url) {
         window.location.href = data.auth_url;
       }

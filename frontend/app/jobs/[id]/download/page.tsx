@@ -1,28 +1,34 @@
 'use client';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
+import { apiFetch, ApiError, clearAuth } from '@/lib/api';
 
 export default function DownloadPage() {
   const { id } = useParams<{ id: string }>();
   const [confetti, setConfetti] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setConfetti(true);
   }, []);
 
   async function download() {
-    const token = localStorage.getItem('token');
-    const res = await fetch(`${API_BASE}/jobs/${id}/download`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `edit-ai-job-${id}.mp4`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const res = await apiFetch(`/jobs/${id}/download`, { auth: true });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `edit-ai-job-${id}.mp4`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      if (err instanceof ApiError && err.isAuth) {
+        clearAuth();
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : 'Download failed');
+    }
   }
 
   return (
@@ -48,6 +54,11 @@ export default function DownloadPage() {
       )}
 
       <div className="text-center space-y-8 max-w-2xl relative z-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
+        {error && (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+            {error}
+          </div>
+        )}
 
         <div className="inline-block p-4 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-4 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
           <svg className="w-16 h-16 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -87,9 +98,12 @@ export default function DownloadPage() {
             Download Master File
           </button>
 
-          <button className="px-8 py-4 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 font-semibold transition-colors">
+          <a
+            href="/dashboard/upload"
+            className="px-8 py-4 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 font-semibold transition-colors text-center"
+          >
             Start New Project
-          </button>
+          </a>
         </div>
       </div>
 
