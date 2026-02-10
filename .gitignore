@@ -4,10 +4,14 @@ __pycache__/
 node_modules/
 .next/
 .env
+.env.local
 backend/.env
 backend/storage/
 coverage/
 .DS_Store
+playwright-report/
+test-results/
+frontend/dummy_video.mp4
 
 .runtime/
 tools/
