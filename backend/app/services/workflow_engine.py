@@ -344,10 +344,14 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         # Run Graph
         print("[Graph] Streaming workflow (with checkpointing)...")
         config = {"configurable": {"thread_id": str(job_id)}}
-        final_state = {}
+        final_state: dict = {}
         async for event in graph_app.astream(initial_state, config=config):
             for node_name, state in event.items():
-                final_state = state # Keep track of latest state
+                # astream yields partial updates; merge to preserve prior keys like output_path
+                if isinstance(state, dict):
+                    final_state.update(state)
+                else:
+                    final_state = state
                 
                 # Create a human-readable status message and percentage from node name
                 node_to_info = {

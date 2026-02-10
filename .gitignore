@@ -14,5 +14,6 @@ test-results/
 frontend/dummy_video.mp4
 
 .runtime/
+tmp/
 tools/
 storage/

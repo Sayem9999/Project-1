@@ -27,4 +27,9 @@ async def ab_test_node(state: GraphState) -> GraphState:
         return {"ab_test_result": result.model_dump()}
     except Exception as e:
         logger.error("ab_test_node_error", error=str(e))
-        return {"errors": [f"A/B Test Agent failed: {str(e)}"]}
+        # Non-fatal: return a placeholder instead of failing the full pipeline
+        return {
+            "ab_test_result": {
+                "error": f"A/B Test Agent failed: {str(e)}"
+            }
+        }
