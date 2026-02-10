@@ -100,7 +100,10 @@ ProEdit is an advanced automated video editing platform that uses a multi-agent 
     npm install
     ```
 
-3.  **Start Development Server:**
+3.  **Configure Environment:**
+    Copy `frontend/.env.local.example` to `frontend/.env.local` and update `NEXT_PUBLIC_API_BASE` if needed.
+
+4.  **Start Development Server:**
     ```bash
     npm run dev
     ```
