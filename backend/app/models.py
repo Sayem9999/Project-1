@@ -2,7 +2,7 @@ from __future__ import annotations
 import enum
 from typing import Optional, Union
 from datetime import datetime, date
-from sqlalchemy import String, DateTime, Date, Enum, ForeignKey, Text, Column, Integer, JSON
+from sqlalchemy import String, DateTime, Date, Enum, ForeignKey, Text, Column, Integer, JSON, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
@@ -49,6 +49,13 @@ class Job(Base):
     theme: Mapped[str] = mapped_column(String, default="professional", nullable=False)
     tier: Mapped[str] = mapped_column(String(50), default="standard", nullable=False)
     credits_cost: Mapped[int] = mapped_column(Integer, default=1)
+    idempotency_key: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    pacing: Mapped[str] = mapped_column(String(50), default="medium", nullable=False)
+    mood: Mapped[str] = mapped_column(String(50), default="professional", nullable=False)
+    ratio: Mapped[str] = mapped_column(String(20), default="16:9", nullable=False)
+    platform: Mapped[str] = mapped_column(String(50), default="youtube", nullable=False)
+    brand_safety: Mapped[str] = mapped_column(String(50), default="standard", nullable=False)
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False)
     progress_message: Mapped[str] = mapped_column(Text, default="Upload complete, waiting for processing.")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

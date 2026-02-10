@@ -1,11 +1,12 @@
 import os
 from pathlib import Path
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form, Request
 from fastapi.responses import FileResponse
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
-from ..errors import CreditError, NotFoundError, ErrorCode, AppBaseException
+from ..errors import CreditError, NotFoundError
 from ..config import settings
 from ..deps import get_current_user
 from ..models import Job, User, CreditLedger
@@ -23,6 +24,7 @@ USE_CELERY = _REDIS_URL.startswith("redis://") or _REDIS_URL.startswith("rediss:
 
 @router.post("/upload", response_model=JobResponse)
 async def upload_video(
+    request: Request,
     file: UploadFile = File(...),
     theme: str = Form("professional"),
     pacing: str = Form("medium"),
@@ -43,6 +45,17 @@ async def upload_video(
     if file_size > 100 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 100MB.")
 
+    idempotency_key = request.headers.get("Idempotency-Key")
+    if idempotency_key:
+        existing = await session.scalar(
+            select(Job).where(
+                Job.user_id == current_user.id,
+                Job.idempotency_key == idempotency_key
+            )
+        )
+        if existing:
+            return JobResponse.model_validate(existing, from_attributes=True)
+
     # Monetization Check
     COST_PER_JOB = 2 if tier == "pro" else 1
     if settings.credits_enabled:
@@ -56,7 +69,14 @@ async def upload_video(
         source_path=source_path,
         theme=theme,
         tier=tier,
-        credits_cost=COST_PER_JOB
+        credits_cost=COST_PER_JOB,
+        idempotency_key=idempotency_key,
+        pacing=pacing,
+        mood=mood,
+        ratio=ratio,
+        platform=platform,
+        brand_safety=brand_safety,
+        cancel_requested=False,
     )
     session.add(job)
     
@@ -79,27 +99,23 @@ async def upload_video(
             )
         )
 
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        if idempotency_key:
+            existing = await session.scalar(
+                select(Job).where(
+                    Job.user_id == current_user.id,
+                    Job.idempotency_key == idempotency_key
+                )
+            )
+            if existing:
+                return JobResponse.model_validate(existing, from_attributes=True)
+        raise
     await session.refresh(job)
     
-    if USE_CELERY:
-        # Use Celery for background processing
-        try:
-            from ..tasks.video_tasks import process_video_task
-            process_video_task.delay(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety)
-        except Exception as e:
-            print(f"[Job] Celery dispatch failed: {e}. Falling back to inline.")
-            # Fallback to inline
-            from fastapi import BackgroundTasks
-            from ..services.workflow_engine import process_job
-            import asyncio
-            asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety))
-    else:
-        # Fallback to inline BackgroundTasks
-        from fastapi import BackgroundTasks
-        from ..services.workflow_engine import process_job
-        import asyncio
-        asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety))
+    await enqueue_job(job, pacing, mood, ratio, tier, platform, brand_safety)
     
     return JobResponse.model_validate(job, from_attributes=True)
 
@@ -133,6 +149,47 @@ async def get_job(job_id: int, current_user: User = Depends(get_current_user), s
     return JobResponse.model_validate(job, from_attributes=True)
 
 
+@router.post("/{job_id}/cancel")
+async def cancel_job(job_id: int, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
+    if not job:
+        raise NotFoundError("Job not found")
+    if job.status in ["complete"]:
+        raise HTTPException(status_code=400, detail="Completed jobs cannot be canceled.")
+    job.cancel_requested = True
+    job.status = "failed"
+    job.progress_message = "Canceled by user."
+    session.add(job)
+    await session.commit()
+    return {"status": "ok", "job_id": job.id}
+
+
+@router.post("/{job_id}/retry")
+async def retry_job(job_id: int, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
+    if not job:
+        raise NotFoundError("Job not found")
+    if job.status not in ["failed"]:
+        raise HTTPException(status_code=400, detail="Only failed jobs can be retried.")
+    job.cancel_requested = False
+    job.status = "queued"
+    job.progress_message = "Retrying pipeline..."
+    job.output_path = None
+    job.thumbnail_path = None
+    session.add(job)
+    await session.commit()
+    await enqueue_job(
+        job,
+        job.pacing or "medium",
+        job.mood or "professional",
+        job.ratio or "16:9",
+        job.tier or "standard",
+        job.platform or "youtube",
+        job.brand_safety or "standard",
+    )
+    return {"status": "ok", "job_id": job.id}
+
+
 @router.get("/{job_id}/download")
 async def download_output(job_id: int, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
@@ -149,3 +206,24 @@ async def download_output(job_id: int, current_user: User = Depends(get_current_
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Rendered file missing")
     return FileResponse(path=file_path, filename=file_path.name, media_type="video/mp4")
+
+
+async def enqueue_job(
+    job: Job,
+    pacing: str,
+    mood: str,
+    ratio: str,
+    tier: str,
+    platform: str,
+    brand_safety: str,
+) -> None:
+    if USE_CELERY:
+        try:
+            from ..tasks.video_tasks import process_video_task
+            process_video_task.delay(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety)
+            return
+        except Exception as e:
+            print(f"[Job] Celery dispatch failed: {e}. Falling back to inline.")
+    from ..services.workflow_engine import process_job
+    import asyncio
+    asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety))

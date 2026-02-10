@@ -444,6 +444,8 @@ async def update_status(
     async with AsyncSession(engine) as session:
         job = await session.get(Job, job_id)
         if job:
+            if job.cancel_requested:
+                return
             job.status = status
             job.progress_message = message
             if output_path:

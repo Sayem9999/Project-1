@@ -173,6 +173,7 @@ export async function apiRequest<T = any>(path: string, options: ApiOptions = {}
 type UploadOptions = {
   auth?: boolean;
   body: FormData;
+  headers?: Record<string, string>;
   onProgress?: (percent: number) => void;
 };
 
@@ -190,6 +191,11 @@ export function apiUpload<T = any>(path: string, options: UploadOptions): { prom
         return;
       }
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+    if (options.headers) {
+      Object.entries(options.headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
     }
 
     xhr.upload.onprogress = (event) => {

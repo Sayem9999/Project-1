@@ -70,6 +70,12 @@ class JobResponse(BaseModel):
     theme: str
     tier: str | None = None
     credits_cost: int | None = None
+    pacing: str | None = None
+    mood: str | None = None
+    ratio: str | None = None
+    platform: str | None = None
+    brand_safety: str | None = None
+    cancel_requested: bool | None = None
     progress_message: str
     output_path: str | None
     thumbnail_path: str | None

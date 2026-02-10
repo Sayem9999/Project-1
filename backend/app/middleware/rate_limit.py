@@ -7,8 +7,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Dict, Tuple
 import asyncio
+import jwt
 
 from ..config import settings
+from ..errors import ErrorCode
 
 
 class RateLimiter:
@@ -86,13 +88,27 @@ async def rate_limit_middleware(request: Request, call_next):
     # Get client IP
     client_ip = request.client.host if request.client else "unknown"
     path = request.url.path
+    user_key = None
+
+    # Try to identify user from JWT (if present)
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "").strip()
+        try:
+            payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+            user_id = payload.get("sub")
+            if user_id:
+                user_key = f"user:{user_id}"
+        except Exception:
+            user_key = None
     
     # Check if this path has rate limiting
     config = get_rate_limit_config(path)
     
     if config:
-        # Create a unique key per IP + path pattern
-        key = f"{client_ip}:{path}"
+        # Create a unique key per user (if available) or IP
+        identity = user_key or f"ip:{client_ip}"
+        key = f"{identity}:{path}"
         
         is_limited, remaining = await rate_limiter.is_rate_limited(
             key, 
@@ -101,10 +117,15 @@ async def rate_limit_middleware(request: Request, call_next):
         )
         
         if is_limited:
+            retry_after = config["window_seconds"]
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many requests. Please try again later.",
-                headers={"Retry-After": str(config["window_seconds"])}
+                detail={
+                    "error_code": ErrorCode.RATE_LIMITED.value,
+                    "message": f"Rate limit exceeded. Try again in {retry_after} seconds.",
+                    "metadata": {"retry_after": retry_after, "limit": config["max_requests"]},
+                },
+                headers={"Retry-After": str(retry_after)},
             )
     
     response = await call_next(request)

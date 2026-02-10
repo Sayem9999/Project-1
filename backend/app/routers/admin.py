@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
@@ -11,6 +11,8 @@ from ..schemas import AdminUserResponse, CreditLedgerResponse
 from ..services.storage_service import storage_service
 from ..services.llm_health import get_llm_health_summary
 from ..config import settings
+from .jobs import enqueue_job
+from ..tasks.cleanup import get_cleanup_status
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -87,7 +89,6 @@ async def add_user_credits(
     current_user: User = Depends(get_current_user)
 ):
     if not current_user.is_admin:
-        from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Admin permissions required")
         
     user = await session.get(User, user_id)
@@ -162,6 +163,7 @@ async def list_credit_ledger(
 async def list_all_jobs(
     skip: int = 0,
     limit: int = 50,
+    user_id: int | None = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
@@ -169,9 +171,83 @@ async def list_all_jobs(
         from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Admin permissions required")
         
-    result = await session.execute(select(Job).order_by(Job.created_at.desc()).offset(skip).limit(limit))
+    stmt = select(Job).order_by(Job.created_at.desc()).offset(skip).limit(limit)
+    if user_id is not None:
+        stmt = stmt.where(Job.user_id == user_id)
+    result = await session.execute(stmt)
     jobs = result.scalars().all()
     return jobs
+
+
+@router.get("/users/{user_id}/jobs")
+async def list_user_jobs(
+    user_id: int,
+    limit: int = 20,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+    result = await session.execute(
+        select(Job)
+        .where(Job.user_id == user_id)
+        .order_by(Job.created_at.desc())
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
+@router.post("/jobs/{job_id}/cancel")
+async def admin_cancel_job(
+    job_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+    job = await session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status == "complete":
+        raise HTTPException(status_code=400, detail="Completed jobs cannot be canceled.")
+    job.cancel_requested = True
+    job.status = "failed"
+    job.progress_message = "Canceled by admin."
+    session.add(job)
+    await session.commit()
+    return {"status": "ok", "job_id": job.id}
+
+
+@router.post("/jobs/{job_id}/retry")
+async def admin_retry_job(
+    job_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+    job = await session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status not in ["failed"]:
+        raise HTTPException(status_code=400, detail="Only failed jobs can be retried.")
+    job.cancel_requested = False
+    job.status = "queued"
+    job.progress_message = "Retrying pipeline..."
+    job.output_path = None
+    job.thumbnail_path = None
+    session.add(job)
+    await session.commit()
+    await enqueue_job(
+        job,
+        job.pacing or "medium",
+        job.mood or "professional",
+        job.ratio or "16:9",
+        job.tier or "standard",
+        job.platform or "youtube",
+        job.brand_safety or "standard",
+    )
+    return {"status": "ok", "job_id": job.id}
 
 @router.get("/stats")
 async def get_admin_stats(
@@ -193,19 +269,51 @@ async def get_admin_stats(
     recent_jobs = (await session.execute(
         select(func.count(Job.id)).where(Job.created_at >= one_day_ago)
     )).scalar() or 0
+
+    # Active users in last 24h
+    active_users = (await session.execute(
+        select(func.count(func.distinct(Job.user_id))).where(Job.created_at >= one_day_ago)
+    )).scalar() or 0
+
+    # Trend data (last 7 days)
+    start_date = datetime.utcnow().date() - timedelta(days=6)
+    jobs_by_day = await session.execute(
+        select(func.date(Job.created_at), func.count(Job.id))
+        .where(Job.created_at >= start_date)
+        .group_by(func.date(Job.created_at))
+        .order_by(func.date(Job.created_at))
+    )
+    failures_by_day = await session.execute(
+        select(func.date(Job.created_at), func.count(Job.id))
+        .where(Job.created_at >= start_date, Job.status == "failed")
+        .group_by(func.date(Job.created_at))
+        .order_by(func.date(Job.created_at))
+    )
+    users_by_day = await session.execute(
+        select(func.date(User.created_at), func.count(User.id))
+        .where(User.created_at >= start_date)
+        .group_by(func.date(User.created_at))
+        .order_by(func.date(User.created_at))
+    )
     
     # Storage Stats
     storage_stats = storage_service.get_storage_usage()
     
     return {
         "users": {
-            "total": user_count
+            "total": user_count,
+            "active_24h": active_users
         },
         "jobs": {
             "total": job_count,
             "recent_24h": recent_jobs
         },
-        "storage": storage_stats
+        "storage": storage_stats,
+        "trends": {
+            "jobs_by_day": [{"date": str(row[0]), "count": row[1]} for row in jobs_by_day.all()],
+            "failures_by_day": [{"date": str(row[0]), "count": row[1]} for row in failures_by_day.all()],
+            "users_by_day": [{"date": str(row[0]), "count": row[1]} for row in users_by_day.all()],
+        }
     }
 
 
@@ -247,5 +355,6 @@ async def get_admin_health(
 
     # Storage
     health["storage"] = storage_service.get_storage_usage()
+    health["cleanup"] = get_cleanup_status()
 
     return health

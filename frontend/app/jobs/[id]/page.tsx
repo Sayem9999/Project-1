@@ -33,6 +33,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState('');
   const socketRef = useRef<WebSocket | null>(null);
+  const [actionError, setActionError] = useState('');
 
   const fetchJob = useCallback(async () => {
     try {
@@ -47,6 +48,28 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
       setError(err instanceof ApiError ? err.message : 'Job not found');
     }
   }, [resolvedParams.id, router]);
+
+  const handleCancel = async () => {
+    if (!job) return;
+    setActionError('');
+    try {
+      await apiRequest(`/jobs/${job.id}/cancel`, { method: 'POST', auth: true });
+      fetchJob();
+    } catch (err: any) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to cancel job');
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!job) return;
+    setActionError('');
+    try {
+      await apiRequest(`/jobs/${job.id}/retry`, { method: 'POST', auth: true });
+      fetchJob();
+    } catch (err: any) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to retry job');
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -146,6 +169,8 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   }
 
   const isComplete = job.status === 'complete';
+  const isFailed = job.status === 'failed';
+  const isProcessing = job.status === 'processing' || job.status === 'queued';
   const videoUrl = job.output_path
     ? (job.output_path.startsWith('http') ? job.output_path : `${API_ORIGIN}/${job.output_path}`)
     : null;
@@ -174,12 +199,34 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
           <span className="text-sm font-medium">Back to Projects</span>
         </Link>
         <div className="flex items-center gap-3">
+          {isProcessing && (
+            <button
+              onClick={handleCancel}
+              className="px-3 py-1.5 text-xs rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/20 transition-colors"
+            >
+              Cancel Job
+            </button>
+          )}
+          {isFailed && (
+            <button
+              onClick={handleRetry}
+              className="px-3 py-1.5 text-xs rounded-lg bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+            >
+              Retry Job
+            </button>
+          )}
           <span className="px-3 py-1 bg-white/5 rounded-lg text-xs font-mono text-gray-500">ID: {job.id}</span>
           <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white">
             <MoreHorizontal className="w-5 h-5" />
           </button>
         </div>
       </div>
+
+      {actionError && (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {actionError}
+        </div>
+      )}
 
       {/* Cinematic Player Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

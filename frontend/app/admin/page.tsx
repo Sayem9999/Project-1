@@ -7,9 +7,14 @@ import * as Sentry from '@sentry/nextjs';
 import { apiRequest, ApiError, clearAuth } from '@/lib/api';
 
 interface SystemStats {
-  users: { total: number };
+  users: { total: number; active_24h?: number };
   jobs: { total: number; recent_24h: number };
   storage: { used_gb: number; limit_gb: number; percent: number; files: number };
+  trends?: {
+    jobs_by_day: { date: string; count: number }[];
+    failures_by_day: { date: string; count: number }[];
+    users_by_day: { date: string; count: number }[];
+  };
 }
 
 interface UserData {
@@ -17,6 +22,8 @@ interface UserData {
   email: string;
   full_name: string | null;
   credits: number;
+  monthly_credits?: number;
+  last_credit_reset?: string | null;
   is_admin?: boolean;
   created_at: string;
 }
@@ -34,6 +41,7 @@ interface AdminHealth {
   db: { reachable: boolean; error?: string };
   redis: { configured: boolean; reachable: boolean; latency_ms?: number; error?: string };
   storage: { used_gb: number; limit_gb: number; percent: number; files: number };
+  cleanup?: { last_run: string | null; deleted_local: number; deleted_r2: number; stalled_jobs?: number };
   llm: Record<
     string,
     {
@@ -78,6 +86,10 @@ export default function AdminDashboardPage() {
   const [jobFilter, setJobFilter] = useState<'all' | 'processing' | 'complete' | 'failed'>('all');
   const quickCreditAdds = [1, 5, 10];
   const [creditForm, setCreditForm] = useState({ userId: '', delta: 1, reason: '' });
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [userJobs, setUserJobs] = useState<JobData[]>([]);
+  const [userLedger, setUserLedger] = useState<CreditLedgerEntry[]>([]);
+  const [userLoading, setUserLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     const token = localStorage.getItem('token');
@@ -156,6 +168,7 @@ export default function AdminDashboardPage() {
       });
       setEditingCredits(null);
       fetchData();
+      fetchLedger();
     } catch (err) {
       console.error('Failed to update credits', err);
     }
@@ -172,6 +185,47 @@ export default function AdminDashboardPage() {
     } catch (err) {
       console.error('Failed to add credits', err);
     }
+  };
+
+  const handleAdminCancel = async (jobId: number) => {
+    try {
+      await apiRequest(`/admin/jobs/${jobId}/cancel`, { method: 'POST', auth: true });
+      fetchData();
+    } catch (err) {
+      console.error('Failed to cancel job', err);
+    }
+  };
+
+  const handleAdminRetry = async (jobId: number) => {
+    try {
+      await apiRequest(`/admin/jobs/${jobId}/retry`, { method: 'POST', auth: true });
+      fetchData();
+    } catch (err) {
+      console.error('Failed to retry job', err);
+    }
+  };
+
+  const openUserDetails = async (user: UserData) => {
+    setSelectedUser(user);
+    setUserLoading(true);
+    try {
+      const [jobsData, ledgerData] = await Promise.all([
+        apiRequest<JobData[]>(`/admin/users/${user.id}/jobs?limit=10`, { auth: true }),
+        apiRequest<CreditLedgerEntry[]>(`/admin/credits/ledger?user_id=${user.id}&limit=20`, { auth: true }),
+      ]);
+      setUserJobs(jobsData);
+      setUserLedger(ledgerData);
+    } catch (err) {
+      console.error('Failed to load user details', err);
+    } finally {
+      setUserLoading(false);
+    }
+  };
+
+  const closeUserDetails = () => {
+    setSelectedUser(null);
+    setUserJobs([]);
+    setUserLedger([]);
   };
 
   const filteredUsers = useMemo(() => {
@@ -260,8 +314,9 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
         <StatCard icon={Users} title="Total Users" value={stats?.users.total ?? 0} subtext="Registered accounts" color="cyan" />
+        <StatCard icon={Activity} title="Active Users" value={stats?.users.active_24h ?? 0} subtext="Last 24h" color="emerald" />
         <StatCard icon={Video} title="Total Jobs" value={stats?.jobs.total ?? 0} subtext={`+${stats?.jobs.recent_24h ?? 0} in 24h`} color="violet" />
         <StatCard icon={Activity} title="Active Jobs" value={processingCount} subtext={`${completeCount} complete, ${failedCount} failed`} color="emerald" />
         <StatCard
@@ -314,6 +369,22 @@ export default function AdminDashboardPage() {
                 </div>
               ))}
             </div>
+            {health.cleanup && (
+              <div className="mt-6 border-t border-white/10 pt-4 text-xs text-gray-500">
+                <div className="flex items-center justify-between">
+                  <span>Last Cleanup</span>
+                  <span>{health.cleanup.last_run ? new Date(health.cleanup.last_run).toLocaleString() : 'Never'}</span>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <span>Deleted (Local/R2)</span>
+                  <span>{health.cleanup.deleted_local}/{health.cleanup.deleted_r2}</span>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <span>Stalled Jobs</span>
+                  <span>{health.cleanup.stalled_jobs ?? 0}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -377,6 +448,39 @@ export default function AdminDashboardPage() {
                 ))}
               </div>
             </div>
+            {stats?.trends && (
+              <div className="lg:col-span-3 bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
+                <h3 className="text-lg font-semibold text-white mb-4">7-Day Trends</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Jobs', data: stats.trends.jobs_by_day, color: 'bg-cyan-500' },
+                    { label: 'Failures', data: stats.trends.failures_by_day, color: 'bg-red-500' },
+                    { label: 'New Users', data: stats.trends.users_by_day, color: 'bg-emerald-500' },
+                  ].map((trend) => {
+                    const max = Math.max(...trend.data.map((d) => d.count), 1);
+                    return (
+                      <div key={trend.label} className="rounded-2xl bg-white/5 border border-white/10 p-4">
+                        <div className="text-xs text-gray-400 mb-3">{trend.label}</div>
+                        <div className="space-y-2">
+                          {trend.data.map((point) => (
+                            <div key={point.date} className="flex items-center gap-3">
+                              <span className="text-[10px] text-gray-500 w-16">{point.date}</span>
+                              <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full ${trend.color}`}
+                                  style={{ width: `${Math.round((point.count / max) * 100)}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-gray-300 w-6 text-right">{point.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -483,6 +587,12 @@ export default function AdminDashboardPage() {
                         >
                           Set
                         </button>
+                        <button
+                          onClick={() => openUserDetails(user)}
+                          className="text-[10px] font-bold text-brand-cyan hover:text-brand-accent transition-colors"
+                        >
+                          Details
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -540,6 +650,7 @@ export default function AdminDashboardPage() {
                   <th className="px-6 py-4">Theme</th>
                   <th className="px-6 py-4">Message</th>
                   <th className="px-6 py-4">Created</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -553,6 +664,25 @@ export default function AdminDashboardPage() {
                     <td className="px-6 py-5 text-gray-400 text-xs italic max-w-xs truncate">{job.progress_message}</td>
                     <td className="px-6 py-5 text-gray-500 text-xs">
                       {new Date(job.created_at).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                      {job.status === 'failed' ? (
+                        <button
+                          onClick={() => handleAdminRetry(job.id)}
+                          className="text-xs font-semibold text-emerald-300 hover:text-emerald-200"
+                        >
+                          Retry
+                        </button>
+                      ) : job.status === 'processing' || job.status === 'queued' ? (
+                        <button
+                          onClick={() => handleAdminCancel(job.id)}
+                          className="text-xs font-semibold text-red-300 hover:text-red-200"
+                        >
+                          Cancel
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-500">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -679,6 +809,74 @@ export default function AdminDashboardPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+          <div className="w-full max-w-4xl bg-slate-900 border border-white/10 rounded-3xl p-6 space-y-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-gray-500">User Detail</div>
+                <h3 className="text-2xl font-bold text-white">{selectedUser.full_name || 'Anonymous'}</h3>
+                <p className="text-sm text-gray-400">{selectedUser.email}</p>
+                <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
+                  <span>Credits: <span className="text-amber-300 font-semibold">{selectedUser.credits}</span></span>
+                  {selectedUser.monthly_credits !== undefined && (
+                    <span>Monthly: <span className="text-gray-200 font-semibold">{selectedUser.monthly_credits}</span></span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={closeUserDetails}
+                className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-xs"
+              >
+                Close
+              </button>
+            </div>
+
+            {userLoading ? (
+              <div className="text-center text-gray-400">Loading user details...</div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                  <h4 className="text-sm font-semibold text-white mb-3">Recent Jobs</h4>
+                  {userJobs.length === 0 ? (
+                    <p className="text-xs text-gray-500">No jobs found.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {userJobs.map((job) => (
+                        <div key={job.id} className="flex items-center justify-between text-xs text-gray-400">
+                          <span>#{job.id}</span>
+                          <span className="capitalize">{job.status}</span>
+                          <span>{new Date(job.created_at).toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                  <h4 className="text-sm font-semibold text-white mb-3">Credit Activity</h4>
+                  {userLedger.length === 0 ? (
+                    <p className="text-xs text-gray-500">No ledger entries yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {userLedger.map((entry) => (
+                        <div key={entry.id} className="flex items-center justify-between text-xs text-gray-400">
+                          <span className={entry.delta >= 0 ? 'text-emerald-300' : 'text-red-300'}>
+                            {entry.delta >= 0 ? '+' : ''}
+                            {entry.delta}
+                          </span>
+                          <span>{entry.reason || entry.source}</span>
+                          <span>{new Date(entry.created_at).toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ export default function UploadPage() {
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const uploadAbortRef = useRef<null | (() => void)>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
 
   const [settings, setSettings] = useState({
     theme: 'cinematic',
@@ -43,6 +44,7 @@ export default function UploadPage() {
     if (droppedFile && droppedFile.type.startsWith('video/')) {
       setFile(droppedFile);
       setPreview(URL.createObjectURL(droppedFile));
+      setIdempotencyKey(typeof crypto !== 'undefined' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
     }
   }, []);
 
@@ -51,6 +53,7 @@ export default function UploadPage() {
     if (selected) {
       setFile(selected);
       setPreview(URL.createObjectURL(selected));
+      setIdempotencyKey(typeof crypto !== 'undefined' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
     }
   };
 
@@ -82,6 +85,7 @@ export default function UploadPage() {
       const { promise, abort } = apiUpload<{ id: number }>('/jobs/upload', {
         body: formData,
         auth: true,
+        headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
         onProgress: setUploadProgress,
       });
       uploadAbortRef.current = abort;
@@ -233,7 +237,7 @@ export default function UploadPage() {
               {/* Overlay Controls */}
               <div className="absolute top-6 right-6 flex gap-3">
                 <button
-                  onClick={() => { setFile(null); setPreview(null); }}
+                  onClick={() => { setFile(null); setPreview(null); setIdempotencyKey(null); }}
                   className="p-3 bg-black/60 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full backdrop-blur-md transition-colors"
                 >
                   <X className="w-5 h-5" />

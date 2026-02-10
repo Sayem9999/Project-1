@@ -7,6 +7,7 @@ class ErrorCode(str, Enum):
     INVALID_CREDENTIALS = "invalid_credentials"
     EMAIL_ALREADY_EXISTS = "email_already_exists"
     INSUFFICIENT_CREDITS = "insufficient_credits"
+    RATE_LIMITED = "rate_limited"
     NOT_FOUND = "not_found"
     VALIDATION_ERROR = "validation_error"
     PROCESSING_FAILED = "processing_failed"
