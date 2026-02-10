@@ -2,33 +2,16 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Home, Upload, Settings, LogOut, Shield } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
-const baseNavigation = [
+const navigation = [
     { name: 'Studio Home', href: '/dashboard', icon: Home },
     { name: 'New Project', href: '/dashboard/upload', icon: Upload },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+    { name: 'Admin Console', href: '/admin', icon: Shield },
 ];
 
 export default function Sidebar() {
     const pathname = usePathname();
-    const [isAdmin, setIsAdmin] = useState(false);
-
-    useEffect(() => {
-        try {
-            const userRaw = localStorage.getItem('user');
-            if (!userRaw) return;
-            const user = JSON.parse(userRaw) as { is_admin?: boolean };
-            setIsAdmin(Boolean(user?.is_admin));
-        } catch {
-            setIsAdmin(false);
-        }
-    }, []);
-
-    const navigation = [
-        ...baseNavigation,
-        ...(isAdmin ? [{ name: 'Admin Console', href: '/admin', icon: Shield }] : []),
-    ];
 
     return (
         <aside className="fixed left-4 top-4 bottom-4 w-64 glass-panel rounded-2xl flex flex-col z-50 transition-transform duration-300">

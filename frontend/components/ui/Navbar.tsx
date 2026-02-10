@@ -35,6 +35,8 @@ export default function Navbar() {
         { href: '/pricing', label: 'Pricing' },
     ];
 
+    const isAdmin = Boolean(user?.is_admin);
+
     return (
         <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
                 ? 'py-3 bg-black/80 backdrop-blur-2xl border-b border-white/5'
@@ -110,11 +112,14 @@ export default function Navbar() {
                                                 <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors">
                                                     <span className="text-xs uppercase tracking-widest text-gray-500">All</span> My Projects
                                                 </Link>
-                                                {user?.is_admin && (
-                                                    <Link href="/admin" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors">
+                                                <Link href="/admin" className="flex items-center justify-between px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors">
+                                                    <span className="flex items-center gap-3">
                                                         <span className="text-xs uppercase tracking-widest text-gray-500">Admin</span> Console
-                                                    </Link>
-                                                )}
+                                                    </span>
+                                                    {!isAdmin && (
+                                                        <span className="text-[10px] uppercase tracking-widest text-gray-500">Restricted</span>
+                                                    )}
+                                                </Link>
                                             </div>
                                             <div className="border-t border-white/10 py-2">
                                                 <button
