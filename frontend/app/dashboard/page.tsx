@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Clock, MoreVertical, Play, Film } from 'lucide-react';
+import { Plus, Clock, MoreVertical, Play, Film, HardDrive, LayoutGrid, Search } from 'lucide-react';
 import Image from 'next/image';
 import { apiRequest, ApiError, clearAuth, API_ORIGIN, getWebSocketUrl } from '@/lib/api';
+import MediaLibrary from '@/components/dashboard/MediaLibrary';
 
 interface Job {
     id: number;
@@ -21,6 +22,7 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [userName, setUserName] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [activeView, setActiveView] = useState<'projects' | 'media'>('projects');
     const socketsRef = useRef<Record<number, WebSocket>>({});
     const activeCount = jobs.filter((job) => job.status === 'processing').length;
 
@@ -72,10 +74,10 @@ export default function DashboardPage() {
                         prev.map((j) =>
                             j.id === job.id
                                 ? {
-                                      ...j,
-                                      status: payload.status ?? j.status,
-                                      progress_message: payload.message ?? j.progress_message,
-                                  }
+                                    ...j,
+                                    status: payload.status ?? j.status,
+                                    progress_message: payload.message ?? j.progress_message,
+                                }
                                 : j
                         )
                     );
@@ -170,18 +172,38 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Config / Projects Section */}
+            {/* Content Section */}
             <div>
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold">Recent Projects</h2>
-                    <div className="flex items-center gap-2">
-                        <button className="px-3 py-1.5 text-sm rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">All</button>
-                        <button className="px-3 py-1.5 text-sm rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">Processing</button>
-                        <button className="px-3 py-1.5 text-sm rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">Completed</button>
+                <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
+                    <div className="flex items-center gap-8">
+                        <button
+                            onClick={() => setActiveView('projects')}
+                            className={`flex items-center gap-2 pb-4 -mb-4.5 border-b-2 transition-all ${activeView === 'projects' ? 'border-brand-cyan text-white font-bold' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                        >
+                            <LayoutGrid className="w-4 h-4" />
+                            <span>Recent Projects</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveView('media')}
+                            className={`flex items-center gap-2 pb-4 -mb-4.5 border-b-2 transition-all ${activeView === 'media' ? 'border-brand-cyan text-white font-bold' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                        >
+                            <HardDrive className="w-4 h-4" />
+                            <span>Media Library</span>
+                        </button>
                     </div>
+
+                    {activeView === 'projects' && (
+                        <div className="flex items-center gap-2">
+                            <button className="px-3 py-1.5 text-sm rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">All</button>
+                            <button className="px-3 py-1.5 text-sm rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">Processing</button>
+                            <button className="px-3 py-1.5 text-sm rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">Completed</button>
+                        </div>
+                    )}
                 </div>
 
-                {loading ? (
+                {activeView === 'media' ? (
+                    <MediaLibrary />
+                ) : loading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {[1, 2, 3, 4].map((i) => (
                             <div key={i} className="aspect-[16/9] rounded-2xl bg-white/5 animate-pulse" />
@@ -201,12 +223,12 @@ export default function DashboardPage() {
                 ) : jobs.length === 0 ? (
                     <div className="glass-panel border-dashed border-2 border-white/10 rounded-3xl p-12 text-center">
                         <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-brand-cyan/20 to-brand-violet/20 flex items-center justify-center text-4xl">
-                            Studio
+                            <Film className="w-10 h-10 text-brand-cyan" />
                         </div>
                         <h3 className="text-xl font-bold mb-2">Start your first masterpiece</h3>
                         <p className="text-gray-400 mb-8">Upload clips and let our AI agents handle the rest.</p>
                         <Link href="/dashboard/upload">
-                            <button className="px-8 py-3 bg-brand-cyan text-black font-bold rounded-xl hover:bg-brand-accent transition-colors">
+                            <button className="px-8 py-3 bg-brand-cyan text-black font-bold rounded-xl hover:bg-brand-accent transition-colors shadow-lg shadow-brand-cyan/20">
                                 Create Project
                             </button>
                         </Link>
@@ -214,11 +236,11 @@ export default function DashboardPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {/* New Project Ghost Card */}
-                        <Link href="/dashboard/upload" className="aspect-[16/9] rounded-2xl border-2 border-dashed border-white/10 hover:border-brand-cyan/50 bg-white/5 hover:bg-white/10 transition-all group flex flex-col items-center justify-center gap-3">
+                        <Link href="/dashboard/upload" className="aspect-[16/9] rounded-2xl border-2 border-dashed border-white/5 hover:border-brand-cyan/50 bg-white/[0.02] hover:bg-white/5 transition-all group flex flex-col items-center justify-center gap-3">
                             <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-cyan/20 transition-colors">
                                 <Plus className="w-6 h-6 text-gray-400 group-hover:text-brand-cyan" />
                             </div>
-                            <span className="font-semibold text-gray-400 group-hover:text-white">New Project</span>
+                            <span className="font-semibold text-gray-400 group-hover:text-white uppercase tracking-widest text-[10px]">New Project</span>
                         </Link>
 
                         {jobs.map((job) => {
@@ -227,10 +249,10 @@ export default function DashboardPage() {
                                 <Link
                                     key={job.id}
                                     href={`/jobs/${job.id}`}
-                                    className="group relative aspect-[16/9] rounded-2xl overflow-hidden bg-obsidian-900 border border-white/10 hover:border-brand-cyan/50 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-brand-cyan/10"
+                                    className="group relative aspect-[16/9] rounded-2xl overflow-hidden bg-white/5 border border-white/5 hover:border-brand-cyan/50 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-brand-cyan/10"
                                 >
                                     {/* Thumbnail Image */}
-                                    <div className="absolute inset-0 relative">
+                                    <div className="absolute inset-0">
                                         {job.thumbnail_path || job.output_path ? (
                                             <Image
                                                 src={job.thumbnail_path
@@ -239,37 +261,30 @@ export default function DashboardPage() {
                                                 alt={`Project ${job.id}`}
                                                 fill
                                                 sizes="(max-width: 1024px) 100vw, 25vw"
-                                                className="object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                                                className="object-cover opacity-50 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                                                 unoptimized
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center bg-white/5">
-                                                <Film className="w-12 h-12 text-white/20" />
+                                                <Film className="w-12 h-12 text-white/5 group-hover:text-white/10 transition-colors" />
                                             </div>
                                         )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-obsidian-950 via-obsidian-950/20 to-transparent opacity-80" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-80" />
                                     </div>
 
                                     {/* Status Badge */}
                                     <div className="absolute top-3 left-3">
-                                        <div className={`flex items-center gap-2 px-2.5 py-1 rounded-lg backdrop-blur-md ${status.bg} border border-white/5`}>
+                                        <div className={`flex items-center gap-2 px-2.5 py-1 rounded-lg backdrop-blur-md ${status.bg} border border-white/5 shadow-xl`}>
                                             <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                                            <span className={`text-xs font-medium ${status.color}`}>{status.label}</span>
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${status.color}`}>{status.label}</span>
                                         </div>
                                     </div>
 
-                                    {/* Actions (Hover) */}
-                                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0 duration-300">
-                                        <button className="p-2 rounded-lg bg-black/60 hover:bg-white text-white hover:text-black backdrop-blur-md transition-colors">
-                                            <MoreVertical className="w-4 h-4" />
-                                        </button>
-                                    </div>
-
                                     {/* Content */}
-                                    <div className="absolute bottom-0 left-0 right-0 p-5">
-                                        <h3 className="text-lg font-bold text-white mb-1 leading-tight group-hover:text-brand-cyan transition-colors">Project #{job.id}</h3>
-                                        <div className="flex items-center justify-between text-xs text-gray-400">
-                                            <span className="flex items-center gap-1">
+                                    <div className="absolute bottom-0 left-0 right-0 p-5 transform translate-y-1 group-hover:translate-y-0 transition-transform">
+                                        <h3 className="text-lg font-bold text-white mb-1 leading-tight group-hover:text-brand-cyan transition-colors truncate">Project #{job.id}</h3>
+                                        <div className="flex items-center justify-between text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+                                            <span className="flex items-center gap-1.5">
                                                 <Clock className="w-3 h-3" />
                                                 {new Date(job.created_at).toLocaleDateString()}
                                             </span>

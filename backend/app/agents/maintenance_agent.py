@@ -1,6 +1,6 @@
 import structlog
 from typing import List, Dict, Any, Optional
-from .introspection import introspection_service
+from ..services.introspection import introspection_service
 from ..agents.base import BaseAgent
 from ..config import settings
 

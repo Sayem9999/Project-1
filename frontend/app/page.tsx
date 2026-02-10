@@ -1,9 +1,11 @@
 'use client';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Play, Wand2, Layers, Zap, Music, Video, Star, Upload } from 'lucide-react';
+import { ArrowRight, Play, Wand2, Layers, Zap, Music, Video, Star, Upload, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import NeuralPipeline from '@/components/ui/NeuralPipeline';
+import SystemStatusTicker from '@/components/ui/SystemStatusTicker';
 
 export default function LandingPage() {
   return (
@@ -77,60 +79,20 @@ export default function LandingPage() {
           </div>
         </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="mt-12"
+        >
+          <SystemStatusTicker />
+        </motion.div>
+
         {/* Hero Visual */}
         <div className="mt-20 relative max-w-5xl mx-auto">
-          <div className="absolute -inset-1 bg-gradient-to-r from-brand-cyan to-brand-violet rounded-2xl blur opacity-30 animate-pulse-slow" />
-          <div className="relative rounded-2xl border border-white/10 bg-surface/50 backdrop-blur-xl overflow-hidden shadow-2xl min-h-[300px] lg:min-h-[500px]">
-            {/* Dashboard Preview Placeholder */}
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-cyan/5 via-transparent to-brand-violet/5" />
-            <div className="relative grid grid-cols-1 lg:grid-cols-3 gap-6 p-8 lg:p-12">
-              <div className="lg:col-span-2 space-y-4">
-                <div className="text-xs text-gray-500 uppercase tracking-widest">Pipeline Run</div>
-                <div className="space-y-3">
-                  {[
-                    'Director: Creative strategy',
-                    'Cutter: Timing and pacing',
-                    'Audio: Mix and cleanup',
-                    'Colorist: Grade and look',
-                    'QC: Safety and polish',
-                  ].map((step, i) => (
-                    <div key={step} className="flex items-center gap-3">
-                      <div className={`w-2.5 h-2.5 rounded-full ${i < 3 ? 'bg-brand-cyan' : 'bg-white/10'}`} />
-                      <div className="text-sm text-gray-300">{step}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-6 flex items-center gap-3 text-xs text-gray-500">
-                  <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10">Pro Pipeline</span>
-                  <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10">1080p Export</span>
-                  <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10">Auto QC</span>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-6 space-y-4">
-                <div className="text-xs uppercase tracking-widest text-gray-500">Project Snapshot</div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Status</span>
-                    <span className="text-brand-cyan font-semibold">Processing</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Platform</span>
-                    <span className="text-white">YouTube</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Scene Count</span>
-                    <span className="text-white">12</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">QC</span>
-                    <span className="text-emerald-400">Pass</span>
-                  </div>
-                </div>
-                <div className="pt-3 border-t border-white/10 text-xs text-gray-500">
-                  Render in progress. Your export will be ready shortly.
-                </div>
-              </div>
-            </div>
+          <div className="absolute -inset-1 bg-gradient-to-r from-brand-cyan/20 to-brand-violet/20 rounded-2xl blur-2xl opacity-30 animate-pulse-slow" />
+          <div className="relative rounded-2xl border border-white/10 bg-surface/50 backdrop-blur-xl overflow-hidden shadow-2xl min-h-[400px] lg:min-h-[500px] flex items-center justify-center">
+            <NeuralPipeline />
           </div>
         </div>
       </section>
@@ -256,6 +218,6 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-    </div>
+    </div >
   );
 }
