@@ -1,8 +1,14 @@
 'use client';
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Network, Terminal, Shield, Zap, Database, Cpu, Activity, Info, AlertTriangle } from 'lucide-react';
+import {
+    Search, Server, Database, Brain, Globe,
+    Share2, Terminal, FolderGit2, X, Activity,
+    Shield, Layers, Cloud, Code2, Cpu,
+    RefreshCw, Loader2, Zap, HeartPulse, Network, Info, AlertTriangle
+} from 'lucide-react';
 import { apiRequest } from '@/lib/api';
+import InteractiveSystemMap from './InteractiveSystemMap';
 
 interface SystemNode {
     id: string;
@@ -98,6 +104,20 @@ export default function SystemMap() {
                     <StatItem icon={Network} label="Nodes" value={stats?.total_nodes ?? 0} />
                     <StatItem icon={Activity} label="LOC" value={stats?.lines_of_code?.toLocaleString() ?? 0} />
                     <StatItem icon={Zap} label="Endpoints" value={data?.nodes.filter(n => n.type === 'endpoint').length ?? 0} />
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => apiRequest('/maintenance/audit', { method: 'POST', auth: true })}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-xl font-medium transition-all"
+                    >
+                        <Search className="w-4 h-4" /> Run Audit
+                    </button>
+                    <button
+                        onClick={() => apiRequest('/maintenance/heal', { method: 'POST', auth: true, body: { error_trace: "manual_trigger" } })}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 rounded-xl font-medium transition-all"
+                    >
+                        <HeartPulse className="w-4 h-4" /> Auto-Heal
+                    </button>
                 </div>
                 <div className="flex flex-col items-end gap-2 ml-4">
                     <button

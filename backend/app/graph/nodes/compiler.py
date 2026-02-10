@@ -1,6 +1,7 @@
 from ..state import GraphState
 from moviepy import VideoFileClip, concatenate_videoclips, CompositeAudioClip, AudioFileClip, vfx
 from pathlib import Path
+import os
 # Configure MoviePy to use the correct FFmpeg binary (v2.0+ compatible)
 FFMPEG_BINARY = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe"
 if os.path.exists(FFMPEG_BINARY):
