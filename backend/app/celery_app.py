@@ -19,13 +19,21 @@ celery_app = Celery(
 )
 
 if REDIS_URL.startswith("rediss://"):
+    cert_reqs = os.getenv("REDIS_SSL_CERT_REQS", "none").strip().lower()
+    cert_map = {
+        "none": ssl.CERT_NONE,
+        "optional": ssl.CERT_OPTIONAL,
+        "required": ssl.CERT_REQUIRED,
+    }
+    ssl_kwargs = {
+        "ssl_cert_reqs": cert_map.get(cert_reqs, ssl.CERT_NONE),
+    }
+    ca_certs = os.getenv("REDIS_SSL_CA_CERTS")
+    if ca_certs:
+        ssl_kwargs["ssl_ca_certs"] = ca_certs
     celery_app.conf.update(
-        broker_use_ssl={
-            "ssl_cert_reqs": ssl.CERT_NONE
-        },
-        redis_backend_use_ssl={
-            "ssl_cert_reqs": ssl.CERT_NONE
-        }
+        broker_use_ssl=ssl_kwargs,
+        redis_backend_use_ssl=ssl_kwargs,
     )
 
 # Celery configuration
