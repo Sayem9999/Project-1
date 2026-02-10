@@ -1,15 +1,17 @@
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Any
+from sqlalchemy import select
 import time
 import uuid
 import asyncio
 import structlog
 import sentry_sdk
 from .config import settings
-from .db import engine, Base
+from .db import engine, Base, SessionLocal
 from .routers import auth, jobs, agents, oauth, websocket
 from .logging_config import configure_logging
+from .models import User
 
 import os
 
@@ -67,12 +69,42 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("startup_migrations_failed", error=str(e))
 
+    # Bootstrap admin user if configured
+    try:
+        await bootstrap_admin()
+    except Exception as e:
+        logger.error("bootstrap_admin_failed", error=str(e))
+
     # Schedule background tasks
     from .tasks.cleanup import run_cleanup_task
     asyncio.create_task(periodic_cleanup_wrapper(run_cleanup_task))
     
     logger.info("startup_ready")
     yield
+
+
+async def bootstrap_admin() -> None:
+    email = settings.admin_bootstrap_email
+    if not email:
+        return
+    async with SessionLocal() as session:
+        user = await session.scalar(select(User).where(User.email == email))
+        if not user:
+            logger.warning("bootstrap_admin_user_missing", email=email)
+            return
+        already_admin = bool(user.is_admin)
+        if already_admin and settings.admin_bootstrap_once:
+            logger.info("bootstrap_admin_skip", email=email)
+            return
+        if not already_admin:
+            user.is_admin = True
+            await session.commit()
+        logger.info(
+            "bootstrap_admin_done",
+            email=email,
+            user_id=user.id,
+            already_admin=already_admin
+        )
 
 async def periodic_cleanup_wrapper(task_func):
     """Run cleanup every 24 hours."""

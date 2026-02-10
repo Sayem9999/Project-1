@@ -23,6 +23,8 @@ The `render.yaml` file defines the infrastructure as code, but sensitive secrets
 | `STRIPE_SECRET_KEY` | Stripe Secret Key for payments | Yes |
 | `STRIPE_WEBHOOK_SECRET` | Stripe Webhook Secret for event verification | Yes |
 | `FRONTEND_URL` | URL of the frontend (e.g., Vercel) for CORS and redirects | Yes |
+| `ADMIN_BOOTSTRAP_EMAIL` | One-time admin bootstrap email (optional) | No |
+| `ADMIN_BOOTSTRAP_ONCE` | If true, only bootstraps when user is not already admin | No |
 | `SENTRY_DSN` | Sentry Data Source Name for error reporting | No (Recommended) |
 
 ### Cloudflare R2 Credentials

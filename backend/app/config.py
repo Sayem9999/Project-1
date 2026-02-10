@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     # OAuth - GitHub
     github_client_id: str | None = None
     github_client_secret: str | None = None
+
+    # Admin Bootstrap
+    admin_bootstrap_email: str | None = None
+    admin_bootstrap_once: bool = True
     
     # Cloudflare R2 Storage
     r2_account_id: str | None = None
