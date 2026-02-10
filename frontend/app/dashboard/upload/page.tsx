@@ -62,6 +62,7 @@ export default function UploadPage() {
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/login');
+      setUploading(false);
       return;
     }
 
@@ -83,8 +84,33 @@ export default function UploadPage() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || 'Upload failed');
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+
+        const detail = data?.detail ?? data?.message ?? data;
+        let message = 'Upload failed';
+        if (typeof detail === 'string') {
+          message = detail;
+        } else if (detail && typeof detail === 'object') {
+          message = detail.message || JSON.stringify(detail);
+        } else if (detail) {
+          message = String(detail);
+        }
+
+        if (
+          res.status === 401 ||
+          (res.status === 403 && message.toLowerCase().includes('not authenticated'))
+        ) {
+          localStorage.removeItem('token');
+          router.push('/login');
+          return;
+        }
+
+        throw new Error(message);
       }
 
       const job = await res.json();

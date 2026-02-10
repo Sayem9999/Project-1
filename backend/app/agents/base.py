@@ -47,7 +47,7 @@ def parse_json_response(text: str) -> dict:
     return json.loads(text.strip())
 
 
-from .routing_policy import provider_router, RoutingPolicy, TaskType
+from .routing_policy import provider_router, RoutingPolicy, TaskType, PROVIDERS
 from .telemetry import AgentSpan
 
 async def run_agent_with_schema(
@@ -143,54 +143,57 @@ async def run_agent_prompt(
         raise RuntimeError(f"No healthy provider found for task {task_type}")
 
     last_error = None
-    start_time = time.time()
-    
+
+    async def attempt_provider(provider_name: str, model: str) -> Optional[dict]:
+        payload_json = json.dumps(payload, indent=2)
+        attempt_start = time.time()
+        response_text = ""
+
+        if provider_name == "groq" and groq_client:
+            chat_completion = groq_client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": payload_json},
+                ],
+                model=model,
+            )
+            response_text = chat_completion.choices[0].message.content
+
+        elif provider_name == "gemini" and gemini_client:
+            full_prompt = f"System: {system_prompt}\n\nUser Input: {payload_json}"
+            response = await gemini_client.aio.models.generate_content(
+                model=model,
+                contents=full_prompt,
+            )
+            response_text = response.text
+
+        elif provider_name == "openai" and openai_client:
+            response = await openai_client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": payload_json},
+                ],
+            )
+            response_text = response.choices[0].message.content
+
+        if response_text:
+            latency_ms = (time.time() - attempt_start) * 1000
+            provider_router.record_success(provider_name, int(latency_ms))
+            return {
+                "raw_response": response_text,
+                "model": model,
+                "provider": provider_name
+            }
+        return None
+
     # Try the selected provider and its models
     for model in provider.models:
         try:
             logger.debug("agent_api_attempt", provider=provider.name, model=model, agent=agent_name)
-            
-            response_text = ""
-            
-            payload_json = json.dumps(payload, indent=2)
-            
-            if provider.name == "groq" and groq_client:
-                chat_completion = groq_client.chat.completions.create(
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": payload_json},
-                    ],
-                    model=model,
-                )
-                response_text = chat_completion.choices[0].message.content
-                
-            elif provider.name == "gemini" and gemini_client:
-                full_prompt = f"System: {system_prompt}\n\nUser Input: {payload_json}"
-                response = await gemini_client.aio.models.generate_content(
-                    model=model,
-                    contents=full_prompt,
-                )
-                response_text = response.text
-                
-            elif provider.name == "openai" and openai_client:
-                response = await openai_client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": payload_json},
-                    ],
-                )
-                response_text = response.choices[0].message.content
-
-            if response_text:
-                latency_ms = (time.time() - start_time) * 1000
-                provider_router.record_success(provider.name, int(latency_ms))
-                return {
-                    "raw_response": response_text,
-                    "model": model,
-                    "provider": provider.name
-                }
-                
+            result = await attempt_provider(provider.name, model)
+            if result:
+                return result
         except Exception as e:
             logger.warning("agent_api_failed", provider=provider.name, model=model, error=str(e))
             last_error = e
@@ -199,17 +202,43 @@ async def run_agent_prompt(
 
     # Fallback if selected provider failed
     logger.warning("agent_provider_fallback", old_provider=provider.name, agent=agent_name)
-    
-    # Simple hardcoded fallback to Gemini
-    if provider.name != "gemini" and gemini_client:
-        try:
-            response = await gemini_client.aio.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=f"System: {system_prompt}\n\nUser Input: {str(payload)}",
-            )
-            if response.text:
-                return {"raw_response": response.text, "model": "gemini-1.5-flash", "provider": "gemini"}
-        except:
-            pass
+
+    fallback_order: list[str] = []
+    for name in [
+        settings.llm_fallback_provider,
+        settings.llm_primary_provider,
+        "gemini",
+        "groq",
+        "openai",
+    ]:
+        if not name:
+            continue
+        normalized = name.lower()
+        if normalized not in fallback_order:
+            fallback_order.append(normalized)
+
+    for fallback_name in fallback_order:
+        if fallback_name == provider.name:
+            continue
+        if fallback_name == "gemini" and not gemini_client:
+            continue
+        if fallback_name == "groq" and not groq_client:
+            continue
+        if fallback_name == "openai" and not openai_client:
+            continue
+        fallback_config = PROVIDERS.get(fallback_name)
+        if not fallback_config:
+            continue
+        for model in fallback_config.models:
+            try:
+                logger.debug("agent_api_attempt", provider=fallback_name, model=model, agent=agent_name)
+                result = await attempt_provider(fallback_name, model)
+                if result:
+                    return result
+            except Exception as e:
+                logger.warning("agent_api_failed", provider=fallback_name, model=model, error=str(e))
+                last_error = e
+                provider_router.record_failure(fallback_name, str(e))
+                continue
 
     raise RuntimeError(f"All attempts failed for agent {agent_name}. Last error: {last_error}")

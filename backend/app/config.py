@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     gemini_api_key: str | None = None
     groq_api_key: str | None = None
+    llm_primary_provider: str = "gemini"
+    llm_fallback_provider: str = "groq"
     
     # OAuth - Google
     google_client_id: str | None = None
@@ -50,10 +52,14 @@ class Settings(BaseSettings):
     def validate_required_settings(self):
         """Validate that essential settings are present in non-development environments."""
         if self.environment != "development":
-            required = ["openai_api_key", "stripe_secret_key"]
-            missing = [field for field in required if not getattr(self, field)]
+            missing = [field for field in ["secret_key"] if not getattr(self, field)]
             if missing:
                 raise ValueError(f"Missing required settings for {self.environment}: {', '.join(missing)}")
+
+            if not (self.gemini_api_key or self.groq_api_key or self.openai_api_key):
+                raise ValueError(
+                    f"Missing required settings for {self.environment}: at least one LLM API key"
+                )
 
 
 settings = Settings()

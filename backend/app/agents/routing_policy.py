@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional, List, Literal
 from dataclasses import dataclass, field
 from collections import defaultdict
 from datetime import datetime, timedelta
+from ..config import settings
 
 logger = structlog.get_logger()
 
@@ -62,6 +63,16 @@ class ProviderHealth:
             # Reset circuit
             self.circuit_open = False
         return self.success_rate > 0.5 or self.failure_count < 3
+
+
+def _provider_configured(name: str) -> bool:
+    if name == "openai":
+        return bool(settings.openai_api_key)
+    if name == "gemini":
+        return bool(settings.gemini_api_key)
+    if name == "groq":
+        return bool(settings.groq_api_key)
+    return False
 
 
 # Provider configurations
@@ -131,6 +142,9 @@ class ProviderRouter:
             
             if not config.is_available:
                 continue
+
+            if not _provider_configured(name):
+                continue
             
             # Check health
             health = self.health[name]
@@ -157,6 +171,18 @@ class ProviderRouter:
         if not candidates:
             logger.warning("no_providers_available", policy=policy)
             return None
+
+        preferred = (settings.llm_primary_provider or "").lower()
+        if preferred:
+            for name, config, _, _ in candidates:
+                if name == preferred:
+                    logger.info(
+                        "provider_selected",
+                        provider=config.name,
+                        task_type=policy.task_type,
+                        preferred=True
+                    )
+                    return config
         
         # Sort by: quality tier (desc), success rate (desc), latency (asc)
         candidates.sort(key=lambda x: (-x[2], -x[3], PROVIDERS[x[0]].avg_latency_ms))

@@ -63,6 +63,8 @@ RATE_LIMITS = {
     "/api/auth/login": {"max_requests": 10, "window_seconds": 60},     # 10 req/min
     "/api/auth/signup": {"max_requests": 5, "window_seconds": 60},     # 5 req/min
     "/api/auth/": {"max_requests": 20, "window_seconds": 60},          # 20 req/min default
+    "/api/jobs/upload": {"max_requests": 5, "window_seconds": 3600},   # 5 uploads/hour
+    "/api/agents": {"max_requests": 30, "window_seconds": 3600},       # 30 req/hour
 }
 
 
