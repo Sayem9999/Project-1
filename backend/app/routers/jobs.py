@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..errors import CreditError, NotFoundError, ErrorCode, AppBaseException
+from ..config import settings
 from ..deps import get_current_user
 from ..models import Job, User
 from ..schemas import JobResponse
