@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MediaStats from '@/components/dashboard/MediaStats';
@@ -245,16 +245,14 @@ export default function JobPageClient({ id }: { id: string }) {
     : null;
   const lastUpdated = job.updated_at ? new Date(job.updated_at) : new Date(job.created_at);
 
-  const timelineSteps = useMemo(() => {
-    return stages.map((stage, index) => {
-      const isComplete = index < currentStage;
-      const isActive = index === currentStage;
-      return {
-        ...stage,
-        status: isComplete ? 'complete' : isActive ? 'active' : 'pending',
-      };
-    });
-  }, [stages, currentStage]);
+  const timelineSteps = stages.map((stage, index) => {
+    const isComplete = index < currentStage;
+    const isActive = index === currentStage;
+    return {
+      ...stage,
+      status: isComplete ? 'complete' : isActive ? 'active' : 'pending',
+    };
+  });
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-8 pb-12">
