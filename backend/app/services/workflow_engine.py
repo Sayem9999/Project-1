@@ -117,13 +117,14 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
         if not job: return
         job.status = "processing"
         job.progress_message = "Initializing Standard Workflow..."
+        user_id = job.user_id
         await session.commit()
 
     try:
         # === PHASE 1: Analysis (10%) ===
         await update_status(job_id, "processing", "[FRAME] Analyzing keyframes...")
         publish_progress(job_id, "processing", "Analyzing video keyframes...", 10)
-        memory_context = await hybrid_memory.get_agent_context(job.user_id)
+        memory_context = await hybrid_memory.get_agent_context(user_id)
         
         keyframe_payload = {"source_path": source_path, "pacing": pacing}
         keyframe_resp = await keyframe_agent.run(keyframe_payload)
@@ -255,7 +256,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                 else:
                     current_feedback = qc_data.feedback or "Improvements needed."
                     print(f"[Workflow] QC Rejected: {current_feedback}")
-                    await hybrid_memory.record_feedback(job.user_id, current_feedback)
+                    await hybrid_memory.record_feedback(user_id, current_feedback)
                     continue 
 
         # === PHASE 6: Post-Production (90-100%) ===
