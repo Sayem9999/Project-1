@@ -6,11 +6,10 @@ import os
 import ssl
 from celery import Celery
 
-# Redis URL from environment
-REDIS_URL = os.getenv("REDIS_URL")
-if not REDIS_URL:
-    # Fallback or disable if not present
-    REDIS_URL = "redis://localhost:6379/0"
+from app.config import settings
+
+# Redis URL from settings
+REDIS_URL = settings.redis_url or "redis://localhost:6379/0"
 
 celery_app = Celery(
     "proedit",

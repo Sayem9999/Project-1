@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     rate_limit_enabled: bool = True
     sentry_dsn: str | None = None
+    redis_url: str | None = None
     
     # AI API Keys
     openai_api_key: str | None = None

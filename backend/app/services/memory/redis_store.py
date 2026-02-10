@@ -2,6 +2,7 @@
 Redis Memory Store - Short-term run memory for session state and recent context.
 Uses TTL-based expiration for automatic cleanup.
 """
+import os
 import json
 import structlog
 from typing import Optional, Any, Dict, List
@@ -26,8 +27,8 @@ class RedisMemoryStore:
     
     DEFAULT_TTL = timedelta(hours=24)
     
-    def __init__(self, redis_url: str = "redis://localhost:6379/0"):
-        self.redis_url = redis_url
+    def __init__(self, redis_url: Optional[str] = None):
+        self.redis_url = redis_url or os.getenv("REDIS_URL") or "redis://localhost:6379/0"
         self._client: Optional[Any] = None
     
     async def _get_client(self):
