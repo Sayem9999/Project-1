@@ -7,6 +7,7 @@ import uuid
 import asyncio
 import structlog
 import sentry_sdk
+import re
 from .config import settings
 from .db import engine, Base, SessionLocal
 from .routers import auth, jobs, agents, oauth, websocket
@@ -216,6 +217,30 @@ async def debug_config() -> dict[str, Any]:
         "cors_origins": [str(origin) for origin in app.user_middleware[0].options.get("allow_origins", [])] if hasattr(app, "user_middleware") else "unknown",
     }
 
+@app.get("/debug/redis")
+async def debug_redis() -> dict[str, Any]:
+    """Verify Redis connectivity without exposing secrets."""
+    if not settings.redis_url:
+        return {"configured": False, "reachable": False, "error": "REDIS_URL not set"}
+
+    try:
+        import redis.asyncio as redis  # type: ignore
+    except Exception:
+        return {"configured": True, "reachable": False, "error": "redis client not available"}
+
+    def redact(value: str) -> str:
+        return re.sub(r"(redis(?:s)?://)([^@]+)@", r"\\1***@", value)
+
+    start = time.perf_counter()
+    try:
+        client = redis.from_url(settings.redis_url, decode_responses=True)
+        pong = await client.ping()
+        await client.close()
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        return {"configured": True, "reachable": bool(pong), "latency_ms": latency_ms}
+    except Exception as e:
+        message = redact(str(e))
+        return {"configured": True, "reachable": False, "error": message}
 
 
 
