@@ -1,4 +1,5 @@
 import './globals.css';
+import { Toaster } from 'sonner';
 import { ToastProvider } from '@/components/ui/Toast';
 import SystemBanner from '@/components/ui/SystemBanner';
 
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ToastProvider>
           <SystemBanner />
+          <Toaster richColors position="top-right" theme="dark" />
           {children}
         </ToastProvider>
       </body>

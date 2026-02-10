@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Activity, HardDrive, LayoutDashboard, Shield, Users, Video, Edit2, RefreshCw, Search, ArrowLeft, Database, Server, HeartPulse, Network, Wrench } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import * as Sentry from '@sentry/nextjs';
 import { apiRequest, ApiError, clearAuth } from '@/lib/api';
 import SystemMap from '@/components/admin/SystemMap';
@@ -215,6 +216,7 @@ export default function AdminDashboardPage() {
   };
 
   const handleAddCredits = async (userId: number, delta: number, reason = 'manual_adjustment') => {
+    const toastId = toast.loading('Updating credits...');
     try {
       await apiRequest(`/admin/users/${userId}/credits/add?delta=${delta}&reason=${encodeURIComponent(reason)}`, {
         method: 'PATCH',
@@ -222,8 +224,10 @@ export default function AdminDashboardPage() {
       });
       fetchData();
       fetchLedger();
-    } catch (err) {
+      toast.success('Credits updated successfully', { id: toastId });
+    } catch (err: any) {
       console.error('Failed to add credits', err);
+      toast.error('Failed to update credits', { id: toastId, description: err.message });
     }
   };
 
@@ -458,8 +462,8 @@ export default function AdminDashboardPage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.id
-                ? 'bg-gradient-to-r from-cyan-500 to-violet-500 text-white shadow-lg shadow-cyan-500/20'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+              ? 'bg-gradient-to-r from-cyan-500 to-violet-500 text-white shadow-lg shadow-cyan-500/20'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
           >
             <tab.icon className="w-4 h-4" />
@@ -695,8 +699,8 @@ export default function AdminDashboardPage() {
                       key={status}
                       onClick={() => setJobFilter(status as any)}
                       className={`px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${jobFilter === status
-                          ? 'bg-brand-cyan text-black'
-                          : 'bg-white/5 text-gray-400 hover:text-white'
+                        ? 'bg-brand-cyan text-black'
+                        : 'bg-white/5 text-gray-400 hover:text-white'
                         }`}
                     >
                       {status}
@@ -799,13 +803,51 @@ export default function AdminDashboardPage() {
               <h3 className="text-2xl font-bold text-white">Codebase Architecture</h3>
               <div className="flex gap-2">
                 <button
-                  onClick={() => apiRequest('/maintenance/audit', { method: 'POST', auth: true })}
+                  onClick={async () => {
+                    const toastId = toast.loading('Running system audit...');
+                    try {
+                      const res = await apiRequest<any>('/maintenance/audit', { method: 'POST', auth: true });
+                      const issueCount = res.issues?.length || 0;
+                      const score = res.integrity_score || 0;
+
+                      if (issueCount > 0) {
+                        toast.warning(`Audit Complete: ${issueCount} issues found`, {
+                          id: toastId,
+                          description: `Integrity Score: ${score}%. check logs for details.`
+                        });
+                      } else {
+                        toast.success(`System Healthy: Score ${score}%`, { id: toastId });
+                      }
+                    } catch (err: any) {
+                      toast.error('Audit Failed', { id: toastId, description: err.message });
+                    }
+                  }}
                   className="px-4 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm font-bold flex items-center gap-2 hover:bg-cyan-500/20 transition-all"
                 >
                   <Search className="w-4 h-4" /> Run Audit
                 </button>
                 <button
-                  onClick={() => apiRequest('/maintenance/heal', { method: 'POST', auth: true, body: { error_trace: "manual_trigger" } })}
+                  onClick={async () => {
+                    const toastId = toast.loading('Consulting maintenance agent...');
+                    try {
+                      const res = await apiRequest<any>('/maintenance/heal', {
+                        method: 'POST',
+                        auth: true,
+                        body: { error_trace: "manual_trigger" }
+                      });
+
+                      toast.success('Heal Recommendation Ready', {
+                        id: toastId,
+                        description: "Agent has analyzed the system. Check console for patch.",
+                        action: {
+                          label: 'View',
+                          onClick: () => console.log(res.recommendation)
+                        }
+                      });
+                    } catch (err: any) {
+                      toast.error('Auto-Heal Failed', { id: toastId, description: err.message });
+                    }
+                  }}
                   className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-bold flex items-center gap-2 hover:bg-emerald-500/20 transition-all"
                 >
                   <HeartPulse className="w-4 h-4" /> Auto-Heal

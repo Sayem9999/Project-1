@@ -44,19 +44,31 @@ export default function SystemMap() {
     const [selectedNode, setSelectedNode] = useState<SystemNode | null>(null);
     const [activeFilter, setActiveFilter] = useState<string | 'all'>('all');
 
+    const [isLive, setIsLive] = useState(false);
+    const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+
+    const fetchGraph = async () => {
+        setLoading(true);
+        try {
+            const graph = await apiRequest<SystemGraph>('/maintenance/graph', { auth: true });
+            setData(graph);
+            setLastRefreshed(new Date());
+        } catch (err) {
+            console.error('Failed to fetch system graph', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchGraph = async () => {
-            try {
-                const graph = await apiRequest<SystemGraph>('/maintenance/graph', { auth: true });
-                setData(graph);
-            } catch (err) {
-                console.error('Failed to fetch system graph', err);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchGraph();
     }, []);
+
+    useEffect(() => {
+        if (!isLive) return;
+        const interval = setInterval(fetchGraph, 5000);
+        return () => clearInterval(interval);
+    }, [isLive]);
 
     const filteredNodes = useMemo(() => {
         if (!data) return [];
@@ -80,11 +92,37 @@ export default function SystemMap() {
     return (
         <div className="space-y-6">
             {/* Header Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatItem icon={Terminal} label="Files" value={stats?.source_files ?? 0} />
-                <StatItem icon={Network} label="Nodes" value={stats?.total_nodes ?? 0} />
-                <StatItem icon={Activity} label="LOC" value={stats?.lines_of_code?.toLocaleString() ?? 0} />
-                <StatItem icon={Zap} label="Endpoints" value={data?.nodes.filter(n => n.type === 'endpoint').length ?? 0} />
+            <div className="flex items-center justify-between">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+                    <StatItem icon={Terminal} label="Files" value={stats?.source_files ?? 0} />
+                    <StatItem icon={Network} label="Nodes" value={stats?.total_nodes ?? 0} />
+                    <StatItem icon={Activity} label="LOC" value={stats?.lines_of_code?.toLocaleString() ?? 0} />
+                    <StatItem icon={Zap} label="Endpoints" value={data?.nodes.filter(n => n.type === 'endpoint').length ?? 0} />
+                </div>
+                <div className="flex flex-col items-end gap-2 ml-4">
+                    <button
+                        onClick={() => fetchGraph()}
+                        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-colors"
+                        title="Refresh Graph"
+                    >
+                        <Activity className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                    <button
+                        onClick={() => setIsLive(!isLive)}
+                        className={`
+                            px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2
+                            ${isLive ? 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse' : 'bg-white/5 text-gray-500 border border-white/10 hover:text-gray-300'}
+                        `}
+                    >
+                        <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-red-500' : 'bg-gray-500'}`} />
+                        {isLive ? 'Live' : 'Paused'}
+                    </button>
+                    {lastRefreshed && (
+                        <div className="text-[10px] text-gray-500">
+                            Updated: {lastRefreshed.toLocaleTimeString()}
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
