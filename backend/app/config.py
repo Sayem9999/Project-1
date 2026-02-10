@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     environment: str = "development"
     rate_limit_enabled: bool = True
+    credits_enabled: bool = True
     sentry_dsn: str | None = None
     redis_url: str | None = None
     

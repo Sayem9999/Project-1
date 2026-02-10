@@ -15,8 +15,9 @@ from ..services.storage_service import storage_service as r2_storage
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
-# Check if Celery/Redis is available (handle empty strings)
-USE_CELERY = bool(os.getenv("REDIS_URL"))
+# Check if Celery/Redis is available (handle empty or invalid URLs)
+_REDIS_URL = os.getenv("REDIS_URL", "")
+USE_CELERY = _REDIS_URL.startswith("redis://") or _REDIS_URL.startswith("rediss://")
 
 
 @router.post("/upload", response_model=JobResponse)
@@ -43,17 +44,19 @@ async def upload_video(
 
     # Monetization Check
     COST_PER_JOB = 2 if tier == "pro" else 1
-    if (current_user.credits or 0) < COST_PER_JOB:
-        raise CreditError(f"Insufficient credits. {tier.title()} edit requires {COST_PER_JOB} credits.")
+    if settings.credits_enabled:
+        if (current_user.credits or 0) < COST_PER_JOB:
+            raise CreditError(f"Insufficient credits. {tier.title()} edit requires {COST_PER_JOB} credits.")
     
     source_path = await storage_service.save_upload(file)
     
     job = Job(user_id=current_user.id, source_path=source_path, theme=theme)
     session.add(job)
     
-    # Deduct credits
-    current_user.credits = (current_user.credits or 0) - COST_PER_JOB
-    session.add(current_user)
+    # Deduct credits if enabled
+    if settings.credits_enabled:
+        current_user.credits = (current_user.credits or 0) - COST_PER_JOB
+        session.add(current_user)
     
     await session.commit()
     await session.refresh(job)
