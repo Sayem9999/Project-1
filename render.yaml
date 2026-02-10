@@ -17,7 +17,10 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: REDIS_URL
-        sync: false
+        fromService:
+          name: proedit-redis
+          type: redis
+          property: connectionString
       - key: SENTRY_DSN
         sync: false
       - key: R2_ACCOUNT_ID
@@ -39,6 +42,9 @@ services:
       - key: GROQ_API_KEY
         sync: false
 
+  - type: redis
+    name: proedit-redis
+    plan: free
 
 
 databases:
