@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, field_validator
+from .config import settings
 from .models import JobStatus
 import re
 
@@ -11,8 +12,17 @@ class RegisterRequest(BaseModel):
     @field_validator('password')
     @classmethod
     def validate_password(cls, v: str) -> str:
+        policy = (settings.password_policy or "basic").lower()
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters long')
+        if policy in ("basic", "lenient"):
+            return v
+        if policy in ("standard", "medium"):
+            if not re.search(r'[A-Za-z]', v):
+                raise ValueError('Password must contain at least one letter')
+            if not re.search(r'\d', v):
+                raise ValueError('Password must contain at least one digit')
+            return v
         if not re.search(r'[A-Z]', v):
             raise ValueError('Password must contain at least one uppercase letter')
         if not re.search(r'[a-z]', v):

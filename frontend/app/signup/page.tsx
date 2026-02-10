@@ -151,7 +151,7 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3.5 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-                placeholder="Password (min 8 chars, 1 uppercase, 1 lowercase, 1 digit)"
+                placeholder="Password (min 8 chars)"
                 required
                 minLength={8}
               />

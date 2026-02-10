@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     llm_primary_provider: str = "gemini"
     llm_fallback_provider: str = "groq"
+    password_policy: str = "basic"
     
     # OAuth - Google
     google_client_id: str | None = None
