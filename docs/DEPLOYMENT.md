@@ -26,6 +26,8 @@ The `render.yaml` file defines the infrastructure as code, but sensitive secrets
 | `ADMIN_BOOTSTRAP_EMAIL` | One-time admin bootstrap email (optional) | No |
 | `ADMIN_BOOTSTRAP_ONCE` | If true, only bootstraps when user is not already admin | No |
 | `SENTRY_DSN` | Sentry Data Source Name for error reporting | No (Recommended) |
+| `REDIS_SSL_CERT_REQS` | Redis TLS verification mode for `rediss://` (`none`, `optional`, `required`) | No (Recommended for prod) |
+| `REDIS_SSL_CA_CERTS` | Path to CA bundle for Redis TLS verification | No |
 
 ### Cloudflare R2 Credentials
 | Variable | Description |
@@ -35,6 +37,11 @@ The `render.yaml` file defines the infrastructure as code, but sensitive secrets
 | `R2_SECRET_ACCESS_KEY` | R2 Secret Access Key |
 | `R2_BUCKET_NAME` | Name of the R2 bucket |
 | `R2_PUBLIC_URL` | Public domain for the bucket (optional) |
+
+### Redis TLS (Optional)
+For `rediss://` connections, set:
+- `REDIS_SSL_CERT_REQS=required`
+- `REDIS_SSL_CA_CERTS=/etc/ssl/certs/ca-certificates.crt` (only if your platform does not provide CA certs by default)
 
 ## 2. Deployment Steps
 
