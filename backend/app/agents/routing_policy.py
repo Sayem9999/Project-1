@@ -64,6 +64,10 @@ class ProviderHealth:
             self.circuit_open = False
         return self.success_rate > 0.5 or self.failure_count < 3
 
+    def open_circuit_for(self, seconds: float) -> None:
+        self.circuit_open = True
+        self.circuit_open_until = datetime.utcnow() + timedelta(seconds=max(5, int(seconds)))
+
 
 def _provider_configured(name: str) -> bool:
     if name == "openai":
@@ -86,7 +90,12 @@ PROVIDERS: Dict[str, ProviderConfig] = {
     ),
     "gemini": ProviderConfig(
         name="gemini",
-        models=["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
+        models=[
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+        ],
         quality_tier="standard",
         avg_latency_ms=2000,
         cost_per_1k_tokens=0.0  # Free tier
@@ -215,6 +224,38 @@ class ProviderRouter:
             health.circuit_open = True
             health.circuit_open_until = datetime.utcnow() + timedelta(minutes=5)
             logger.warning("circuit_opened", provider=provider_name, until=health.circuit_open_until)
+
+    def handle_provider_error(self, provider_name: str, model: str, error: str) -> None:
+        """Special-case provider errors (quota/model not found) to disable temporarily."""
+        err = (error or "").lower()
+        health = self.health[provider_name]
+        config = PROVIDERS.get(provider_name)
+
+        # Quota / rate limits -> open circuit with retry delay if present
+        if "resource_exhausted" in err or "quota" in err or "rate limit" in err:
+            retry_seconds = 300
+            import re
+            match = re.search(r"retry in ([0-9]+(?:\\.[0-9]+)?)s", err)
+            if match:
+                retry_seconds = float(match.group(1))
+            match = re.search(r"retrydelay['\"]?:\\s*'?([0-9]+)s", err)
+            if match:
+                retry_seconds = float(match.group(1))
+            health.open_circuit_for(retry_seconds)
+            logger.warning(
+                "provider_quota_circuit_open",
+                provider=provider_name,
+                seconds=retry_seconds
+            )
+            return
+
+        # Model not found -> drop model from list to avoid repeated failures
+        if "not found" in err and config and model in config.models:
+            config.models = [m for m in config.models if m != model]
+            logger.warning("provider_model_disabled", provider=provider_name, model=model)
+            if not config.models:
+                health.open_circuit_for(600)
+                logger.warning("provider_disabled_no_models", provider=provider_name)
     
     def get_cache_key(self, prompt: str, payload: Dict[str, Any]) -> str:
         """Compute cache key."""

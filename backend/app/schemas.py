@@ -42,6 +42,16 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class EditJobRequest(BaseModel):
+    theme: str = "professional"
+    pacing: str = "medium"
+    mood: str = "professional"
+    ratio: str = "16:9"
+    platform: str = "youtube"
+    tier: str = "pro"
+    brand_safety: str = "standard"
+
+
 class UserResponse(BaseModel):
     id: int
     email: EmailStr

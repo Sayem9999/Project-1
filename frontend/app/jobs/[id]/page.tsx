@@ -14,6 +14,12 @@ interface Job {
   id: number;
   status: string;
   progress_message: string;
+  theme?: string;
+  pacing?: string;
+  mood?: string;
+  ratio?: string;
+  platform?: string;
+  brand_safety?: string;
   output_path?: string;
   thumbnail_path?: string;
   created_at: string;
@@ -34,6 +40,18 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   const [error, setError] = useState('');
   const socketRef = useRef<WebSocket | null>(null);
   const [actionError, setActionError] = useState('');
+  const [showEdit, setShowEdit] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editForm, setEditForm] = useState({
+    theme: 'professional',
+    pacing: 'medium',
+    mood: 'professional',
+    ratio: '16:9',
+    platform: 'youtube',
+    tier: 'pro',
+    brand_safety: 'standard',
+  });
 
   const fetchJob = useCallback(async () => {
     try {
@@ -68,6 +86,43 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
       fetchJob();
     } catch (err: any) {
       setActionError(err instanceof ApiError ? err.message : 'Failed to retry job');
+    }
+  };
+
+  const openEdit = () => {
+    if (!job) return;
+    setEditForm({
+      theme: job.theme || 'professional',
+      pacing: job.pacing || 'medium',
+      mood: job.mood || 'professional',
+      ratio: job.ratio || '16:9',
+      platform: job.platform || 'youtube',
+      tier: job.tier || 'pro',
+      brand_safety: job.brand_safety || 'standard',
+    });
+    setEditError('');
+    setShowEdit(true);
+  };
+
+  const submitEdit = async () => {
+    if (!job) return;
+    setEditSubmitting(true);
+    setEditError('');
+    try {
+      const idempotencyKey =
+        typeof crypto !== 'undefined' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      const created = await apiRequest<{ id: number }>(`/jobs/${job.id}/edit`, {
+        method: 'POST',
+        auth: true,
+        body: editForm,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
+      setShowEdit(false);
+      router.push(`/jobs/${created.id}`);
+    } catch (err: any) {
+      setEditError(err instanceof ApiError ? err.message : 'Failed to create edit');
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
@@ -215,6 +270,12 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
               Retry Job
             </button>
           )}
+          <button
+            onClick={openEdit}
+            className="px-3 py-1.5 text-xs rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+          >
+            Edit Settings
+          </button>
           <span className="px-3 py-1 bg-white/5 rounded-lg text-xs font-mono text-gray-500">ID: {job.id}</span>
           <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white">
             <MoreHorizontal className="w-5 h-5" />
@@ -410,6 +471,105 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
           )}
         </div>
       </div>
+
+      {showEdit && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-2xl bg-slate-900 border border-white/10 rounded-3xl p-6 space-y-6">
+            <div>
+              <h3 className="text-xl font-bold text-white">Manual Edit</h3>
+              <p className="text-sm text-gray-400">Create a new version using updated settings.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <select
+                value={editForm.tier}
+                onChange={(e) => setEditForm((s) => ({ ...s, tier: e.target.value }))}
+                className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+              >
+                <option value="pro">Pro</option>
+                <option value="standard">Standard</option>
+              </select>
+              <select
+                value={editForm.platform}
+                onChange={(e) => setEditForm((s) => ({ ...s, platform: e.target.value }))}
+                className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+              >
+                <option value="youtube">YouTube</option>
+                <option value="tiktok">TikTok</option>
+                <option value="instagram">Instagram</option>
+                <option value="linkedin">LinkedIn</option>
+              </select>
+              <select
+                value={editForm.theme}
+                onChange={(e) => setEditForm((s) => ({ ...s, theme: e.target.value }))}
+                className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+              >
+                <option value="cinematic">Cinematic</option>
+                <option value="energetic">High Energy</option>
+                <option value="minimal">Minimalist</option>
+                <option value="documentary">Docu-Style</option>
+                <option value="professional">Professional</option>
+              </select>
+              <select
+                value={editForm.pacing}
+                onChange={(e) => setEditForm((s) => ({ ...s, pacing: e.target.value }))}
+                className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+              >
+                <option value="fast">Fast</option>
+                <option value="medium">Medium</option>
+                <option value="slow">Slow</option>
+              </select>
+              <select
+                value={editForm.mood}
+                onChange={(e) => setEditForm((s) => ({ ...s, mood: e.target.value }))}
+                className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+              >
+                <option value="professional">Professional</option>
+                <option value="cinematic">Cinematic</option>
+                <option value="energetic">Energetic</option>
+                <option value="minimal">Minimal</option>
+              </select>
+              <select
+                value={editForm.ratio}
+                onChange={(e) => setEditForm((s) => ({ ...s, ratio: e.target.value }))}
+                className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+              >
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+                <option value="1:1">1:1</option>
+              </select>
+              <select
+                value={editForm.brand_safety}
+                onChange={(e) => setEditForm((s) => ({ ...s, brand_safety: e.target.value }))}
+                className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+              >
+                <option value="standard">Standard</option>
+                <option value="strict">Strict</option>
+                <option value="relaxed">Relaxed</option>
+              </select>
+            </div>
+            {editError && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {editError}
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowEdit(false)}
+                className="px-4 py-2 rounded-lg bg-white/5 text-gray-300 hover:bg-white/10"
+              >
+                Close
+              </button>
+              <button
+                onClick={submitEdit}
+                disabled={editSubmitting}
+                className="px-4 py-2 rounded-lg bg-brand-cyan text-black font-semibold hover:bg-brand-accent disabled:opacity-60"
+              >
+                {editSubmitting ? 'Creating...' : 'Create Edit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

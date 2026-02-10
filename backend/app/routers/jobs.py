@@ -10,7 +10,7 @@ from ..errors import CreditError, NotFoundError
 from ..config import settings
 from ..deps import get_current_user
 from ..models import Job, User, CreditLedger
-from ..schemas import JobResponse
+from ..schemas import JobResponse, EditJobRequest
 from ..services.storage import storage_service
 from ..services.storage_service import storage_service as r2_storage
 
@@ -61,58 +61,22 @@ async def upload_video(
     if settings.credits_enabled:
         if (current_user.credits or 0) < COST_PER_JOB:
             raise CreditError(f"Insufficient credits. {tier.title()} edit requires {COST_PER_JOB} credits.")
-    
+
     source_path = await storage_service.save_upload(file)
-    
-    job = Job(
-        user_id=current_user.id,
+
+    job = await create_job(
+        session=session,
+        current_user=current_user,
         source_path=source_path,
         theme=theme,
         tier=tier,
-        credits_cost=COST_PER_JOB,
-        idempotency_key=idempotency_key,
         pacing=pacing,
         mood=mood,
         ratio=ratio,
         platform=platform,
         brand_safety=brand_safety,
-        cancel_requested=False,
+        idempotency_key=idempotency_key,
     )
-    session.add(job)
-    
-    # Deduct credits if enabled
-    if settings.credits_enabled:
-        current_user.credits = (current_user.credits or 0) - COST_PER_JOB
-        session.add(current_user)
-
-    await session.flush()
-
-    if settings.credits_enabled:
-        session.add(
-            CreditLedger(
-                user_id=current_user.id,
-                job_id=job.id,
-                delta=-COST_PER_JOB,
-                balance_after=current_user.credits or 0,
-                reason=f"{tier}_job",
-                source="job",
-            )
-        )
-
-    try:
-        await session.commit()
-    except IntegrityError:
-        await session.rollback()
-        if idempotency_key:
-            existing = await session.scalar(
-                select(Job).where(
-                    Job.user_id == current_user.id,
-                    Job.idempotency_key == idempotency_key
-                )
-            )
-            if existing:
-                return JobResponse.model_validate(existing, from_attributes=True)
-        raise
     await session.refresh(job)
     
     await enqueue_job(job, pacing, mood, ratio, tier, platform, brand_safety)
@@ -190,6 +154,65 @@ async def retry_job(job_id: int, current_user: User = Depends(get_current_user),
     return {"status": "ok", "job_id": job.id}
 
 
+@router.post("/{job_id}/edit", response_model=JobResponse)
+async def edit_job(
+    job_id: int,
+    request: Request,
+    payload: EditJobRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
+    if not job:
+        raise NotFoundError("Job not found")
+
+    source_path = job.source_path
+    if source_path and not str(source_path).startswith("http"):
+        if not Path(source_path).exists():
+            raise HTTPException(status_code=400, detail="Source file is no longer available.")
+
+    idempotency_key = request.headers.get("Idempotency-Key")
+    if idempotency_key:
+        existing = await session.scalar(
+            select(Job).where(
+                Job.user_id == current_user.id,
+                Job.idempotency_key == idempotency_key
+            )
+        )
+        if existing:
+            return JobResponse.model_validate(existing, from_attributes=True)
+
+    COST_PER_JOB = 2 if payload.tier == "pro" else 1
+    if settings.credits_enabled:
+        if (current_user.credits or 0) < COST_PER_JOB:
+            raise CreditError(f"Insufficient credits. {payload.tier.title()} edit requires {COST_PER_JOB} credits.")
+
+    new_job = await create_job(
+        session=session,
+        current_user=current_user,
+        source_path=source_path,
+        theme=payload.theme,
+        tier=payload.tier,
+        pacing=payload.pacing,
+        mood=payload.mood,
+        ratio=payload.ratio,
+        platform=payload.platform,
+        brand_safety=payload.brand_safety,
+        idempotency_key=idempotency_key,
+    )
+    await session.refresh(new_job)
+    await enqueue_job(
+        new_job,
+        payload.pacing,
+        payload.mood,
+        payload.ratio,
+        payload.tier,
+        payload.platform,
+        payload.brand_safety,
+    )
+    return JobResponse.model_validate(new_job, from_attributes=True)
+
+
 @router.get("/{job_id}/download")
 async def download_output(job_id: int, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
@@ -227,3 +250,68 @@ async def enqueue_job(
     from ..services.workflow_engine import process_job
     import asyncio
     asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety))
+
+
+async def create_job(
+    session: AsyncSession,
+    current_user: User,
+    source_path: str,
+    theme: str,
+    tier: str,
+    pacing: str,
+    mood: str,
+    ratio: str,
+    platform: str,
+    brand_safety: str,
+    idempotency_key: str | None = None,
+) -> Job:
+    COST_PER_JOB = 2 if tier == "pro" else 1
+    job = Job(
+        user_id=current_user.id,
+        source_path=source_path,
+        theme=theme,
+        tier=tier,
+        credits_cost=COST_PER_JOB,
+        idempotency_key=idempotency_key,
+        pacing=pacing,
+        mood=mood,
+        ratio=ratio,
+        platform=platform,
+        brand_safety=brand_safety,
+        cancel_requested=False,
+    )
+    session.add(job)
+
+    if settings.credits_enabled:
+        current_user.credits = (current_user.credits or 0) - COST_PER_JOB
+        session.add(current_user)
+
+    await session.flush()
+
+    if settings.credits_enabled:
+        session.add(
+            CreditLedger(
+                user_id=current_user.id,
+                job_id=job.id,
+                delta=-COST_PER_JOB,
+                balance_after=current_user.credits or 0,
+                reason=f"{tier}_job",
+                source="job",
+            )
+        )
+
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        if idempotency_key:
+            existing = await session.scalar(
+                select(Job).where(
+                    Job.user_id == current_user.id,
+                    Job.idempotency_key == idempotency_key
+                )
+            )
+            if existing:
+                return existing
+        raise
+    return job
