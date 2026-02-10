@@ -2,7 +2,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X, Film, Zap, Layers, Monitor, Shield, Sparkles } from 'lucide-react';
-import { apiUpload, ApiError, clearAuth } from '@/lib/api';
+import { apiUpload, apiRequest, ApiError, clearAuth } from '@/lib/api';
 
 export default function UploadPage() {
   const router = useRouter();
@@ -14,6 +14,8 @@ export default function UploadPage() {
   const [dragActive, setDragActive] = useState(false);
   const uploadAbortRef = useRef<null | (() => void)>(null);
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<number | null>(null);
+  const [starting, setStarting] = useState(false);
 
   const [settings, setSettings] = useState({
     theme: 'cinematic',
@@ -45,6 +47,9 @@ export default function UploadPage() {
       setFile(droppedFile);
       setPreview(URL.createObjectURL(droppedFile));
       setIdempotencyKey(typeof crypto !== 'undefined' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+      setJobId(null);
+      setStarting(false);
+      setUploadProgress(0);
     }
   }, []);
 
@@ -54,6 +59,9 @@ export default function UploadPage() {
       setFile(selected);
       setPreview(URL.createObjectURL(selected));
       setIdempotencyKey(typeof crypto !== 'undefined' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+      setJobId(null);
+      setStarting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -90,8 +98,10 @@ export default function UploadPage() {
       });
       uploadAbortRef.current = abort;
       const job = await promise;
-      window.dispatchEvent(new Event('credit-update'));
-      router.push(`/jobs/${job.id}`);
+      setJobId(job.id);
+      setUploading(false);
+      setUploadProgress(100);
+      uploadAbortRef.current = null;
     } catch (err: any) {
       if (err instanceof ApiError && err.isAuth) {
         clearAuth();
@@ -101,6 +111,19 @@ export default function UploadPage() {
       setError(err instanceof ApiError ? err.message : 'Upload failed');
       setUploading(false);
       uploadAbortRef.current = null;
+    }
+  };
+
+  const handleStartEdit = async () => {
+    if (!jobId) return;
+    setStarting(true);
+    setError('');
+    try {
+      await apiRequest(`/jobs/${jobId}/start`, { method: 'POST', auth: true });
+      router.push(`/jobs/${jobId}`);
+    } catch (err: any) {
+      setError(err instanceof ApiError ? err.message : 'Failed to start pipeline');
+      setStarting(false);
     }
   };
 
@@ -237,7 +260,7 @@ export default function UploadPage() {
               {/* Overlay Controls */}
               <div className="absolute top-6 right-6 flex gap-3">
                 <button
-                  onClick={() => { setFile(null); setPreview(null); setIdempotencyKey(null); }}
+                  onClick={() => { setFile(null); setPreview(null); setIdempotencyKey(null); setJobId(null); setUploadProgress(0); }}
                   className="p-3 bg-black/60 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full backdrop-blur-md transition-colors"
                 >
                   <X className="w-5 h-5" />
@@ -252,13 +275,18 @@ export default function UploadPage() {
                   </div>
                   <button
                     onClick={handleUpload}
-                    disabled={uploading}
+                    disabled={uploading || !!jobId}
                     className="px-8 py-4 bg-brand-cyan hover:bg-brand-accent text-black font-bold rounded-xl transition-all hover:scale-105 disabled:opacity-50 disabled:scale-100 flex items-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]"
                   >
                     {uploading ? (
                       <>
                         <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                         <span>Uploading {uploadProgress}%</span>
+                      </>
+                    ) : jobId ? (
+                      <>
+                        <Sparkles className="w-5 h-5" />
+                        <span>Upload Complete</span>
                       </>
                     ) : (
                       <>
@@ -267,6 +295,15 @@ export default function UploadPage() {
                       </>
                     )}
                   </button>
+                  {jobId && (
+                    <button
+                      onClick={handleStartEdit}
+                      disabled={starting}
+                      className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl transition-colors disabled:opacity-60"
+                    >
+                      {starting ? 'Starting...' : 'Start Edit'}
+                    </button>
+                  )}
                   {uploading && (
                     <button
                       onClick={handleCancelUpload}
@@ -286,6 +323,11 @@ export default function UploadPage() {
                     </div>
                     <p className="text-xs text-gray-400 mt-2">Uploading your video. Don&apos;t close this tab.</p>
                   </div>
+                )}
+                {jobId && !uploading && (
+                  <p className="text-xs text-gray-400 mt-3">
+                    Upload complete. Click <span className="text-white font-semibold">Start Edit</span> to begin processing.
+                  </p>
                 )}
               </div>
             </div>
