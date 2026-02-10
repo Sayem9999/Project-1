@@ -1,7 +1,7 @@
 'use client';
 import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, X, Film, Zap, Layers, Monitor, Shield, Sparkles } from 'lucide-react';
+import { Upload, X, Film, Zap, Layers, Monitor, Shield, Sparkles, CheckCircle2 } from 'lucide-react';
 import { apiUpload, apiRequest, ApiError, clearAuth } from '@/lib/api';
 
 export default function UploadPage() {
@@ -268,50 +268,43 @@ export default function UploadPage() {
               </div>
 
               <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                   <div>
                     <h3 className="text-xl font-bold text-white mb-1">{file?.name}</h3>
                     <p className="text-sm text-gray-400">{(file?.size ? (file.size / 1024 / 1024).toFixed(2) : 0)} MB - Ready for Analysis</p>
                   </div>
-                  <button
-                    onClick={handleUpload}
-                    disabled={uploading || !!jobId}
-                    className="px-8 py-4 bg-brand-cyan hover:bg-brand-accent text-black font-bold rounded-xl transition-all hover:scale-105 disabled:opacity-50 disabled:scale-100 flex items-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]"
-                  >
-                    {uploading ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                        <span>Uploading {uploadProgress}%</span>
-                      </>
-                    ) : jobId ? (
-                      <>
-                        <Sparkles className="w-5 h-5" />
-                        <span>Upload Complete</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-5 h-5" />
-                        <span>Upload Video</span>
-                      </>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={handleUpload}
+                      disabled={uploading || !!jobId}
+                      className="px-8 py-4 bg-brand-cyan hover:bg-brand-accent text-black font-bold rounded-xl transition-all hover:scale-105 disabled:opacity-50 disabled:scale-100 flex items-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]"
+                    >
+                      {uploading ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                          <span>Uploading {uploadProgress}%</span>
+                        </>
+                      ) : jobId ? (
+                        <>
+                          <Sparkles className="w-5 h-5" />
+                          <span>Upload Complete</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5" />
+                          <span>Start Upload</span>
+                        </>
+                      )}
+                    </button>
+                    {uploading && (
+                      <button
+                        onClick={handleCancelUpload}
+                        className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl transition-colors"
+                      >
+                        Cancel
+                      </button>
                     )}
-                  </button>
-                  {jobId && (
-                    <button
-                      onClick={handleStartEdit}
-                      disabled={starting}
-                      className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl transition-colors disabled:opacity-60"
-                    >
-                      {starting ? 'Starting...' : 'Start Edit'}
-                    </button>
-                  )}
-                  {uploading && (
-                    <button
-                      onClick={handleCancelUpload}
-                      className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  )}
+                  </div>
                 </div>
                 {uploading && (
                   <div className="mt-4">
@@ -324,10 +317,37 @@ export default function UploadPage() {
                     <p className="text-xs text-gray-400 mt-2">Uploading your video. Don&apos;t close this tab.</p>
                   </div>
                 )}
+                {!uploading && !jobId && (
+                  <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-white">Ready to upload</p>
+                      <p className="text-xs text-gray-400">Click Start Upload to send your video.</p>
+                    </div>
+                    <button
+                      onClick={handleUpload}
+                      className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-colors"
+                    >
+                      Start Upload
+                    </button>
+                  </div>
+                )}
                 {jobId && !uploading && (
-                  <p className="text-xs text-gray-400 mt-3">
-                    Upload complete. Click <span className="text-white font-semibold">Start Edit</span> to begin processing.
-                  </p>
+                  <div className="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-400/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-3 text-emerald-200">
+                      <CheckCircle2 className="w-5 h-5" />
+                      <div>
+                        <p className="text-sm font-semibold">Upload complete</p>
+                        <p className="text-xs text-emerald-200/70">Ready to start editing.</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleStartEdit}
+                      disabled={starting}
+                      className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-colors disabled:opacity-60"
+                    >
+                      {starting ? 'Starting...' : 'Start Edit'}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
