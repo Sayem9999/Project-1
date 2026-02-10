@@ -20,8 +20,9 @@ export class ApiError extends Error {
   }
 }
 
-type ApiOptions = RequestInit & {
+type ApiOptions = Omit<RequestInit, "body"> & {
   auth?: boolean;
+  body?: any;
 };
 
 export function getAuthToken(): string | null {
