@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from ..schemas import AgentInput, AgentOutput
 from ..agents import director_agent, cutter_agent, subtitle_agent, audio_agent, color_agent, qc_agent
+from ..services.llm_health import get_llm_health_summary
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -33,3 +34,8 @@ async def color(payload: AgentInput):
 @router.post("/qc", response_model=AgentOutput)
 async def qc(payload: AgentInput):
     return AgentOutput(agent="qc", directives=await qc_agent.run(payload.model_dump()))
+
+
+@router.get("/health")
+async def llm_health():
+    return {"providers": get_llm_health_summary()}
