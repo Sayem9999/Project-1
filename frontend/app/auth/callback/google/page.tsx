@@ -42,7 +42,7 @@ function GoogleCallbackContent() {
             {error ? (
                 <>
                     <div className="w-16 h-16 mx-auto bg-red-500/20 rounded-full flex items-center justify-center text-3xl">
-                        ✕
+                        X
                     </div>
                     <h2 className="text-xl font-bold text-white">Authentication Failed</h2>
                     <p className="text-gray-400">{error}</p>

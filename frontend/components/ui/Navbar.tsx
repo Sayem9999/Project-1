@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
@@ -43,7 +44,7 @@ export default function Navbar() {
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-3 group">
                     <div className="relative">
-                        <img src="/logo.svg" alt="Proedit" className="w-10 h-10" />
+                        <Image src="/logo.svg" alt="Proedit" width={40} height={40} className="w-10 h-10" />
                         <div className="absolute inset-0 bg-cyan-500/30 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     <span className="text-2xl font-bold tracking-tight">
@@ -86,7 +87,7 @@ export default function Navbar() {
                                     className="flex items-center gap-2 p-1 rounded-full hover:bg-white/10 transition-colors"
                                 >
                                     {user?.avatar_url ? (
-                                        <img src={user.avatar_url} alt="" className="w-9 h-9 rounded-full ring-2 ring-white/20" />
+                                        <Image src={user.avatar_url} alt="" width={36} height={36} className="w-9 h-9 rounded-full ring-2 ring-white/20" unoptimized />
                                     ) : (
                                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center text-sm font-bold text-white">
                                             {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}

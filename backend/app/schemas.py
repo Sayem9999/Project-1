@@ -40,6 +40,17 @@ class UserResponse(BaseModel):
     credits: int = 0
 
 
+class AdminUserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    full_name: str | None = None
+    avatar_url: str | None = None
+    credits: int = 0
+    is_admin: bool = False
+    oauth_provider: str | None = None
+    created_at: datetime
+
+
 class JobResponse(BaseModel):
     id: int
     status: JobStatus
@@ -53,6 +64,8 @@ class JobResponse(BaseModel):
     media_intelligence: dict | None = None
     qc_result: dict | None = None
     director_plan: dict | None = None
+    brand_safety_result: dict | None = None
+    ab_test_result: dict | None = None
 
 
 class N8NCallbackRequest(BaseModel):

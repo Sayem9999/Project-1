@@ -88,7 +88,7 @@ export default function QCScoreBoard({ qcResult }: QCScoreBoardProps) {
             {qcResult.feedback && (
                 <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/5">
                     <p className="text-xs text-gray-500 uppercase mb-1 font-bold">Producer Feedback</p>
-                    <p className="text-sm text-gray-300 italic">"{qcResult.feedback}"</p>
+                    <p className="text-sm text-gray-300 italic">&quot;{qcResult.feedback}&quot;</p>
                 </div>
             )}
         </div>

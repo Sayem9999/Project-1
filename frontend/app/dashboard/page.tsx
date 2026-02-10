@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Clock, MoreVertical, Play, Film } from 'lucide-react';
+import Image from 'next/image';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
@@ -10,8 +11,8 @@ interface Job {
     id: number;
     status: string;
     progress_message: string;
-    output_path?: string;
-    thumbnail_path?: string;
+    output_path: string;
+    thumbnail_path: string;
     created_at: string;
 }
 
@@ -118,7 +119,7 @@ export default function DashboardPage() {
                 ) : jobs.length === 0 ? (
                     <div className="glass-panel border-dashed border-2 border-white/10 rounded-3xl p-12 text-center">
                         <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-brand-cyan/20 to-brand-violet/20 flex items-center justify-center text-4xl">
-                            🎬
+                            Studio
                         </div>
                         <h3 className="text-xl font-bold mb-2">Start your first masterpiece</h3>
                         <p className="text-gray-400 mb-8">Upload clips and let our AI agents handle the rest.</p>
@@ -147,14 +148,17 @@ export default function DashboardPage() {
                                     className="group relative aspect-[16/9] rounded-2xl overflow-hidden bg-obsidian-900 border border-white/10 hover:border-brand-cyan/50 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-brand-cyan/10"
                                 >
                                     {/* Thumbnail Image */}
-                                    <div className="absolute inset-0">
+                                    <div className="absolute inset-0 relative">
                                         {job.thumbnail_path || job.output_path ? (
-                                            <img
+                                            <Image
                                                 src={job.thumbnail_path
                                                     ? (job.thumbnail_path.startsWith('http') ? job.thumbnail_path : `${API_BASE.replace('/api', '')}/${job.thumbnail_path}`)
                                                     : (job.output_path?.startsWith('http') ? job.output_path : `${API_BASE.replace('/api', '')}/${job.output_path}`)}
                                                 alt={`Project ${job.id}`}
-                                                className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                                                fill
+                                                sizes="(max-width: 1024px) 100vw, 25vw"
+                                                className="object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                                                unoptimized
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center bg-white/5">

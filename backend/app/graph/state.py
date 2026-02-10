@@ -40,8 +40,15 @@ class GraphState(TypedDict):
     
     # Intelligence (Phase 3)
     media_intelligence: Optional[Dict[str, Any]]
+    audio_intelligence: Optional[Dict[str, Any]]
+    
+    # Iteration Control
+    should_revise: bool
+    revision_prompt: Optional[str]
+    iteration_summary: Optional[Dict[str, Any]]
     
     # Execution
     errors: Annotated[List[str], add]
+    output_path: Optional[str]
     tier: str  # "pro" or "standard"
 

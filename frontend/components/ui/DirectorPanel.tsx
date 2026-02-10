@@ -31,7 +31,7 @@ export function DirectorPanel({ pacing, setPacing, mood, setMood, ratio, setRati
         <div className="space-y-6 animate-shimmer bg-gradient-to-br from-white/5 to-white/[0.02] p-6 rounded-xl border border-white/10">
             <div className="flex items-center gap-2 mb-4">
                 <div className="h-2 w-2 rounded-full bg-brand-cyan animate-pulse"></div>
-                <h3 className="text-lg font-semibold text-white">Director's Controls</h3>
+                <h3 className="text-lg font-semibold text-white">Director&apos;s Controls</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

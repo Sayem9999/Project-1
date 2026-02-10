@@ -159,11 +159,11 @@ def create_iteration_node(config: Optional[IterationConfig] = None):
     """
     Create a LangGraph node that manages iteration.
     """
-    from ..state import GraphState
+    from .state import GraphState
     
     controller = IterationController(config)
     
-    def iteration_node(state: GraphState) -> GraphState:
+    def iteration_node(state: GraphState) -> Dict[str, Any]:
         """Node that decides whether to iterate or proceed."""
         qc_result = state.get("qc_result", {})
         qc_score = qc_result.get("score", 0)
@@ -176,7 +176,6 @@ def create_iteration_node(config: Optional[IterationConfig] = None):
             revision_prompt = controller.get_revision_prompt(qc_result)
             
             return {
-                **state,
                 "retry_count": retry_count + 1,
                 "revision_prompt": revision_prompt,
                 "iteration_summary": controller.get_summary(),
@@ -185,7 +184,6 @@ def create_iteration_node(config: Optional[IterationConfig] = None):
         else:
             # Done iterating
             return {
-                **state,
                 "iteration_summary": controller.get_summary(),
                 "should_revise": False,
             }

@@ -6,11 +6,12 @@ from datetime import datetime, timedelta
 from ..db import get_session
 from ..deps import get_current_user
 from ..models import User, Job
+from ..schemas import AdminUserResponse
 from ..services.storage_service import storage_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-@router.get("/users")
+@router.get("/users", response_model=list[AdminUserResponse])
 async def list_users(
     skip: int = 0,
     limit: int = 50,
@@ -23,7 +24,19 @@ async def list_users(
     
     result = await session.execute(select(User).offset(skip).limit(limit))
     users = result.scalars().all()
-    return users
+    return [
+        AdminUserResponse(
+            id=user.id,
+            email=user.email,
+            full_name=user.name,
+            avatar_url=user.avatar_url,
+            credits=user.credits or 0,
+            is_admin=bool(user.is_admin),
+            oauth_provider=user.oauth_provider,
+            created_at=user.created_at
+        )
+        for user in users
+    ]
 
 @router.patch("/users/{user_id}/credits")
 async def update_user_credits(

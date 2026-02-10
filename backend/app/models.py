@@ -53,6 +53,8 @@ class Job(Base):
     media_intelligence: Mapped[dict] = mapped_column(JSON, nullable=True)
     qc_result: Mapped[dict] = mapped_column(JSON, nullable=True)
     director_plan: Mapped[dict] = mapped_column(JSON, nullable=True)
+    brand_safety_result: Mapped[dict] = mapped_column(JSON, nullable=True)
+    ab_test_result: Mapped[dict] = mapped_column(JSON, nullable=True)
 
     # Relationships (if needed in future)
     # user: Mapped["User"] = relationship("User", back_populates="jobs")

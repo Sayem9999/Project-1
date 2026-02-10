@@ -14,6 +14,7 @@ from ..agents import (
     color_agent, qc_agent, metadata_agent, transition_agent,
     vfx_agent, keyframe_agent, thumbnail_agent, script_agent
 )
+from ..agents.base import parse_json_response
 from .memory.hybrid_memory import hybrid_memory
 
 # Redis for progress publishing (optional)
@@ -85,23 +86,22 @@ def publish_progress(job_id: int, status: str, message: str, progress: int = 0):
 
 def parse_json_safe(raw: str) -> dict:
     try:
-        clean = raw.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean)
-    except:
+        return parse_json_response(raw)
+    except Exception:
         return {}
 
 
-async def process_job(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9", tier: str = "pro"):
+async def process_job(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9", tier: str = "pro", platform: str = "youtube", brand_safety: str = "standard"):
     """
     Master Workflow Router
     """
     if tier == "pro":
-        await process_job_pro(job_id, source_path, pacing, mood, ratio)
+        await process_job_pro(job_id, source_path, pacing, mood, ratio, platform, brand_safety)
     else:
-        await process_job_standard(job_id, source_path, pacing, mood, ratio)
+        await process_job_standard(job_id, source_path, pacing, mood, ratio, platform, brand_safety)
 
 
-async def process_job_standard(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9"):
+async def process_job_standard(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9", platform: str = "youtube", brand_safety: str = "standard"):
     """
     [v3.0] Standard Parallel Workflow (Free Tier)
     Fast, efficient, but loose synchronization.
@@ -314,7 +314,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
         publish_progress(job_id, "failed", f"Processing failed: {str(e)[:100]}", 0)
 
 
-async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9"):
+async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9", platform: str = "youtube", brand_safety: str = "standard"):
     """
     [v4.0] Hollywood Pipeline (Pro Tier) - LangGraph + MoviePy
     Hierarchical: Director -> Cutter -> (Visuals/Audio) -> Compiler
@@ -336,7 +336,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         initial_state = {
             "job_id": job_id,
             "source_path": source_path,
-            "user_request": {"pacing": pacing, "mood": mood, "ratio": ratio},
+            "user_request": {"pacing": pacing, "mood": mood, "ratio": ratio, "platform": platform, "brand_safety": brand_safety},
             "tier": "pro",
             "errors": []
         }
@@ -349,21 +349,25 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
             for node_name, state in event.items():
                 final_state = state # Keep track of latest state
                 
-                # Create a human-readable status message from node name
-                node_to_msg = {
-                    "director": "Director Planning...",
-                    "cutter": "AI Smart Cutting...",
-                    "audio": "Post-Production: Audio Mastery...",
-                    "visuals": "Post-Production: Visual Enhancement...",
-                    "validator": "Final Quality Review...",
-                    "compiler": "FFmpeg Master Rendering...",
-                    "iteration_control": "Iterative Improvement Phase..."
+                # Create a human-readable status message and percentage from node name
+                node_to_info = {
+                    "director": {"msg": "Director Planning...", "p": 15},
+                    "brand_safety": {"msg": "Guardian: Brand Safety Check...", "p": 25},
+                    "ab_test": {"msg": "Variant: A/B Test Optimization...", "p": 35},
+                    "cutter": {"msg": "AI Smart Cutting...", "p": 50},
+                    "audio": {"msg": "Audio Mastery...", "p": 65},
+                    "visuals": {"msg": "Visual Enhancement...", "p": 80},
+                    "validator": {"msg": "Quality Review...", "p": 90},
+                    "compiler": {"msg": "Final Rendering...", "p": 95},
                 }
-                msg = node_to_msg.get(node_name, f"Stage: {node_name}")
+                
+                info = node_to_info.get(node_name, {"msg": f"Stage: {node_name}", "p": 50})
+                msg = info["msg"]
+                progress_p = info["p"]
                 
                 # Update DB and Publish
                 await update_status(job_id, "processing", f"[AI] {msg}")
-                publish_progress(job_id, "processing", msg, 50) # Generic 50% for intermediate steps
+                publish_progress(job_id, "processing", msg, progress_p)
         
         if final_state.get("errors"):
             raise Exception(f"Graph Errors: {final_state['errors']}")
@@ -379,6 +383,8 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         media_intelligence = final_state.get("media_intelligence")
         qc_result = final_state.get("qc_result")
         director_plan = final_state.get("director_plan")
+        brand_safety_result = final_state.get("brand_safety_result")
+        ab_test_result = final_state.get("ab_test_result")
         
         await update_status(
             job_id, 
@@ -387,7 +393,9 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
             output_rel_path, 
             media_intelligence=media_intelligence,
             qc_result=qc_result,
-            director_plan=director_plan
+            director_plan=director_plan,
+            brand_safety_result=brand_safety_result,
+            ab_test_result=ab_test_result
         )
         publish_progress(job_id, "complete", completion_msg, 100)
         print(f"[Workflow v4] Job {job_id} complete!")
@@ -408,7 +416,9 @@ async def update_status(
     thumbnail_path: str | None = None,
     media_intelligence: dict | None = None,
     qc_result: dict | None = None,
-    director_plan: dict | None = None
+    director_plan: dict | None = None,
+    brand_safety_result: dict | None = None,
+    ab_test_result: dict | None = None
 ):
     async with AsyncSession(engine) as session:
         job = await session.get(Job, job_id)
@@ -427,5 +437,9 @@ async def update_status(
                 job.qc_result = qc_result
             if director_plan:
                 job.director_plan = director_plan
+            if brand_safety_result:
+                job.brand_safety_result = brand_safety_result
+            if ab_test_result:
+                job.ab_test_result = ab_test_result
                 
             await session.commit()

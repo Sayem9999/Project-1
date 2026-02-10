@@ -56,7 +56,7 @@ export default function DownloadPage() {
         </div>
 
         <h1 className="text-4xl md:text-5xl font-bold text-white text-glow">
-          It's a Wrap! 🎬
+          It&apos;s a Wrap! Studio
         </h1>
 
         <p className="text-lg text-slate-300 leading-relaxed">

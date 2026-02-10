@@ -6,6 +6,9 @@ import MediaStats from '@/components/dashboard/MediaStats';
 import QCScoreBoard from '@/components/dashboard/QCScoreBoard';
 import { ArrowLeft, Download, RotateCcw, Share2, MoreHorizontal, Film, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
 
+import BrandSafetyCard from '@/components/dashboard/BrandSafetyCard';
+import ABTestVariants from '@/components/dashboard/ABTestVariants';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
 interface Job {
@@ -18,6 +21,8 @@ interface Job {
   media_intelligence?: any;
   qc_result?: any;
   director_plan?: any;
+  brand_safety_result?: any;
+  ab_test_result?: any;
 }
 
 export default function JobPage({ params }: { params: Promise<{ id: string }> }) {
@@ -53,7 +58,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
 
   const stages = [
     { key: 'intel', label: 'Intelligence', icon: <Activity className="w-4 h-4" /> },
-    { key: 'director', label: 'Startagy', icon: <Film className="w-4 h-4" /> },
+    { key: 'director', label: 'Strategy', icon: <Film className="w-4 h-4" /> },
     { key: 'platform', label: 'Adaptation', icon: <Share2 className="w-4 h-4" /> },
     { key: 'render', label: 'Rendering', icon: <Download className="w-4 h-4" /> },
     { key: 'qc', label: 'QC & Eval', icon: <CheckCircle2 className="w-4 h-4" /> },
@@ -159,8 +164,8 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
                 return (
                   <div key={stage.key} className="flex flex-col items-center gap-3 relative z-10 flex-1">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-brand-cyan text-black scale-110 shadow-glow' :
-                        isPast ? 'bg-emerald-500 text-black' :
-                          'bg-white/5 text-gray-600'
+                      isPast ? 'bg-emerald-500 text-black' :
+                        'bg-white/5 text-gray-600'
                       }`}>
                       {isPast ? <CheckCircle2 className="w-5 h-5" /> : stage.icon}
                     </div>
@@ -235,6 +240,20 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
               <QCScoreBoard qcResult={job.qc_result} />
             </div>
           </div>
+
+          {/* Brand Safety */}
+          {job.brand_safety_result && (
+            <div className="glass-panel rounded-2xl overflow-hidden border border-white/5 transition-all duration-300 hover:border-emerald-500/20">
+              <BrandSafetyCard result={job.brand_safety_result} />
+            </div>
+          )}
+
+          {/* A/B Variants */}
+          {job.ab_test_result && (
+            <div className="glass-panel rounded-2xl overflow-hidden border border-white/5 transition-all duration-300 hover:border-brand-violet/20">
+              <ABTestVariants result={job.ab_test_result} />
+            </div>
+          )}
         </div>
       </div>
     </div>

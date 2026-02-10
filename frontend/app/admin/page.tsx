@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Video, HardDrive, Activity, LayoutDashboard, Search, Edit2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,7 +40,7 @@ export default function AdminDashboardPage() {
     const [error, setError] = useState<string | null>(null);
     const [editingCredits, setEditingCredits] = useState<{ id: number; credits: number } | null>(null);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/login');
@@ -72,11 +72,11 @@ export default function AdminDashboardPage() {
             setError(err.message);
             setLoading(false);
         }
-    };
+    }, [router]);
 
     useEffect(() => {
         fetchData();
-    }, [router]);
+    }, [fetchData]);
 
     const handleUpdateCredits = async (userId: number, newCredits: number) => {
         const token = localStorage.getItem('token');

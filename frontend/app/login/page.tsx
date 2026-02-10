@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
@@ -67,7 +68,7 @@ function LoginForm() {
   return (
     <div className="w-full max-w-md">
       <Link href="/" className="flex items-center justify-center gap-3 mb-10">
-        <img src="/logo.svg" alt="Proedit" className="w-12 h-12" />
+        <Image src="/logo.svg" alt="Proedit" width={48} height={48} className="w-12 h-12" priority />
         <span className="text-2xl font-bold">
           <span className="text-white">Pro</span>
           <span className="text-cyan-400">edit</span>
@@ -75,7 +76,7 @@ function LoginForm() {
       </Link>
 
       <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-        <h1 className="text-2xl font-bold text-white text-center mb-2">Welcome back</h1>
+        <h1 className="text-2xl font-bold text-white text-center mb-2">Sign in</h1>
         <p className="text-gray-400 text-center mb-6">Sign in to your account</p>
 
         {info && (
@@ -90,10 +91,17 @@ function LoginForm() {
           className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-white rounded-xl text-gray-900 font-medium hover:bg-gray-100 transition-all hover:scale-[1.02] active:scale-[0.98]"
         >
           {oauthLoading ? (
-            <span className="animate-spin text-xl">⟳</span>
+            <span className="animate-spin text-xl">...</span>
           ) : (
             <>
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-5 h-5" />
+              <Image
+                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                alt=""
+                width={20}
+                height={20}
+                className="w-5 h-5"
+                unoptimized
+              />
               Continue with Google
             </>
           )}
@@ -146,7 +154,7 @@ function LoginForm() {
         </button>
 
         <p className="text-center text-sm text-gray-400 mt-4">
-          Don't have an account?{' '}
+          Don&apos;t have an account{' '}
           <Link href="/signup" className="text-cyan-400 hover:underline">Sign up</Link>
         </p>
       </div>
@@ -171,7 +179,6 @@ export default function LoginPage() {
             href="/"
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
           >
-            <span>←</span>
             <span>Back</span>
           </Link>
         </div>

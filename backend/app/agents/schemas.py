@@ -228,7 +228,7 @@ class BrandSafetyOutput(BaseModel):
 # A/B Test Agent
 class Variant(BaseModel):
     id: str
-    type: Literal["opening", "title", "thumbnail"]
+    type: Literal["opening", "title", "thumbnail", "hook"]
     content: dict
     predicted_performance: float = Field(..., ge=0, le=1)
 

@@ -1,6 +1,7 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -59,7 +60,7 @@ export default function TopBar() {
             <div className="flex items-center gap-6">
                 {/* Credits Badge */}
                 <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-obsidian-800/50 border border-white/5 text-xs font-semibold text-slate-300 shadow-sm backdrop-blur-sm">
-                    <span className="text-amber-400 text-base">🪙</span>
+                    <span className="text-amber-400 text-base">CR</span>
                     <span className="font-mono tracking-wider">{credits !== null ? credits : '...'} CR</span>
                     <div className="w-px h-3 bg-white/10 mx-2" />
                     <button className="text-brand-cyan hover:text-white transition-colors" title="Buy Credits">
@@ -84,7 +85,14 @@ export default function TopBar() {
 
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-cyan to-brand-violet p-[1px]">
                         <div className="w-full h-full rounded-xl bg-obsidian-900 overflow-hidden">
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" className="w-full h-full object-cover" />
+                            <Image
+                                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
+                                alt="User"
+                                width={40}
+                                height={40}
+                                className="w-full h-full object-cover"
+                                unoptimized
+                            />
                         </div>
                     </div>
                 </div>

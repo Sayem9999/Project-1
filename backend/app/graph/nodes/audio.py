@@ -1,6 +1,6 @@
 from ..state import GraphState
 from ...agents import audio_agent
-from ...services.audio_intelligence import AudioAnalyzer
+from ...services.audio_intelligence import audio_intelligence
 import json
 import structlog
 
@@ -60,14 +60,13 @@ async def _get_audio_intelligence(source_path: str) -> dict:
         return {}
     
     try:
-        analyzer = AudioAnalyzer()
-        profile = await analyzer.analyze(source_path)
+        profile = await audio_intelligence.analyze(source_path)
         
         return {
-            "integrated_loudness": profile.get("integrated_loudness", -23),
-            "true_peak": profile.get("true_peak", -1),
-            "ducking_segments": profile.get("ducking_segments", []),
-            "noise_floor": profile.get("noise_floor", -60),
+            "integrated_loudness": profile.overall_lufs,
+            "true_peak": profile.overall_peak,
+            "ducking_segments": [(s, e) for s, e in profile.speech_regions],
+            "noise_floor": -60,
         }
     except Exception as e:
         logger.warning("audio_analysis_failed", error=str(e))

@@ -71,6 +71,7 @@ async def lifespan(app: FastAPI):
     from .tasks.cleanup import run_cleanup_task
     asyncio.create_task(periodic_cleanup_wrapper(run_cleanup_task))
     
+    logger.info("startup_ready")
     yield
 
 async def periodic_cleanup_wrapper(task_func):

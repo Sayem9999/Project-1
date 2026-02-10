@@ -25,6 +25,7 @@ export default function LandingPage() {
             <span className="text-xl font-bold tracking-tight">Proedit<span className="text-brand-cyan">.ai</span></span>
           </Link>
           <div className="flex items-center gap-4">
+            <Link href="/pricing" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Pricing</Link>
             <Link href="/login" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Login</Link>
             <Link href="/signup">
               <Button size="sm" variant="primary">Get Started</Button>
@@ -148,7 +149,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="py-32 container mx-auto px-6 text-center relative z-10">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-4xl lg:text-5xl font-bold mb-6">Ready to upgrade your workflow?</h2>
+          <h2 className="text-4xl lg:text-5xl font-bold mb-6">Ready to upgrade your workflow(c)</h2>
           <p className="text-xl text-gray-400 mb-10">
             Join thousands of creators saving hours on every video.
           </p>
@@ -163,7 +164,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-12 bg-black/50">
         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
-          <p>© 2026 Proedit.ai. All rights reserved.</p>
+          <p>(c) 2026 Proedit.ai. All rights reserved.</p>
           <div className="flex gap-6 mt-4 md:mt-0">
             <a href="#" className="hover:text-white transition-colors">Privacy</a>
             <a href="#" className="hover:text-white transition-colors">Terms</a>

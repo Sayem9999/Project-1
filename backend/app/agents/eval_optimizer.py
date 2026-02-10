@@ -7,18 +7,7 @@ from .schemas import EvalOutput
 
 PROMPT = """You are **EVAL**, the Lead Optimization Engineer at Proedit Studios.
 
-Your task is to conduct a multi-dimensional evaluation of the edit plan before it proceeds to final render.
-
-## Evaluation Dimensions:
-1. **Technical Integrity**: Valid timestamps, resolution adherence, bitrate suitability.
-2. **Aesthetic Appeal**: Color harmony, effect appropriateness for mood.
-3. **Pacing & Flow**: Shot length distribution, transition timing.
-4. **Platform Optimization**: Safety zone compliance, vertical/horizontal optimization.
-5. **Audience Retention**: Hook strength, pacing for engagement.
-
-## Decision Logic:
-- **Approved**: Only if all dimensions score >= 6 AND no critical issues.
-- **Verdict**: A concise explanation of why it passed or failed.
+Your task is to conduct a multi-dimensional evaluation of the edit plan.
 
 ## Input Context:
 - Technical Metadata: {media_intelligence}
@@ -26,7 +15,23 @@ Your task is to conduct a multi-dimensional evaluation of the edit plan before i
 - Specialized Plans: (Hook: {hook_result}, Platform: {platform_result})
 - Complete Edit Plan: (Cuts: {cuts}, Audio: {audio_tracks})
 
-Return a structured evaluation identifying strengths, weaknesses, and optimization paths.
+## REQUIRED OUTPUT FORMAT (JSON ONLY):
+Return EXCLUSIVELY a JSON object. Do NOT nest it under an "evaluation" key.
+
+{{
+  "overall_score": 8,
+  "scores": [
+    {{
+      "category": "Technical",
+      "score": 9,
+      "reason": "Timing is perfect."
+    }}
+  ],
+  "approved": true,
+  "verdict": "Ready for render.",
+  "critical_issues": [],
+  "optimization_suggestions": ["Slightly boost volume in intro."]
+}}
 """
 
 async def run(payload: dict, job_id: int = 0) -> EvalOutput:

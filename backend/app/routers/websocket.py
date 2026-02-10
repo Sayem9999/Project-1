@@ -9,7 +9,7 @@ import redis.asyncio as redis
 
 router = APIRouter()
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.getenv("REDIS_URL")
 
 
 @router.websocket("/ws/jobs/{job_id}")

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
@@ -82,7 +83,6 @@ export default function SignupPage() {
             href="/"
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
           >
-            <span>←</span>
             <span>Back</span>
           </Link>
         </div>
@@ -90,7 +90,7 @@ export default function SignupPage() {
         <div className="w-full max-w-md">
           {/* Logo */}
           <Link href="/" className="flex items-center justify-center gap-3 mb-10">
-            <img src="/logo.svg" alt="Proedit" className="w-12 h-12" />
+            <Image src="/logo.svg" alt="Proedit" width={48} height={48} className="w-12 h-12" priority />
             <span className="text-2xl font-bold">
               <span className="text-white">Pro</span>
               <span className="text-cyan-400">edit</span>
@@ -104,7 +104,7 @@ export default function SignupPage() {
 
             {/* Free Badge */}
             <div className="flex items-center justify-center gap-2 mb-6 py-2.5 px-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-              <span className="text-emerald-400">✓</span>
+              <span className="text-emerald-400">Check</span>
               <span className="text-sm text-emerald-400">5 free renders included</span>
             </div>
 
@@ -115,10 +115,17 @@ export default function SignupPage() {
               className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-white rounded-xl text-gray-900 font-medium hover:bg-gray-100 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               {oauthLoading ? (
-                <span className="animate-spin text-xl">⟳</span>
+                <span className="animate-spin text-xl">...</span>
               ) : (
                 <>
-                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-5 h-5" />
+                  <Image
+                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="w-5 h-5"
+                    unoptimized
+                  />
                   Sign up with Google
                 </>
               )}
@@ -144,9 +151,9 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3.5 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-                placeholder="Password (min 6 characters)"
+                placeholder="Password (min 8 chars, 1 uppercase, 1 lowercase, 1 digit)"
                 required
-                minLength={6}
+                minLength={8}
               />
 
               {error && (
@@ -177,7 +184,7 @@ export default function SignupPage() {
             </p>
 
             <p className="text-center text-sm text-gray-400 mt-4">
-              Already have an account?{' '}
+              Already have an account{' '}
               <Link href="/login" className="text-cyan-400 hover:underline">Sign in</Link>
             </p>
           </div>
