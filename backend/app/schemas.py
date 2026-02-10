@@ -65,6 +65,8 @@ class JobResponse(BaseModel):
     id: int
     status: JobStatus
     theme: str
+    tier: str | None = None
+    credits_cost: int | None = None
     progress_message: str
     output_path: str | None
     thumbnail_path: str | None

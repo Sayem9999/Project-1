@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     rate_limit_enabled: bool = True
     credits_enabled: bool = True
+    monthly_credits_default: int = 10
     sentry_dsn: str | None = None
     redis_url: str | None = None
     

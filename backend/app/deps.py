@@ -6,6 +6,7 @@ import jwt
 from .config import settings
 from .db import get_session
 from .models import User
+from .services.credits import ensure_monthly_credits
 
 security = HTTPBearer()
 
@@ -23,4 +24,5 @@ async def get_current_user(
     user = await session.scalar(select(User).where(User.id == user_id))
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    await ensure_monthly_credits(user, session)
     return user

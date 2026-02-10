@@ -51,7 +51,13 @@ async def upload_video(
     
     source_path = await storage_service.save_upload(file)
     
-    job = Job(user_id=current_user.id, source_path=source_path, theme=theme)
+    job = Job(
+        user_id=current_user.id,
+        source_path=source_path,
+        theme=theme,
+        tier=tier,
+        credits_cost=COST_PER_JOB
+    )
     session.add(job)
     
     # Deduct credits if enabled

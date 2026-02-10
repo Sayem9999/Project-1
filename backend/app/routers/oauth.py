@@ -92,6 +92,8 @@ async def google_callback(code: str = Query(...)):
                     oauth_id=str(userinfo["id"]),
                     name=userinfo.get("name"),
                     avatar_url=userinfo.get("picture"),
+                    monthly_credits=settings.monthly_credits_default,
+                    credits=settings.monthly_credits_default,
                 )
                 session.add(user)
         
@@ -104,7 +106,7 @@ async def google_callback(code: str = Query(...)):
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "name": user.name,
+                "full_name": user.name,
                 "avatar_url": user.avatar_url,
             }
         }

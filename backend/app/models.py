@@ -1,8 +1,8 @@
 from __future__ import annotations
 import enum
 from typing import Optional, Union
-from datetime import datetime
-from sqlalchemy import String, DateTime, Enum, ForeignKey, Text, Column, Integer, JSON
+from datetime import datetime, date
+from sqlalchemy import String, DateTime, Date, Enum, ForeignKey, Text, Column, Integer, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
@@ -28,6 +28,8 @@ class User(Base):
     avatar_url: Mapped[str] = mapped_column(String(500), nullable=True)
     
     credits: Mapped[int] = mapped_column(Integer, default=10)
+    monthly_credits: Mapped[int] = mapped_column(Integer, default=10)
+    last_credit_reset: Mapped[date] = mapped_column(Date, nullable=True)
     is_admin: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -45,6 +47,8 @@ class Job(Base):
     thumbnail_path: Mapped[str] = mapped_column(Text, nullable=True)
     status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.queued, nullable=False)
     theme: Mapped[str] = mapped_column(String, default="professional", nullable=False)
+    tier: Mapped[str] = mapped_column(String(50), default="standard", nullable=False)
+    credits_cost: Mapped[int] = mapped_column(Integer, default=1)
     progress_message: Mapped[str] = mapped_column(Text, default="Upload complete, waiting for processing.")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -7,6 +7,7 @@ from ..schemas import RegisterRequest, LoginRequest, TokenResponse, UserResponse
 from ..security import hash_password, verify_password, generate_access_token
 from ..errors import AuthError, AppBaseException, ErrorCode
 from ..deps import get_current_user
+from ..config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -17,7 +18,12 @@ async def signup(payload: RegisterRequest, session: AsyncSession = Depends(get_s
     if existing:
         raise AppBaseException(status.HTTP_400_BAD_REQUEST, ErrorCode.EMAIL_ALREADY_EXISTS, "Email already registered")
 
-    user = User(email=payload.email, password_hash=hash_password(payload.password))
+    user = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        monthly_credits=settings.monthly_credits_default,
+        credits=settings.monthly_credits_default,
+    )
     session.add(user)
     await session.commit()
     await session.refresh(user)
