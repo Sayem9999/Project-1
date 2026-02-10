@@ -1,176 +1,298 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Video, HardDrive, Activity } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Users, Video, HardDrive, Activity, LayoutDashboard, Search, Edit2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as Sentry from "@sentry/nextjs";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
 interface SystemStats {
-    users: {
-        total: number;
-    };
-    jobs: {
-        total: number;
-        recent_24h: number;
-    };
-    storage: {
-        bytes: number;
-        files: number;
-        percent: number;
-        limit_gb: number;
-        used_gb: number;
-    };
+    users: { total: number };
+    jobs: { total: number; recent_24h: number };
+    storage: { used_gb: number; limit_gb: number; percent: number; files: number };
+}
+
+interface UserData {
+    id: number;
+    email: string;
+    name: string | null;
+    credits: number;
+    created_at: string;
+}
+
+interface JobData {
+    id: number;
+    user_id: number;
+    status: string;
+    progress_message: string;
+    theme: string;
+    created_at: string;
 }
 
 export default function AdminDashboardPage() {
     const router = useRouter();
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs'>('overview');
     const [stats, setStats] = useState<SystemStats | null>(null);
+    const [users, setUsers] = useState<UserData[]>([]);
+    const [jobs, setJobs] = useState<JobData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [editingCredits, setEditingCredits] = useState<{ id: number; credits: number } | null>(null);
 
-    // ...
-
-    // ...
-
-    useEffect(() => {
+    const fetchData = async () => {
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/login');
             return;
         }
 
-        Sentry.startSpan({
-            name: "fetch-admin-stats",
-            op: "http.client",
-        }, async (span) => {
-            try {
-                const res = await fetch(`${API_BASE}/admin/stats`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
+        try {
+            const [statsRes, usersRes, jobsRes] = await Promise.all([
+                fetch(`${API_BASE}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+                fetch(`${API_BASE}/admin/users`, { headers: { Authorization: `Bearer ${token}` } }),
+                fetch(`${API_BASE}/admin/jobs`, { headers: { Authorization: `Bearer ${token}` } })
+            ]);
 
-                if (res.status === 403) throw new Error('Access Denied');
-                if (!res.ok) throw new Error('Failed to fetch stats');
+            if (statsRes.status === 403) throw new Error('Access Denied');
+            if (!statsRes.ok || !usersRes.ok || !jobsRes.ok) throw new Error('Failed to fetch admin data');
 
-                const data = await res.json();
-                setStats(data);
-                setLoading(false);
-            } catch (err: any) {
-                Sentry.captureException(err);
-                setError(err.message);
-                setLoading(false);
-            }
-        });
+            const [statsData, usersData, jobsData] = await Promise.all([
+                statsRes.json(),
+                usersRes.json(),
+                jobsRes.json()
+            ]);
+
+            setStats(statsData);
+            setUsers(usersData);
+            setJobs(jobsData);
+            setLoading(false);
+        } catch (err: any) {
+            Sentry.captureException(err);
+            setError(err.message);
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
     }, [router]);
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-[50vh]">
-                <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
-    }
+    const handleUpdateCredits = async (userId: number, newCredits: number) => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_BASE}/admin/users/${userId}/credits?credits=${newCredits}`, {
+                method: 'PATCH',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+                setEditingCredits(null);
+                fetchData();
+            }
+        } catch (err) {
+            console.error("Failed to update credits", err);
+        }
+    };
 
-    if (error) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
-                    <Activity className="w-8 h-8 text-red-400" />
-                </div>
-                <h2 className="text-xl font-bold text-white mb-2">Error Loading Dashboard</h2>
-                <p className="text-gray-400">{error}</p>
-            </div>
-        );
-    }
-
-    if (!stats) return null;
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white mb-2">System Overview</h1>
-                <p className="text-gray-400">Monitor system performance and resource usage</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                <div>
+                    <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">Admin Console</h1>
+                    <p className="text-gray-400">Holistic system management and monitoring</p>
+                </div>
+
+                <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-white/5">
+                    {[
+                        { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+                        { id: 'users', label: 'Users', icon: Users },
+                        { id: 'jobs', label: 'Jobs', icon: Video },
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as any)}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.id
+                                    ? 'bg-gradient-to-r from-cyan-500 to-violet-500 text-white shadow-lg shadow-cyan-500/20'
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            <tab.icon className="w-4 h-4" />
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Users Card */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-6 bg-[#12121a] border border-white/10 rounded-2xl relative overflow-hidden group hover:border-cyan-500/30 transition-colors"
-                >
-                    <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <Users className="w-24 h-24 text-cyan-500" />
-                    </div>
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="p-3 bg-cyan-500/10 rounded-xl">
-                            <Users className="w-6 h-6 text-cyan-400" />
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-200">Total Users</h3>
-                    </div>
-                    <div className="text-4xl font-bold text-white mb-1">{stats.users.total}</div>
-                    <p className="text-sm text-gray-500">Registered accounts</p>
-                </motion.div>
+            <AnimatePresence mode="wait">
+                {activeTab === 'overview' && stats && (
+                    <motion.div
+                        key="overview"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                    >
+                        {/* Stats Cards rendered similarly to original but with enhanced style */}
+                        <StatCard icon={Users} title="Total Users" value={stats.users.total} subtext="Registered accounts" color="cyan" />
+                        <StatCard icon={Video} title="Total Jobs" value={stats.jobs.total} subtext={`+${stats.jobs.recent_24h} in 24h`} color="violet" />
+                        <StatCard
+                            icon={HardDrive}
+                            title="Cloud Storage"
+                            value={`${stats.storage.used_gb} GB`}
+                            subtext={`${stats.storage.percent}% of ${stats.storage.limit_gb}GB`}
+                            color="emerald"
+                            progress={stats.storage.percent}
+                        />
+                    </motion.div>
+                )}
 
-                {/* Jobs Card */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="p-6 bg-[#12121a] border border-white/10 rounded-2xl relative overflow-hidden group hover:border-violet-500/30 transition-colors"
-                >
-                    <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <Video className="w-24 h-24 text-violet-500" />
-                    </div>
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="p-3 bg-violet-500/10 rounded-xl">
-                            <Video className="w-6 h-6 text-violet-400" />
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-200">Total Jobs</h3>
-                    </div>
-                    <div className="text-4xl font-bold text-white mb-1">{stats.jobs.total}</div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span className="text-emerald-400 font-medium">+{stats.jobs.recent_24h}</span>
-                        <span>in last 24h</span>
-                    </div>
-                </motion.div>
+                {activeTab === 'users' && (
+                    <motion.div
+                        key="users"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="bg-slate-900/30 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl"
+                    >
+                        <table className="w-full text-left">
+                            <thead className="bg-white/5 text-gray-400 text-xs font-bold uppercase tracking-widest border-b border-white/5">
+                                <tr>
+                                    <th className="px-6 py-4">User</th>
+                                    <th className="px-6 py-4">Credits</th>
+                                    <th className="px-6 py-4">Created</th>
+                                    <th className="px-6 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {users.map(user => (
+                                    <tr key={user.id} className="hover:bg-white/5 transition-colors">
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/20">
+                                                    {user.email[0].toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white font-medium">{user.name || 'Anonymous'}</p>
+                                                    <p className="text-xs text-gray-500">{user.email}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            {editingCredits?.id === user.id ? (
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="number"
+                                                        value={editingCredits.credits}
+                                                        onChange={(e) => setEditingCredits({ ...editingCredits, credits: parseInt(e.target.value) })}
+                                                        className="w-20 bg-black border border-white/20 rounded px-2 py-1 text-white text-sm"
+                                                    />
+                                                    <button onClick={() => handleUpdateCredits(user.id, editingCredits.credits)} className="text-emerald-400 text-xs hover:underline">Save</button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-amber-400 font-bold font-mono">{user.credits}</span>
+                                                    <button onClick={() => setEditingCredits({ id: user.id, credits: user.credits })} className="text-gray-600 hover:text-white transition-colors">
+                                                        <Edit2 className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-5 text-gray-400 text-sm">
+                                            {new Date(user.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            <button className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors">View Details</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </motion.div>
+                )}
 
-                {/* Storage Card */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="p-6 bg-[#12121a] border border-white/10 rounded-2xl relative overflow-hidden group hover:border-emerald-500/30 transition-colors"
-                >
-                    <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <HardDrive className="w-24 h-24 text-emerald-500" />
-                    </div>
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="p-3 bg-emerald-500/10 rounded-xl">
-                            <HardDrive className="w-6 h-6 text-emerald-400" />
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-200">Storage Usage</h3>
-                    </div>
-                    <div className="mb-4">
-                        <div className="flex items-end gap-2 mb-1">
-                            <span className="text-4xl font-bold text-white">{stats.storage.used_gb}</span>
-                            <span className="text-lg text-gray-400 mb-1">/ {stats.storage.limit_gb} GB</span>
-                        </div>
-                        <p className="text-sm text-gray-500">{stats.storage.files} files tracked</p>
-                    </div>
+                {activeTab === 'jobs' && (
+                    <motion.div
+                        key="jobs"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="bg-slate-900/30 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl"
+                    >
+                        <table className="w-full text-left">
+                            <thead className="bg-white/5 text-gray-400 text-xs font-bold uppercase tracking-widest border-b border-white/5">
+                                <tr>
+                                    <th className="px-6 py-4">Job ID</th>
+                                    <th className="px-6 py-4">Status</th>
+                                    <th className="px-6 py-4">Theme</th>
+                                    <th className="px-6 py-4">Message</th>
+                                    <th className="px-6 py-4">Created</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {jobs.map(job => (
+                                    <tr key={job.id} className="hover:bg-white/5 transition-colors">
+                                        <td className="px-6 py-5 font-mono text-cyan-400 text-sm">#{job.id}</td>
+                                        <td className="px-6 py-5">
+                                            <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase border ${job.status === 'complete' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+                                                    job.status === 'failed' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
+                                                        'bg-cyan-500/10 border-cyan-500/30 text-cyan-400 animate-pulse'
+                                                }`}>
+                                                {job.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5 text-gray-300 text-sm capitalize">{job.theme}</td>
+                                        <td className="px-6 py-5 text-gray-400 text-xs italic max-w-xs truncate">{job.progress_message}</td>
+                                        <td className="px-6 py-5 text-gray-500 text-xs">
+                                            {new Date(job.created_at).toLocaleString()}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
 
-                    {/* Progress Bar */}
-                    <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
-                        <div
-                            className={`h-full rounded-full transition-all duration-1000 ${stats.storage.percent > 80 ? 'bg-red-500' :
-                                stats.storage.percent > 50 ? 'bg-yellow-500' : 'bg-emerald-500'
-                                }`}
-                            style={{ width: `${Math.min(stats.storage.percent, 100)}%` }}
+function StatCard({ icon: Icon, title, value, subtext, color, progress }: any) {
+    const colors = {
+        cyan: "from-cyan-500/20 to-cyan-500/5 border-cyan-500/30 text-cyan-400",
+        violet: "from-violet-500/20 to-violet-500/5 border-violet-500/30 text-violet-400",
+        emerald: "from-emerald-500/20 to-emerald-500/5 border-emerald-500/30 text-emerald-400",
+    };
+
+    return (
+        <div className={`p-8 bg-gradient-to-br ${colors[color as keyof typeof colors]} border rounded-3xl relative overflow-hidden group`}>
+            <div className={`absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity`}>
+                <Icon className="w-24 h-24" />
+            </div>
+            <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-white/5 rounded-lg border border-white/10">
+                        <Icon className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-gray-300 font-medium">{title}</h3>
+                </div>
+                <div className="text-5xl font-black text-white mb-2 tracking-tighter">{value}</div>
+                <p className="text-sm text-gray-500 font-medium">{subtext}</p>
+
+                {progress !== undefined && (
+                    <div className="mt-6 w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress}%` }}
+                            className={`h-full rounded-full ${progress > 80 ? 'bg-red-500' : 'bg-current'}`}
                         />
                     </div>
-                    <p className="text-xs text-right text-gray-500 mt-2">{stats.storage.percent}% used</p>
-                </motion.div>
+                )}
             </div>
         </div>
     );

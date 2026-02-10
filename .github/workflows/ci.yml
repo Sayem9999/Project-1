@@ -168,7 +168,7 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/testdb
         run: |
           cd backend
-          alembic check || echo "Has pending migrations"
+          alembic check
 
   security-scan:
     name: Security Scan

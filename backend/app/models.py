@@ -28,6 +28,7 @@ class User(Base):
     avatar_url: Mapped[str] = mapped_column(String(500), nullable=True)
     
     credits: Mapped[int] = mapped_column(Integer, default=10)
+    is_admin: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships

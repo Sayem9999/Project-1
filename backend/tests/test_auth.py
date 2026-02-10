@@ -20,7 +20,8 @@ async def test_signup_duplicate_email(client: AsyncClient):
     # Second signup
     response = await client.post("/api/auth/signup", json=payload)
     assert response.status_code == 400
-    assert response.json()["detail"] == "Email already registered"
+    assert response.json()["detail"]["message"] == "Email already registered"
+    assert response.json()["detail"]["error_code"] == "email_already_exists"
 
 @pytest.mark.asyncio
 async def test_login(client: AsyncClient):
@@ -40,7 +41,8 @@ async def test_login_invalid_credentials(client: AsyncClient):
     login_payload = {"email": "nonexistent@example.com", "password": "wrongpassword"}
     response = await client.post("/api/auth/login", json=login_payload)
     assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid credentials"
+    assert response.json()["detail"]["message"] == "Invalid credentials"
+    assert response.json()["detail"]["error_code"] == "auth_failed"
 
 @pytest.mark.asyncio
 async def test_me_endpoint(client: AsyncClient):

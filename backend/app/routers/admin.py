@@ -10,11 +10,65 @@ from ..services.storage_service import storage_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+@router.get("/users")
+async def list_users(
+    skip: int = 0,
+    limit: int = 50,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+    
+    result = await session.execute(select(User).offset(skip).limit(limit))
+    users = result.scalars().all()
+    return users
+
+@router.patch("/users/{user_id}/credits")
+async def update_user_credits(
+    user_id: int,
+    credits: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+        
+    user = await session.get(User, user_id)
+    if not user:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.credits = credits
+    await session.commit()
+    return {"status": "ok", "new_credits": user.credits}
+
+@router.get("/jobs")
+async def list_all_jobs(
+    skip: int = 0,
+    limit: int = 50,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+        
+    result = await session.execute(select(Job).order_by(Job.created_at.desc()).offset(skip).limit(limit))
+    jobs = result.scalars().all()
+    return jobs
+
 @router.get("/stats")
 async def get_admin_stats(
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
+    if not current_user.is_admin:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+
     # Total Users
     user_count = (await session.execute(select(func.count(User.id)))).scalar() or 0
     
@@ -28,8 +82,6 @@ async def get_admin_stats(
     )).scalar() or 0
     
     # Storage Stats
-    # Note: This might be slow if there are many files in S3 and we list them all.
-    # In production, this should be cached or fetched from a separate metrics service.
     storage_stats = storage_service.get_storage_usage()
     
     return {

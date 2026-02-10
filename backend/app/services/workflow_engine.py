@@ -340,9 +340,27 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         }
         
         # Run Graph
-        # We can use astream to get updates, but invoke is simpler for now
-        print("[Graph] Invoking workflow...")
-        final_state = await graph_app.ainvoke(initial_state)
+        print("[Graph] Streaming workflow...")
+        final_state = {}
+        async for event in graph_app.astream(initial_state):
+            for node_name, state in event.items():
+                final_state = state # Keep track of latest state
+                
+                # Create a human-readable status message from node name
+                node_to_msg = {
+                    "director": "Director Planning...",
+                    "cutter": "AI Smart Cutting...",
+                    "audio": "Post-Production: Audio Mastery...",
+                    "visuals": "Post-Production: Visual Enhancement...",
+                    "validator": "Final Quality Review...",
+                    "compiler": "FFmpeg Master Rendering...",
+                    "iteration_control": "Iterative Improvement Phase..."
+                }
+                msg = node_to_msg.get(node_name, f"Stage: {node_name}")
+                
+                # Update DB and Publish
+                await update_status(job_id, "processing", f"[AI] {msg}")
+                publish_progress(job_id, "processing", msg, 50) # Generic 50% for intermediate steps
         
         if final_state.get("errors"):
             raise Exception(f"Graph Errors: {final_state['errors']}")

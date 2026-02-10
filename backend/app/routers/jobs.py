@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
+from ..errors import CreditError, NotFoundError, ErrorCode, AppBaseException
 from ..deps import get_current_user
 from ..models import Job, User
 from ..schemas import JobResponse
@@ -41,7 +42,7 @@ async def upload_video(
     # Monetization Check
     COST_PER_JOB = 2 if tier == "pro" else 1
     if (current_user.credits or 0) < COST_PER_JOB:
-        raise HTTPException(status_code=402, detail=f"Insufficient credits. {tier.title()} edit requires {COST_PER_JOB} credits.")
+        raise CreditError(f"Insufficient credits. {tier.title()} edit requires {COST_PER_JOB} credits.")
     
     source_path = await storage_service.save_upload(file)
     
@@ -102,7 +103,7 @@ async def get_storage_usage(current_user: User = Depends(get_current_user)):
 async def get_job(job_id: int, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise NotFoundError("Job not found")
     return JobResponse.model_validate(job, from_attributes=True)
 
 
@@ -110,7 +111,7 @@ async def get_job(job_id: int, current_user: User = Depends(get_current_user), s
 async def download_output(job_id: int, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
     if not job or not job.output_path:
-        raise HTTPException(status_code=404, detail="Rendered file unavailable")
+        raise NotFoundError("Rendered file unavailable")
     
     # R2 URL redirect
     if job.output_path.startswith("http"):

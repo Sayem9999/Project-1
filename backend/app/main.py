@@ -13,19 +13,93 @@ from .logging_config import configure_logging
 
 import os
 
+from contextlib import asynccontextmanager
+
 # Configure Logging
 configure_logging()
 logger = structlog.get_logger()
 
-# Initialize Sentry
-if settings.sentry_dsn:
-    sentry_sdk.init(
-        dsn=settings.sentry_dsn,
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Validate settings at startup
+    settings.validate_required_settings()
+    
+    logger.info("startup_config",
+        gemini_key_present=bool(settings.gemini_api_key),
+        openai_key_present=bool(settings.openai_api_key),
+        groq_key_present=bool(settings.groq_api_key),
+        google_oauth_configured=bool(settings.google_client_id),
+        redis_url_present=bool(os.getenv('REDIS_URL')),
+        r2_storage_configured=bool(settings.r2_account_id)
     )
+    
+    # Ensure storage directories
+    os.makedirs("storage", exist_ok=True)
+    os.makedirs("storage/uploads", exist_ok=True)
+    os.makedirs("storage/outputs", exist_ok=True)
+    
+    # Migrate using Alembic
+    logger.info("startup_migrations_start")
+    try:
+        from alembic.config import Config
+        from alembic import command
+        
+        def run_migrations():
+            alembic_cfg = Config("alembic.ini")
+            db_url = settings.database_url
+            if db_url:
+                if db_url.startswith("postgres://"):
+                    db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+                elif db_url.startswith("postgresql://") and "asyncpg" not in db_url:
+                    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+                elif db_url.startswith("sqlite://") and "aiosqlite" not in db_url:
+                    db_url = db_url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+            
+            alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+            command.upgrade(alembic_cfg, "head")
+        
+        from concurrent.futures import ThreadPoolExecutor
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor() as pool:
+            await loop.run_in_executor(pool, run_migrations)
+        
+        logger.info("startup_migrations_complete")
+    except Exception as e:
+        logger.error("startup_migrations_failed", error=str(e))
 
-app = FastAPI(title=settings.app_name)
+    # Schedule background tasks
+    from .tasks.cleanup import run_cleanup_task
+    asyncio.create_task(periodic_cleanup_wrapper(run_cleanup_task))
+    
+    yield
+
+async def periodic_cleanup_wrapper(task_func):
+    """Run cleanup every 24 hours."""
+    while True:
+        try:
+            # Wait for 1 hour between checks/start
+            await asyncio.sleep(60 * 60)
+            await task_func()
+        except Exception as e:
+            logger.error("background_task_failed", error=str(e))
+            await asyncio.sleep(60 * 5) # Retry after 5 min on error
+
+app = FastAPI(
+    title=settings.app_name,
+    lifespan=lifespan
+)
+
+@app.get("/health")
+async def health() -> dict[str, Any]:
+    return {
+        "status": "healthy",
+        "environment": settings.environment,
+        "version": "1.0.0"
+    }
+
+@app.get("/ready")
+async def ready() -> dict[str, str]:
+    return {"status": "ready"}
 
 # CORS configuration - allow frontend origins
 # Regex to match any Vercel deployment for this project
@@ -92,76 +166,6 @@ async def logging_middleware(request: Request, call_next):
         raise
 
 
-@app.on_event("startup")
-async def startup() -> None:
-    import os
-    logger.info("startup_config",
-        gemini_key_present=bool(settings.gemini_api_key),
-        openai_key_present=bool(settings.openai_api_key),
-        groq_key_present=bool(settings.groq_api_key),
-        google_oauth_configured=bool(settings.google_client_id),
-        redis_url_present=bool(os.getenv('REDIS_URL')),
-        r2_storage_configured=bool(settings.r2_account_id)
-    )
-    
-    # Ensure storage directories
-    os.makedirs("storage", exist_ok=True)
-    os.makedirs("storage/uploads", exist_ok=True)
-    os.makedirs("storage/outputs", exist_ok=True)
-    
-    # Migrate using Alembic
-    logger.info("startup_migrations_start")
-    try:
-        from alembic.config import Config
-        from alembic import command
-        import asyncio
-        from concurrent.futures import ThreadPoolExecutor
-        
-        def run_migrations():
-            # Assume alembic.ini is in the current working directory (backend root)
-            alembic_cfg = Config("alembic.ini")
-            
-            # Explicitly set the URL to handle any async driver requirements
-            from app.config import settings
-            db_url = settings.database_url
-            if db_url:
-                if db_url.startswith("postgres://"):
-                    db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
-                elif db_url.startswith("postgresql://") and "asyncpg" not in db_url:
-                    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-                elif db_url.startswith("sqlite://") and "aiosqlite" not in db_url:
-                    db_url = db_url.replace("sqlite://", "sqlite+aiosqlite://", 1)
-            
-            alembic_cfg.set_main_option("sqlalchemy.url", db_url)
-            command.upgrade(alembic_cfg, "head")
-        
-        # Run in thread pool to avoid blocking event loop
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor() as pool:
-            await loop.run_in_executor(pool, run_migrations)
-        
-        logger.info("startup_migrations_complete")
-    except Exception as e:
-        logger.error("startup_migrations_failed", error=str(e))
-
-    # Schedule background tasks
-    from .tasks.cleanup import run_cleanup_task
-    asyncio.create_task(periodic_cleanup_wrapper(run_cleanup_task))
-
-async def periodic_cleanup_wrapper(task_func):
-    """Run cleanup every 24 hours."""
-    while True:
-        try:
-            # Wait for 24 hours (86400 seconds)
-            # Check immediately on startup? Maybe wait 1 hour first.
-            await asyncio.sleep(60 * 60) # Wait 1 hour between checks/start
-            await task_func()
-        except Exception as e:
-            logger.error("background_task_failed", error=str(e))
-            await asyncio.sleep(60 * 5) # Retry after 5 min on error
-
-
-
 @app.get("/")
 async def root() -> dict[str, str]:
     return {"message": "Proedit API is running"}
@@ -180,9 +184,6 @@ async def debug_config() -> dict[str, Any]:
     }
 
 
-@app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
 
 
 app.include_router(auth.router, prefix=settings.api_prefix)

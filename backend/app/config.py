@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -39,7 +40,19 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str | None = None
     stripe_price_id_pro: str | None = None
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=(".env", f".env.{os.getenv('ENVIRONMENT', 'development')}"),
+        env_file_encoding="utf-8", 
+        extra="ignore"
+    )
+
+    def validate_required_settings(self):
+        """Validate that essential settings are present in non-development environments."""
+        if self.environment != "development":
+            required = ["openai_api_key", "stripe_secret_key"]
+            missing = [field for field in required if not getattr(self, field)]
+            if missing:
+                raise ValueError(f"Missing required settings for {self.environment}: {', '.join(missing)}")
 
 
 settings = Settings()

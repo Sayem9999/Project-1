@@ -5,6 +5,7 @@ from ..db import get_session
 from ..models import User
 from ..schemas import RegisterRequest, LoginRequest, TokenResponse, UserResponse
 from ..security import hash_password, verify_password, generate_access_token
+from ..errors import AuthError, AppBaseException, ErrorCode
 from ..deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def signup(payload: RegisterRequest, session: AsyncSession = Depends(get_session)):
     existing = await session.scalar(select(User).where(User.email == payload.email))
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise AppBaseException(status.HTTP_400_BAD_REQUEST, ErrorCode.EMAIL_ALREADY_EXISTS, "Email already registered")
 
     user = User(email=payload.email, password_hash=hash_password(payload.password))
     session.add(user)
@@ -27,7 +28,7 @@ async def signup(payload: RegisterRequest, session: AsyncSession = Depends(get_s
 async def login(payload: LoginRequest, session: AsyncSession = Depends(get_session)):
     user = await session.scalar(select(User).where(User.email == payload.email))
     if not user or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise AuthError("Invalid credentials")
     return TokenResponse(access_token=generate_access_token(user.id, user.email))
 
 
