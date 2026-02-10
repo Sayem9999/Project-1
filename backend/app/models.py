@@ -2,7 +2,7 @@ from __future__ import annotations
 import enum
 from typing import Optional, Union
 from datetime import datetime
-from sqlalchemy import String, DateTime, Enum, ForeignKey, Text, Column, Integer
+from sqlalchemy import String, DateTime, Enum, ForeignKey, Text, Column, Integer, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
@@ -48,6 +48,11 @@ class Job(Base):
     progress_message: Mapped[str] = mapped_column(Text, default="Upload complete, waiting for processing.")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Phase 5 Fields
+    media_intelligence: Mapped[dict] = mapped_column(JSON, nullable=True)
+    qc_result: Mapped[dict] = mapped_column(JSON, nullable=True)
+    director_plan: Mapped[dict] = mapped_column(JSON, nullable=True)
 
     # Relationships (if needed in future)
     # user: Mapped["User"] = relationship("User", back_populates="jobs")

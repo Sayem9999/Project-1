@@ -66,7 +66,7 @@ RATE_LIMITS = {
 }
 
 
-def get_rate_limit_config(path: str) -> dict:
+def get_rate_limit_config(path: str) -> dict | None:
     """Get rate limit config for a given path."""
     for pattern, config in RATE_LIMITS.items():
         if path.startswith(pattern):
@@ -74,22 +74,13 @@ def get_rate_limit_config(path: str) -> dict:
     return None
 
 
-import os
-
 async def rate_limit_middleware(request: Request, call_next):
     """
     Rate limiting middleware.
     Applies rate limits based on client IP and endpoint.
     """
-<<<<<<< HEAD
     if not settings.rate_limit_enabled:
         return await call_next(request)
-
-=======
-    # Skip rate limiting in testing mode
-    if os.getenv("ENVIRONMENT") == "testing":
-        return await call_next(request)
->>>>>>> 97b2313 (feat: backend stabilization, config hardening, safety rails, and structured error taxonomy)
     # Get client IP
     client_ip = request.client.host if request.client else "unknown"
     path = request.url.path

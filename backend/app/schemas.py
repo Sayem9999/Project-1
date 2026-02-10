@@ -48,6 +48,11 @@ class JobResponse(BaseModel):
     output_path: str | None
     thumbnail_path: str | None
     created_at: datetime
+    
+    # Phase 5 Fields
+    media_intelligence: dict | None = None
+    qc_result: dict | None = None
+    director_plan: dict | None = None
 
 
 class N8NCallbackRequest(BaseModel):

@@ -374,7 +374,21 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
             
         # Success
         completion_msg = "🎬 Pro Edit Ready!"
-        await update_status(job_id, "complete", completion_msg, output_rel_path)
+        
+        # Extract metadata
+        media_intelligence = final_state.get("media_intelligence")
+        qc_result = final_state.get("qc_result")
+        director_plan = final_state.get("director_plan")
+        
+        await update_status(
+            job_id, 
+            "complete", 
+            completion_msg, 
+            output_rel_path, 
+            media_intelligence=media_intelligence,
+            qc_result=qc_result,
+            director_plan=director_plan
+        )
         publish_progress(job_id, "complete", completion_msg, 100)
         print(f"[Workflow v4] Job {job_id} complete!")
 
@@ -386,7 +400,16 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         publish_progress(job_id, "failed", f"Processing failed: {str(e)[:100]}", 0)
 
 
-async def update_status(job_id: int, status: str, message: str, output_path: str | None = None, thumbnail_path: str | None = None):
+async def update_status(
+    job_id: int, 
+    status: str, 
+    message: str, 
+    output_path: str | None = None, 
+    thumbnail_path: str | None = None,
+    media_intelligence: dict | None = None,
+    qc_result: dict | None = None,
+    director_plan: dict | None = None
+):
     async with AsyncSession(engine) as session:
         job = await session.get(Job, job_id)
         if job:
@@ -396,4 +419,13 @@ async def update_status(job_id: int, status: str, message: str, output_path: str
                 job.output_path = output_path
             if thumbnail_path:
                 job.thumbnail_path = thumbnail_path
+                
+            # Update Phase 5 fields if provided
+            if media_intelligence:
+                job.media_intelligence = media_intelligence
+            if qc_result:
+                job.qc_result = qc_result
+            if director_plan:
+                job.director_plan = director_plan
+                
             await session.commit()

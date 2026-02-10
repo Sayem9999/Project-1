@@ -26,7 +26,9 @@ async def upload_video(
     pacing: str = Form("medium"),
     mood: str = Form("professional"),
     ratio: str = Form("16:9"),
+    platform: str = Form("youtube"),
     tier: str = Form("pro"),
+    brand_safety: str = Form("standard"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -60,20 +62,20 @@ async def upload_video(
         # Use Celery for background processing
         try:
             from ..tasks.video_tasks import process_video_task
-            process_video_task.delay(job.id, job.source_path, pacing, mood, ratio, tier)
+            process_video_task.delay(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety)
         except Exception as e:
             print(f"[Job] Celery dispatch failed: {e}. Falling back to inline.")
             # Fallback to inline
             from fastapi import BackgroundTasks
             from ..services.workflow_engine import process_job
             import asyncio
-            asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier))
+            asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety))
     else:
         # Fallback to inline BackgroundTasks
         from fastapi import BackgroundTasks
         from ..services.workflow_engine import process_job
         import asyncio
-        asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier))
+        asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety))
     
     return JobResponse.model_validate(job, from_attributes=True)
 

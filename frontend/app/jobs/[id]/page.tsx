@@ -3,6 +3,8 @@ import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/ui/Navbar';
+import MediaStats from '@/components/dashboard/MediaStats';
+import QCScoreBoard from '@/components/dashboard/QCScoreBoard';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000/api';
 
@@ -12,6 +14,10 @@ interface Job {
   progress_message: string;
   output_path?: string;
   created_at: string;
+  // New fields for Phase 5
+  media_intelligence?: any;
+  qc_result?: any;
+  director_plan?: any;
 }
 
 export default function JobPage({ params }: { params: Promise<{ id: string }> }) {
@@ -81,19 +87,23 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   const statusConfig = job ? getStatusConfig(job.status) : getStatusConfig('pending');
 
   const stages = [
-    { key: 'analysis', label: 'Keyframe Analysis', icon: '🎯' },
-    { key: 'director', label: 'Director Planning', icon: '🎬' },
-    { key: 'specialists', label: 'AI Specialists', icon: '✨' },
+    { key: 'intel', label: 'Media Intelligence', icon: '🧠' },
+    { key: 'director', label: 'Strategic Planning', icon: '🎬' },
+    { key: 'platform', label: 'Platform Adaptation', icon: '📱' },
+    { key: 'specialists', label: 'Parallel Specialists', icon: '✨' },
     { key: 'render', label: 'Rendering', icon: '🔧' },
-    { key: 'post', label: 'Post-Production', icon: '🎨' },
+    { key: 'qc', label: 'Final QC & Eval', icon: '🛡️' },
   ];
 
   const getCurrentStage = (message: string) => {
-    if (message?.includes('FRAME') || message?.includes('keyframe')) return 0;
-    if (message?.includes('Director') || message?.includes('MAX')) return 1;
-    if (message?.includes('Specialist') || message?.includes('parallel')) return 2;
-    if (message?.includes('Render')) return 3;
-    if (message?.includes('THUMB') || message?.includes('complete')) return 4;
+    if (!message) return 0;
+    if (message.includes('Intel') || message.includes('Analyzing')) return 0;
+    if (message.includes('Director') || message.includes('MAX')) return 1;
+    if (message.includes('Platform') || message.includes('Adapt')) return 2;
+    if (message.includes('Specialist') || message.includes('parallel') || message.includes('AI Smart Cutting')) return 3;
+    if (message.includes('Render') || message.includes('Compiling') || message.includes('FFmpeg')) return 4;
+    if (message.includes('Review') || message.includes('Quality') || message.includes('QC')) return 5;
+    if (message.includes('complete') || message.includes('Ready')) return 6; // Finished
     return 0;
   };
 
@@ -104,7 +114,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
       <Navbar />
 
       <div className="container mx-auto px-6 pt-24 pb-16">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           {error ? (
             <div className="text-center py-16">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
@@ -157,7 +167,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
                           />
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-3xl font-bold text-white">{Math.round((currentStage + 1) / stages.length * 100)}%</span>
+                          <span className="text-3xl font-bold text-white">{Math.min(100, Math.round((currentStage + 1) / stages.length * 100))}%</span>
                         </div>
                       </div>
                     </div>
@@ -180,28 +190,48 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
 
                   {job.status === 'processing' && (
                     <p className="text-center text-sm text-gray-400">
-                      Stage {currentStage + 1} of {stages.length}
+                      Stage {Math.min(currentStage + 1, stages.length)} of {stages.length}
                     </p>
                   )}
                 </div>
               </div>
 
+              {/* Data Visualization Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                {/* Media Intelligence Stats */}
+                {job.media_intelligence && (
+                  <div className="lg:col-span-2">
+                    <MediaStats intelligence={job.media_intelligence} />
+                  </div>
+                )}
+
+                {/* QC Score Board */}
+                {job.qc_result && (
+                  <div className="lg:col-span-2">
+                    <QCScoreBoard qcResult={job.qc_result} />
+                  </div>
+                )}
+              </div>
+
               {/* Stage Timeline */}
               {job.status !== 'complete' && job.status !== 'failed' && (
                 <div className="bg-[#12121a] border border-white/10 rounded-2xl p-6 mb-8">
-                  <h3 className="text-sm font-medium text-gray-400 mb-4">Processing Pipeline</h3>
-                  <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-400 mb-4">Hollywood Pipeline</h3>
+                  <div className="space-y-4">
                     {stages.map((stage, i) => (
                       <div key={stage.key} className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${i < currentStage ? 'bg-emerald-500/20' :
-                          i === currentStage ? 'bg-cyan-500/20 animate-pulse' :
-                            'bg-white/5'
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-colors duration-500 ${i < currentStage ? 'bg-emerald-500/20 text-emerald-400' :
+                            i === currentStage ? 'bg-cyan-500/20 text-cyan-400 animate-pulse' :
+                              'bg-white/5 text-gray-600'
                           }`}>
                           {stage.icon}
                         </div>
                         <div className="flex-1">
-                          <p className={`text-sm font-medium ${i <= currentStage ? 'text-white' : 'text-gray-500'
+                          <p className={`text-sm font-medium transition-colors ${i <= currentStage ? 'text-white' : 'text-gray-500'
                             }`}>{stage.label}</p>
+                          {i === currentStage && (
+                            <p className="text-xs text-cyan-400 mt-1">Processing...</p>
+                          )}
                         </div>
                         {i < currentStage && (
                           <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -222,12 +252,12 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
                 <div className="space-y-4">
                   <a
                     href={`${API_BASE}/jobs/${job.id}/download`}
-                    className="flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
+                    className="flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-cyan-500/20"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    Download Video
+                    Download Master
                   </a>
                   <Link
                     href="/dashboard/upload"
@@ -236,7 +266,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    Create Another
+                    Create Another Project
                   </Link>
                 </div>
               )}

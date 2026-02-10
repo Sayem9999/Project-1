@@ -17,6 +17,9 @@ export default function UploadPage() {
     pacing: 'medium',
     mood: 'professional',
     ratio: '16:9',
+    platform: 'youtube', // New
+    premium: true,       // New
+    brandSafety: 'standard' // New
   });
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -68,6 +71,9 @@ export default function UploadPage() {
       formData.append('pacing', settings.pacing);
       formData.append('mood', settings.mood);
       formData.append('ratio', settings.ratio);
+      formData.append('platform', settings.platform); // New
+      formData.append('tier', settings.premium ? 'pro' : 'standard'); // New
+      formData.append('brand_safety', settings.brandSafety); // New
 
       const res = await fetch(`${API_BASE}/jobs/upload`, {
         method: 'POST',
@@ -109,6 +115,13 @@ export default function UploadPage() {
     { id: '16:9', label: '16:9 YouTube' },
     { id: '9:16', label: '9:16 TikTok' },
     { id: '1:1', label: '1:1 Instagram' },
+  ];
+
+  const platforms = [
+    { id: 'youtube', label: 'YouTube', icon: '🟥' },
+    { id: 'tiktok', label: 'TikTok', icon: '🎵' },
+    { id: 'instagram', label: 'Instagram', icon: '📸' },
+    { id: 'linkedin', label: 'LinkedIn', icon: '💼' }
   ];
 
   return (
@@ -174,6 +187,45 @@ export default function UploadPage() {
 
         {/* Settings */}
         <div className="space-y-6">
+
+          {/* Pipeline Tier */}
+          <div className="p-4 rounded-xl border border-white/10 bg-[#1a1a24]">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-white">Hollywood Pipeline (Pro)</label>
+              <div
+                onClick={() => setSettings(s => ({ ...s, premium: !s.premium }))}
+                className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${settings.premium ? 'bg-cyan-500' : 'bg-gray-600'}`}
+              >
+                <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${settings.premium ? 'translate-x-6' : ''}`} />
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">
+              {settings.premium
+                ? "Includes: Specialist Agents, Media Intel, Hybrid Memory, Multi-Stage QC"
+                : "Standard fast editing (Legacy pipeline)"}
+            </p>
+          </div>
+
+          {/* Platform */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-3">Target Platform</label>
+            <div className="grid grid-cols-2 gap-2">
+              {platforms.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setSettings(s => ({ ...s, platform: p.id }))}
+                  className={`flex items-center gap-2 py-2 px-3 rounded-lg border text-sm font-medium transition-all ${settings.platform === p.id
+                    ? 'border-cyan-500 bg-cyan-500/10 text-white'
+                    : 'border-white/10 text-gray-400 hover:text-white'
+                    }`}
+                >
+                  <span>{p.icon}</span>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Theme */}
           <div>
             <label className="block text-sm font-medium text-white mb-3">Style Theme</label>
@@ -264,13 +316,13 @@ export default function UploadPage() {
                 </span>
               ) : (
                 <span className="flex items-center justify-center gap-2">
-                  <span>✨ Start AI Editing</span>
-                  <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full border border-white/10">1 Credit</span>
+                  <span>✨ Start {settings.premium ? 'Pro ' : ''}AI Editing</span>
+                  <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full border border-white/10">{settings.premium ? '2 Credits' : '1 Credit'}</span>
                 </span>
               )}
             </button>
             <p className="text-center text-xs text-gray-500">
-              Estimated time: ~2-3 minutes • Cost: 1 Credit
+              Estimated time: ~{settings.premium ? '4-5' : '2-3'} minutes • Cost: {settings.premium ? '2 Credits' : '1 Credit'}
             </p>
           </div>
         </div>
