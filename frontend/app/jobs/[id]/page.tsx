@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState, use } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MediaStats from '@/components/dashboard/MediaStats';
@@ -33,8 +33,7 @@ interface Job {
   ab_test_result?: any;
 }
 
-export default function JobPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+export default function JobPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState('');
@@ -55,7 +54,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
 
   const fetchJob = useCallback(async () => {
     try {
-      const data = await apiRequest<Job>(`/jobs/${resolvedParams.id}`, { auth: true });
+      const data = await apiRequest<Job>(`/jobs/${params.id}`, { auth: true });
       setJob(data);
     } catch (err: any) {
       if (err instanceof ApiError && err.isAuth) {
@@ -65,7 +64,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
       }
       setError(err instanceof ApiError ? err.message : 'Job not found');
     }
-  }, [resolvedParams.id, router]);
+  }, [params.id, router]);
 
   const handleCancel = async () => {
     if (!job) return;
@@ -150,8 +149,8 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   }, [fetchJob, router]);
 
   useEffect(() => {
-    if (!resolvedParams.id) return;
-    const ws = new WebSocket(getWebSocketUrl(`/ws/jobs/${resolvedParams.id}`));
+    if (!params.id) return;
+    const ws = new WebSocket(getWebSocketUrl(`/ws/jobs/${params.id}`));
     socketRef.current = ws;
 
     ws.onmessage = (event) => {
@@ -182,7 +181,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
     return () => {
       ws.close();
     };
-  }, [fetchJob, resolvedParams.id]);
+  }, [fetchJob, params.id]);
 
   const stages = [
     { key: 'intel', label: 'Intelligence', icon: <Activity className="w-4 h-4" /> },
