@@ -4,6 +4,7 @@ Audio Intelligence - Loudness profiling, silence trimming, speech ducking.
 import structlog
 import subprocess
 import json
+import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 
@@ -110,7 +111,7 @@ class AudioIntelligence:
     
     async def _analyze_overall_loudness(self, audio_path: str) -> Optional[Dict[str, float]]:
         """Analyze overall loudness using loudnorm filter."""
-        try:
+        def _run_analysis():
             duration = self._probe_duration(audio_path)
             analysis_seconds = min(duration or self.max_analysis_seconds, self.max_analysis_seconds)
             cmd = [
@@ -125,6 +126,10 @@ class AudioIntelligence:
             
             timeout_seconds = 45 if analysis_seconds >= 30 else 25
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
+            return result, duration, analysis_seconds
+
+        try:
+            result, duration, analysis_seconds = await asyncio.to_thread(_run_analysis)
             
             # Parse loudnorm output from stderr
             output = result.stderr
@@ -167,7 +172,7 @@ class AudioIntelligence:
     
     async def _detect_silence(self, audio_path: str) -> List[SilenceRegion]:
         """Detect silent regions using silencedetect filter."""
-        try:
+        def _run_silence():
             duration = self._probe_duration(audio_path)
             analysis_seconds = min(duration or self.max_analysis_seconds, self.max_analysis_seconds)
             cmd = [
@@ -180,7 +185,10 @@ class AudioIntelligence:
                 "-"
             ]
             timeout_seconds = 45 if analysis_seconds >= 30 else 25
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
+
+        try:
+            result = await asyncio.to_thread(_run_silence)
             
             regions = []
             lines = result.stderr.split("\n")

@@ -5,6 +5,7 @@ Pre-processes video before agent planning for better decisions.
 import subprocess
 import json
 import structlog
+import asyncio
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -77,9 +78,15 @@ class MediaAnalyzer:
         """Run complete analysis on video file."""
         logger.info("media_analysis_start", path=video_path)
         
-        metadata = await self.get_metadata(video_path)
-        scenes = await self.detect_scenes(video_path)
-        loudness = await self.analyze_loudness(video_path, metadata.duration if metadata else None) if metadata and metadata.has_audio else None
+        # Run these in parallel threads to avoid blocking event loop
+        metadata_task = self.get_metadata(video_path)
+        scenes_task = self.detect_scenes(video_path)
+        
+        metadata, scenes = await asyncio.gather(metadata_task, scenes_task)
+        
+        loudness = None
+        if metadata and metadata.has_audio:
+            loudness = await self.analyze_loudness(video_path, metadata.duration)
         
         # Calculate average shot length
         avg_shot_length = None
@@ -105,7 +112,7 @@ class MediaAnalyzer:
     
     async def get_metadata(self, video_path: str) -> Optional[VideoMetadata]:
         """Extract video metadata using ffprobe."""
-        try:
+        def _run_ffprobe():
             cmd = [
                 self.ffprobe,
                 "-v", "quiet",
@@ -114,8 +121,10 @@ class MediaAnalyzer:
                 "-show_streams",
                 video_path
             ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+        try:
+            result = await asyncio.to_thread(_run_ffprobe)
             if result.returncode != 0:
                 logger.error("ffprobe_failed", error=result.stderr)
                 return None
@@ -163,18 +172,27 @@ class MediaAnalyzer:
             return None
     
     async def detect_scenes(self, video_path: str, threshold: float = 27.0) -> List[SceneInfo]:
-        """Detect scene changes using PySceneDetect."""
+        """Detect scene changes using PySceneDetect (in background thread)."""
         if not SCENEDETECT_AVAILABLE:
             logger.warning("scenedetect_not_available")
             return []
         
+        def _run_detection():
+            try:
+                video = open_video(video_path)
+                scene_manager = SceneManager()
+                scene_manager.add_detector(ContentDetector(threshold=threshold))
+                
+                scene_manager.detect_scenes(video)
+                return scene_manager.get_scene_list()
+            except Exception as e:
+                logger.error("scenedetect_thread_failed", error=str(e))
+                return []
+
         try:
-            video = open_video(video_path)
-            scene_manager = SceneManager()
-            scene_manager.add_detector(ContentDetector(threshold=threshold))
-            
-            scene_manager.detect_scenes(video)
-            scene_list = scene_manager.get_scene_list()
+            # Set a hard timeout for scene detection to prevent 0% hangs
+            # This is extremely resource intensive
+            scene_list = await asyncio.wait_for(asyncio.to_thread(_run_detection), timeout=300)
             
             scenes = []
             for i, (start, end) in enumerate(scene_list):
@@ -201,7 +219,7 @@ class MediaAnalyzer:
         target_lufs: float = -14.0
     ) -> Optional[LoudnessInfo]:
         """Analyze audio loudness using ffmpeg loudnorm filter."""
-        try:
+        def _run_ffmpeg():
             analysis_seconds = min(duration or 60.0, 60.0)
             cmd = [
                 self.ffmpeg,
@@ -212,9 +230,11 @@ class MediaAnalyzer:
                 "-f", "null",
                 "-"
             ]
-            
             timeout_seconds = 45 if analysis_seconds >= 30 else 25
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
+
+        try:
+            result = await asyncio.to_thread(_run_ffmpeg)
             
             # Parse loudnorm output from stderr
             output = result.stderr
