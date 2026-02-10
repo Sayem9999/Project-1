@@ -1,107 +1,112 @@
-# edit.ai
+# ProEdit (Project-1)
 
-Production-grade SaaS starter for professional automated video editing.
+**Professional AI Video Editor with "Hollywood Pipeline" Architecture.**
 
-## Stack
-- **Frontend:** Next.js App Router + Tailwind CSS
-- **Backend:** FastAPI + REST + async SQLAlchemy
-- **Workflow:** n8n webhook orchestration
-- **AI:** OpenAI (GPT-4.1 + GPT-4o-mini), Whisper API integration points
-- **Processing:** FFmpeg on CPU
-- **Auth:** Email/password + JWT
-- **DB:** SQLite (portable to Postgres through SQLAlchemy)
-- **Storage:** Local filesystem in `backend/storage`
+ProEdit is an advanced automated video editing platform that uses a multi-agent AI system to turn raw footage into professional-grade content. It features a sophisticated "Hollywood Pipeline" where specialized AI agents (Director, Cutter, Audio, Colorist) collaborate to produce high-quality videos tailored for specific platforms (TikTok, YouTube, Instagram).
 
-## Quick start
+## 🚀 Key Features
 
-```bash
-cp backend/.env.example backend/.env
-# Fill SECRET_KEY and OPENAI_API_KEY
+*   **Hollywood Pipeline**: A LangGraph-based orchestration of specialized AI agents mimicking a real production studio.
+    *   **Director Agent**: Analyzes footage and creates a creative vision.
+    *   **Cutter Agent**: Handles precise trimming and pacing.
+    *   **Audio Agent**: Mixes audio, adds music, and enhances speech.
+    *   **Colorist Agent**: Applies color grading and aesthetic filters.
+    *   **QC Agent**: Performs multi-dimensional quality control (Technical, Aesthetic, Content Safety).
+*   **Specialist Capabilities**:
+    *   **Hook Optimization**: AI-driven optimization of the first 3 seconds for viral retention.
+    *   **Platform Adaptation**: Automatic resizing and pacing for different platforms (9:16, 16:9, etc.).
+    *   **Brand Safety**: Automated content moderation and safety checks.
+*   **Real-time Processing**: WebSocket-based progress tracking with detailed stage-by-stage visualization.
+*   **Media Intelligence**: Deep technical analysis of source media (Resolution, Loudness, Scene Detection).
+*   **Admin Panel**: Comprehensive dashboard for user management and job monitoring.
 
-docker compose up --build
-```
+## 🛠 Tech Stack
 
-Frontend: `http://localhost:3000`  
-Backend: `http://localhost:8000/docs`  
-n8n: `http://localhost:5678`
+### Frontend
+- **Framework**: Next.js 15 (App Router)
+- **Styling**: Tailwind CSS + Custom "Hollywood Studio" Theme
+- **UI Components**: Lucide React, Framer Motion
+- **State/Data**: React Hooks, WebSockets
 
-## API surface
+### Backend
+- **Framework**: FastAPI (Python 3.11+)
+- **Orchestration**: LangGraph (Agentic Workflow)
+- **Task Queue**: Celery + Redis
+- **Database**: PostgreSQL (Production) / SQLite (Local Dev)
+- **AI Models**: Google Gemini, OpenAI GPT-4, Groq
+- **Video Processing**: FFmpeg, PySceneDetect
 
-- `POST /api/auth/signup`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/jobs/upload`
-- `GET /api/jobs/{job_id}`
-- `GET /api/jobs/{job_id}/download`
-- `POST /api/workflow/n8n/callback/{job_id}`
-- `POST /api/agents/{director|cutter|subtitle|audio|color|qc}`
+### Infrastructure
+- **Storage**: Cloudflare R2 / Local Filesystem
+- **Deployment**: Render (Backend/DB), Vercel (Frontend)
 
-## n8n orchestration
-1. Backend upload route creates job and triggers webhook.
-2. n8n calls status callback -> `processing`.
-3. n8n executes transcript + agent decisions.
-4. n8n executes FFmpeg render worker.
-5. n8n posts callback with `complete` and `output_path`.
+## ⚡ Quick Start (Local Development)
 
-Reference workflow files:
-- `docs/n8n/workflow.md`
-- `docs/n8n/workflow.json`
+### Prerequisites
+- Python 3.11+
+- Node.js 20+
+- Redis (Local or Remote)
+- PostgreSQL (Optional, defaults to SQLite for local)
 
-## Environment variables
+### Backend Setup
 
-Backend (`backend/.env`):
-- `SECRET_KEY`
-- `DATABASE_URL`
-- `STORAGE_ROOT`
-- `N8N_WEBHOOK_URL`
-- `FRONTEND_URL`
-- `OPENAI_API_KEY`
+1.  **Navigate to backend:**
+    ```bash
+    cd backend
+    ```
 
-Frontend:
-- `NEXT_PUBLIC_API_BASE`
+2.  **Create virtual environment:**
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate  # Windows: .venv\Scripts\activate
+    ```
 
+3.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
+4.  **Configure Environment:**
+    Copy `.env.example` to `.env` and fill in your keys (Gemini, database, etc.).
+    ```bash
+    cp .env.example .env
+    ```
 
+5.  **Run Migrations:**
+    ```bash
+    python -m alembic upgrade head
+    ```
 
-## Local deployment (no Docker required)
+6.  **Start Server:**
+    ```bash
+    python -m uvicorn app.main:app --reload
+    ```
+    API will be available at `http://localhost:8000`.
 
-If Docker is unavailable, use the built-in deployment scripts:
+7.  **Start Celery Worker (for video processing):**
+    ```bash
+    python -m celery -A app.celery_app worker --loglevel=info
+    ```
 
-```bash
-./scripts/deploy_local.sh
-```
+### Frontend Setup
 
-This script will:
-- create a local Python virtualenv in `.runtime/venv`
-- install backend dependencies
-- install and build frontend
-- start backend on `:8000` and frontend on `:3000`
+1.  **Navigate to frontend:**
+    ```bash
+    cd frontend
+    ```
 
-Stop services:
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-```bash
-./scripts/stop_local.sh
-```
+3.  **Start Development Server:**
+    ```bash
+    npm run dev
+    ```
+    UI will be available at `http://localhost:3000`.
 
-Logs are stored in `.runtime/logs`.
+## 📚 Documentation
 
-
-## Local n8n callback testing
-
-For local end-to-end testing without a full n8n instance, run the lightweight mock webhook:
-
-```bash
-python scripts/mock_n8n.py
-```
-
-It listens on `:5678/webhook/edit-ai-process`, receives backend job triggers, posts processing/complete callbacks, and writes a rendered output file.
-
-## E2E smoke test (auth + upload + status + download)
-
-With backend/frontend running and `scripts/mock_n8n.py` active:
-
-```bash
-python scripts/smoke_e2e.py
-```
-
-This generates a real sample video via FFmpeg, signs up a test user, uploads the video, polls job status, and downloads the final output.
+- **API Documentation**: `http://localhost:8000/docs`
+- **Architecture**: See `docs/architecture` for detailed system design.
