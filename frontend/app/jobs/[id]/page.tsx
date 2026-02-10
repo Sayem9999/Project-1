@@ -309,7 +309,7 @@ export default function JobPage({ params }: { params: { id: string } }) {
       )}
       {isQueued && (
         <div className="rounded-2xl border border-brand-cyan/20 bg-brand-cyan/10 px-4 py-3 text-sm text-brand-cyan">
-          Awaiting manual start. Click “Start Pipeline” to begin processing.
+          Awaiting manual start. Click "Start Pipeline" to begin processing.
         </div>
       )}
 
@@ -611,3 +611,4 @@ function Shield({ className }: { className?: string }) {
     </svg>
   )
 }
+
