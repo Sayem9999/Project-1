@@ -62,5 +62,8 @@ class Settings(BaseSettings):
                     f"Missing required settings for {self.environment}: at least one LLM API key"
                 )
 
+            if self.redis_url and not (self.redis_url.startswith("redis://") or self.redis_url.startswith("rediss://")):
+                raise ValueError("Invalid REDIS_URL: must start with redis:// or rediss://")
+
 
 settings = Settings()
