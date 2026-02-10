@@ -45,5 +45,6 @@ async def me(current_user: User = Depends(get_current_user)):
         email=current_user.email,
         full_name=current_user.name,
         avatar_url=current_user.avatar_url,
-        credits=current_user.credits or 0
+        credits=current_user.credits or 0,
+        is_admin=bool(current_user.is_admin),
     )

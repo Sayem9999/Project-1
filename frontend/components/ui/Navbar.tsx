@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 export default function Navbar() {
     const pathname = usePathname();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [user, setUser] = useState<{ full_name?: string; email?: string; avatar_url?: string } | null>(null);
+    const [user, setUser] = useState<{ full_name?: string; email?: string; avatar_url?: string; is_admin?: boolean } | null>(null);
     const [showDropdown, setShowDropdown] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
@@ -110,6 +110,11 @@ export default function Navbar() {
                                                 <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors">
                                                     <span className="text-xs uppercase tracking-widest text-gray-500">All</span> My Projects
                                                 </Link>
+                                                {user?.is_admin && (
+                                                    <Link href="/admin" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors">
+                                                        <span className="text-xs uppercase tracking-widest text-gray-500">Admin</span> Console
+                                                    </Link>
+                                                )}
                                             </div>
                                             <div className="border-t border-white/10 py-2">
                                                 <button

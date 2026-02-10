@@ -48,6 +48,7 @@ class UserResponse(BaseModel):
     full_name: str | None = None
     avatar_url: str | None = None
     credits: int = 0
+    is_admin: bool = False
 
 
 class AdminUserResponse(BaseModel):

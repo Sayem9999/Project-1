@@ -108,5 +108,6 @@ async def google_callback(code: str = Query(...)):
                 "email": user.email,
                 "full_name": user.name,
                 "avatar_url": user.avatar_url,
+                "is_admin": bool(user.is_admin),
             }
         }
