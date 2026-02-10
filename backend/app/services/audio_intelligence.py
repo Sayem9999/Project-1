@@ -64,12 +64,31 @@ class AudioIntelligence:
     """
     
     def __init__(self, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe"):
-        self.ffmpeg = ffmpeg_path
-        self.ffprobe = ffprobe_path
+        self.ffmpeg = self._resolve_path(ffmpeg_path)
+        self.ffprobe = self._resolve_path(ffprobe_path)
         self.segment_duration = 5.0  # Analyze in 5-second segments
         self.silence_threshold = -40  # dB
         self.speech_threshold = -30   # dB
         self.max_analysis_seconds = 60.0
+        logger.info("audio_intelligence_init", ffmpeg=self.ffmpeg, ffprobe=self.ffprobe)
+
+    def _resolve_path(self, cmd: str) -> str:
+        """Resolve command path, checking project tools as fallback."""
+        import shutil
+        import os
+        from pathlib import Path
+        if shutil.which(cmd):
+            return cmd
+        
+        # Look in tools directory relative to project root
+        project_root = Path(__file__).parent.parent.parent.parent.absolute()
+        local_bin = project_root / "tools" / "ffmpeg-8.0.1-essentials_build" / "bin"
+        ext = ".exe" if os.name == 'nt' else ""
+        local_cmd = local_bin / f"{cmd}{ext}"
+        
+        if local_cmd.exists():
+            return str(local_cmd)
+        return cmd
     
     async def analyze(self, audio_path: str) -> AudioAnalysis:
         """Run complete audio analysis."""

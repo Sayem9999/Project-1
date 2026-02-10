@@ -12,7 +12,7 @@ async def get_system_graph(current_user: User = Depends(get_current_user)):
     """Get the current visualization graph of the codebase."""
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
-    return introspection_service.scan("backend/app")
+    return introspection_service.scan()
 
 @router.post("/audit")
 async def run_audit(current_user: User = Depends(get_current_user)):

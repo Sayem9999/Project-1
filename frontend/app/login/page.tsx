@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { apiRequest, ApiError, setAuthToken, setStoredUser } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
 
 function LoginForm() {
   const router = useRouter();
@@ -12,6 +13,7 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
+  const { showToast } = useToast();
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
 
@@ -37,8 +39,11 @@ function LoginForm() {
 
       setAuthToken(data.access_token);
       try {
-        const me = await apiRequest('/auth/me', { auth: true });
+        const me = await apiRequest<any>('/auth/me', { auth: true });
         setStoredUser(me);
+        if (me.is_admin) {
+          showToast("Welcome, Administrator", "success");
+        }
       } catch {
         // no-op for now
       }

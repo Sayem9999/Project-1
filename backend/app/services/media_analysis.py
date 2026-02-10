@@ -71,8 +71,25 @@ class MediaAnalyzer:
     """
     
     def __init__(self, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe"):
-        self.ffmpeg = ffmpeg_path
-        self.ffprobe = ffprobe_path
+        self.ffmpeg = self._resolve_path(ffmpeg_path)
+        self.ffprobe = self._resolve_path(ffprobe_path)
+        logger.info("media_analyzer_init", ffmpeg=self.ffmpeg, ffprobe=self.ffprobe)
+    
+    def _resolve_path(self, cmd: str) -> str:
+        """Resolve command path, checking project tools as fallback."""
+        import shutil
+        if shutil.which(cmd):
+            return cmd
+        
+        # Look in tools directory relative to project root
+        project_root = Path(__file__).parent.parent.parent.parent.absolute()
+        local_bin = project_root / "tools" / "ffmpeg-8.0.1-essentials_build" / "bin"
+        ext = ".exe" if os.name == 'nt' else ""
+        local_cmd = local_bin / f"{cmd}{ext}"
+        
+        if local_cmd.exists():
+            return str(local_cmd)
+        return cmd
     
     async def analyze(self, video_path: str) -> MediaAnalysis:
         """Run complete analysis on video file."""
@@ -192,6 +209,7 @@ class MediaAnalyzer:
         try:
             # Set a hard timeout for scene detection to prevent 0% hangs
             # This is extremely resource intensive
+            logger.info("scene_detection_thread_start", path=video_path)
             scene_list = await asyncio.wait_for(asyncio.to_thread(_run_detection), timeout=300)
             
             scenes = []

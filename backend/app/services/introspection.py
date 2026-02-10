@@ -13,8 +13,12 @@ class IntrospectionService:
     Powers the 'self-healing' and 'auto-populating' engine.
     """
     
-    def __init__(self, root_dir: str = "app"):
-        self.root_dir = root_dir
+    def __init__(self, root_dir: Optional[str] = None):
+        if not root_dir:
+            # Detect app root relative to this file (backend/app/services/introspection.py)
+            self.root_dir = str(Path(__file__).parent.parent.absolute())
+        else:
+            self.root_dir = root_dir
         self.nodes = []
         self.edges = []
         self.stats = {

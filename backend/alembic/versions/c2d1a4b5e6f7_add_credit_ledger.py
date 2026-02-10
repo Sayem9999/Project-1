@@ -28,9 +28,9 @@ def upgrade() -> None:
         sa.Column("delta", sa.Integer(), nullable=False),
         sa.Column("balance_after", sa.Integer(), nullable=False),
         sa.Column("reason", sa.String(length=255), nullable=True),
-        sa.Column("source", sa.String(length=50), nullable=False, server_default="system"),
+        sa.Column("source", sa.String(length=50), nullable=False, server_default=sa.text("'system'")),
         sa.Column("created_by", sa.Integer(), sa.ForeignKey("users.id"), nullable=True),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.func.current_timestamp(), nullable=False),
     )
     op.create_index("ix_credit_ledger_user_id", "credit_ledger", ["user_id"])
 

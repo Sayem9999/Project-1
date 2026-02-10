@@ -4,7 +4,13 @@ $ErrorActionPreference = "Stop"
 $env:Path = "$PSScriptRoot\tools\ffmpeg-8.0.1-essentials_build\bin;$env:Path"
 
 Write-Host "Starting Backend..." -ForegroundColor Green
-Start-Process -FilePath "python" -ArgumentList "-m uvicorn app.main:app --reload --port 8000" -WorkingDirectory "backend" -NoNewWindow
+$backendParams = @{
+    FilePath = ".\.venv\Scripts\python.exe"
+    ArgumentList = "-m uvicorn app.main:app --reload --port 8000"
+    WorkingDirectory = "backend"
+    NoNewWindow = $true
+}
+Start-Process @backendParams
 
 Write-Host "Starting Frontend..." -ForegroundColor Green
 Start-Process -FilePath "npm.cmd" -ArgumentList "run dev" -WorkingDirectory "frontend" -NoNewWindow

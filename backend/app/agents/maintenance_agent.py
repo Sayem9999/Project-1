@@ -21,7 +21,7 @@ class MaintenanceAgent:
         logger.info("maintenance_task_start", task=task)
         
         # 1. Get current system state
-        graph = introspection_service.scan("backend/app")
+        graph = introspection_service.scan()
         
         if task == "audit":
             return self._audit_codebase(graph)
