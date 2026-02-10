@@ -14,6 +14,7 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.db import Base, get_session
 from app.main import app
+from app.middleware.rate_limit import rate_limiter
 
 # Use in-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -53,3 +54,10 @@ async def client(session) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+async def reset_rate_limiter() -> AsyncGenerator[None, None]:
+    await rate_limiter.reset()
+    yield
+    await rate_limiter.reset()

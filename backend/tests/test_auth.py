@@ -5,7 +5,7 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_signup(client: AsyncClient):
-    payload = {"email": "test@example.com", "password": "securepassword123"}
+    payload = {"email": "test@example.com", "password": "SecurePassword123"}
     response = await client.post("/api/auth/signup", json=payload)
     assert response.status_code == 200
     data = response.json()
@@ -14,7 +14,7 @@ async def test_signup(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_signup_duplicate_email(client: AsyncClient):
-    payload = {"email": "duplicate@example.com", "password": "securepassword123"}
+    payload = {"email": "duplicate@example.com", "password": "SecurePassword123"}
     # First signup
     await client.post("/api/auth/signup", json=payload)
     # Second signup
@@ -25,11 +25,11 @@ async def test_signup_duplicate_email(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_login(client: AsyncClient):
     # Setup user
-    signup_payload = {"email": "login@example.com", "password": "securepassword123"}
+    signup_payload = {"email": "login@example.com", "password": "SecurePassword123"}
     await client.post("/api/auth/signup", json=signup_payload)
 
     # Login
-    login_payload = {"email": "login@example.com", "password": "securepassword123"}
+    login_payload = {"email": "login@example.com", "password": "SecurePassword123"}
     response = await client.post("/api/auth/login", json=login_payload)
     assert response.status_code == 200
     data = response.json()
@@ -45,7 +45,7 @@ async def test_login_invalid_credentials(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_me_endpoint(client: AsyncClient):
     # Setup user
-    signup_payload = {"email": "me@example.com", "password": "securepassword123"}
+    signup_payload = {"email": "me@example.com", "password": "SecurePassword123"}
     signup_res = await client.post("/api/auth/signup", json=signup_payload)
     token = signup_res.json()["access_token"]
 

@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Tuple
 import asyncio
 
+from ..config import settings
+
 
 class RateLimiter:
     """Simple in-memory rate limiter."""
@@ -47,6 +49,10 @@ class RateLimiter:
             self._requests[key].append(now)
             return False, remaining - 1
 
+    async def reset(self) -> None:
+        """Reset in-memory counters (primarily for tests)."""
+        async with self._lock:
+            self._requests.clear()
 
 # Global rate limiter instance
 rate_limiter = RateLimiter()
@@ -73,6 +79,9 @@ async def rate_limit_middleware(request: Request, call_next):
     Rate limiting middleware.
     Applies rate limits based on client IP and endpoint.
     """
+    if not settings.rate_limit_enabled:
+        return await call_next(request)
+
     # Get client IP
     client_ip = request.client.host if request.client else "unknown"
     path = request.url.path

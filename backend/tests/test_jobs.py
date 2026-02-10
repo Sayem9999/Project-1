@@ -8,13 +8,13 @@ from app.models import User, Job, JobStatus
 @pytest.mark.asyncio
 async def test_job_permissions(client: AsyncClient, session):
     # Create User A
-    signup_a = {"email": "userA@example.com", "password": "password123"}
+    signup_a = {"email": "userA@example.com", "password": "SecurePassword123"}
     res = await client.post("/api/auth/signup", json=signup_a)
     token_a = res.json()["access_token"]
     headers_a = {"Authorization": f"Bearer {token_a}"}
     
     # Create User B
-    signup_b = {"email": "userB@example.com", "password": "password123"}
+    signup_b = {"email": "userB@example.com", "password": "SecurePassword123"}
     res = await client.post("/api/auth/signup", json=signup_b)
     token_b = res.json()["access_token"]
     headers_b = {"Authorization": f"Bearer {token_b}"}

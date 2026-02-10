@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 @pytest.mark.asyncio
 async def test_initial_credits(client: AsyncClient):
     # Signup
-    signup_payload = {"email": "credits@example.com", "password": "securepassword123"}
+    signup_payload = {"email": "credits@example.com", "password": "SecurePassword123"}
     res = await client.post("/api/auth/signup", json=signup_payload)
     token = res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -19,7 +19,7 @@ async def test_initial_credits(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_deduct_credits_on_upload(client: AsyncClient):
     # Signup
-    signup_payload = {"email": "upload@example.com", "password": "securepassword123"}
+    signup_payload = {"email": "upload@example.com", "password": "SecurePassword123"}
     res = await client.post("/api/auth/signup", json=signup_payload)
     token = res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -51,7 +51,7 @@ async def test_deduct_credits_on_upload(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_insufficient_credits(client: AsyncClient):
     # Signup
-    signup_payload = {"email": "nomoney@example.com", "password": "securepassword123"}
+    signup_payload = {"email": "nomoney@example.com", "password": "SecurePassword123"}
     res = await client.post("/api/auth/signup", json=signup_payload)
     token = res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
