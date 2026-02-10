@@ -68,6 +68,7 @@ class AudioIntelligence:
         self.segment_duration = 5.0  # Analyze in 5-second segments
         self.silence_threshold = -40  # dB
         self.speech_threshold = -30   # dB
+        self.max_analysis_seconds = 60.0
     
     async def analyze(self, audio_path: str) -> AudioAnalysis:
         """Run complete audio analysis."""
@@ -110,15 +111,20 @@ class AudioIntelligence:
     async def _analyze_overall_loudness(self, audio_path: str) -> Optional[Dict[str, float]]:
         """Analyze overall loudness using loudnorm filter."""
         try:
+            duration = self._probe_duration(audio_path)
+            analysis_seconds = min(duration or self.max_analysis_seconds, self.max_analysis_seconds)
             cmd = [
                 self.ffmpeg,
+                "-hide_banner",
+                "-t", str(analysis_seconds),
                 "-i", audio_path,
                 "-af", "loudnorm=print_format=json",
                 "-f", "null",
                 "-"
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            timeout_seconds = 45 if analysis_seconds >= 30 else 25
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
             
             # Parse loudnorm output from stderr
             output = result.stderr
@@ -131,26 +137,50 @@ class AudioIntelligence:
                     "integrated_lufs": float(loudness_data.get("input_i", -70)),
                     "true_peak": float(loudness_data.get("input_tp", -70)),
                     "lra": float(loudness_data.get("input_lra", 0)),
-                    "duration": 0  # Would need separate probe
+                    "duration": duration or analysis_seconds
                 }
             return None
             
+        except subprocess.TimeoutExpired:
+            logger.warning("loudness_analysis_timeout")
+            return None
         except Exception as e:
-            logger.error("loudness_analysis_failed", error=str(e))
+            logger.warning("loudness_analysis_failed", error=str(e))
+            return None
+
+    def _probe_duration(self, audio_path: str) -> Optional[float]:
+        """Return media duration in seconds using ffprobe."""
+        try:
+            cmd = [
+                self.ffprobe,
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=nk=1:nw=1",
+                audio_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            if result.returncode != 0:
+                return None
+            return float(result.stdout.strip() or 0)
+        except Exception:
             return None
     
     async def _detect_silence(self, audio_path: str) -> List[SilenceRegion]:
         """Detect silent regions using silencedetect filter."""
         try:
+            duration = self._probe_duration(audio_path)
+            analysis_seconds = min(duration or self.max_analysis_seconds, self.max_analysis_seconds)
             cmd = [
                 self.ffmpeg,
+                "-hide_banner",
+                "-t", str(analysis_seconds),
                 "-i", audio_path,
                 "-af", f"silencedetect=noise={self.silence_threshold}dB:d=0.3",
                 "-f", "null",
                 "-"
             ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            timeout_seconds = 45 if analysis_seconds >= 30 else 25
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
             
             regions = []
             lines = result.stderr.split("\n")
@@ -178,8 +208,11 @@ class AudioIntelligence:
             
             return regions
             
+        except subprocess.TimeoutExpired:
+            logger.warning("silence_detection_timeout")
+            return []
         except Exception as e:
-            logger.error("silence_detection_failed", error=str(e))
+            logger.warning("silence_detection_failed", error=str(e))
             return []
     
     async def _detect_speech_regions(self, audio_path: str) -> List[Tuple[float, float]]:

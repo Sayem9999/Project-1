@@ -79,7 +79,7 @@ class MediaAnalyzer:
         
         metadata = await self.get_metadata(video_path)
         scenes = await self.detect_scenes(video_path)
-        loudness = await self.analyze_loudness(video_path) if metadata and metadata.has_audio else None
+        loudness = await self.analyze_loudness(video_path, metadata.duration if metadata else None) if metadata and metadata.has_audio else None
         
         # Calculate average shot length
         avg_shot_length = None
@@ -194,18 +194,27 @@ class MediaAnalyzer:
             logger.error("scene_detection_failed", error=str(e))
             return []
     
-    async def analyze_loudness(self, video_path: str, target_lufs: float = -14.0) -> Optional[LoudnessInfo]:
+    async def analyze_loudness(
+        self,
+        video_path: str,
+        duration: Optional[float] = None,
+        target_lufs: float = -14.0
+    ) -> Optional[LoudnessInfo]:
         """Analyze audio loudness using ffmpeg loudnorm filter."""
         try:
+            analysis_seconds = min(duration or 60.0, 60.0)
             cmd = [
                 self.ffmpeg,
+                "-hide_banner",
+                "-t", str(analysis_seconds),
                 "-i", video_path,
                 "-af", "loudnorm=print_format=json",
                 "-f", "null",
                 "-"
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            timeout_seconds = 45 if analysis_seconds >= 30 else 25
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
             
             # Parse loudnorm output from stderr
             output = result.stderr
@@ -236,10 +245,10 @@ class MediaAnalyzer:
             return None
             
         except subprocess.TimeoutExpired:
-            logger.error("loudness_analysis_timeout")
+            logger.warning("loudness_analysis_timeout")
             return None
         except Exception as e:
-            logger.error("loudness_analysis_failed", error=str(e))
+            logger.warning("loudness_analysis_failed", error=str(e))
             return None
     
     def to_agent_context(self, analysis: MediaAnalysis) -> str:
