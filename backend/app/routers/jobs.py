@@ -56,12 +56,6 @@ async def upload_video(
         if existing:
             return JobResponse.model_validate(existing, from_attributes=True)
 
-    # Monetization Check
-    COST_PER_JOB = 2 if tier == "pro" else 1
-    if settings.credits_enabled:
-        if (current_user.credits or 0) < COST_PER_JOB:
-            raise CreditError(f"Insufficient credits. {tier.title()} edit requires {COST_PER_JOB} credits.")
-
     source_path = await storage_service.save_upload(file)
 
     job = await create_job(
@@ -76,10 +70,9 @@ async def upload_video(
         platform=platform,
         brand_safety=brand_safety,
         idempotency_key=idempotency_key,
+        start_immediately=False,
     )
     await session.refresh(job)
-    
-    await enqueue_job(job, pacing, mood, ratio, tier, platform, brand_safety)
     
     return JobResponse.model_validate(job, from_attributes=True)
 
@@ -136,10 +129,56 @@ async def retry_job(job_id: int, current_user: User = Depends(get_current_user),
     if job.status not in ["failed"]:
         raise HTTPException(status_code=400, detail="Only failed jobs can be retried.")
     job.cancel_requested = False
-    job.status = "queued"
+    job.status = "processing"
     job.progress_message = "Retrying pipeline..."
     job.output_path = None
     job.thumbnail_path = None
+    session.add(job)
+    await session.commit()
+    await enqueue_job(
+        job,
+        job.pacing or "medium",
+        job.mood or "professional",
+        job.ratio or "16:9",
+        job.tier or "standard",
+        job.platform or "youtube",
+        job.brand_safety or "standard",
+    )
+    return {"status": "ok", "job_id": job.id}
+
+
+@router.post("/{job_id}/start")
+async def start_job(job_id: int, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
+    if not job:
+        raise NotFoundError("Job not found")
+    if job.status != "queued":
+        raise HTTPException(status_code=400, detail="Job is already started.")
+    if job.source_path and not str(job.source_path).startswith("http"):
+        if not Path(job.source_path).exists():
+            raise HTTPException(status_code=400, detail="Source file is no longer available.")
+
+    # Charge credits on start
+    if settings.credits_enabled:
+        cost = job.credits_cost or (2 if (job.tier or "standard") == "pro" else 1)
+        if (current_user.credits or 0) < cost:
+            raise CreditError(f"Insufficient credits. {job.tier.title()} edit requires {cost} credits.")
+        current_user.credits = (current_user.credits or 0) - cost
+        session.add(current_user)
+        session.add(
+            CreditLedger(
+                user_id=current_user.id,
+                job_id=job.id,
+                delta=-cost,
+                balance_after=current_user.credits or 0,
+                reason=f"{job.tier}_job_start",
+                source="job",
+            )
+        )
+
+    job.status = "processing"
+    job.progress_message = "Starting pipeline..."
+    job.cancel_requested = False
     session.add(job)
     await session.commit()
     await enqueue_job(
@@ -182,11 +221,6 @@ async def edit_job(
         if existing:
             return JobResponse.model_validate(existing, from_attributes=True)
 
-    COST_PER_JOB = 2 if payload.tier == "pro" else 1
-    if settings.credits_enabled:
-        if (current_user.credits or 0) < COST_PER_JOB:
-            raise CreditError(f"Insufficient credits. {payload.tier.title()} edit requires {COST_PER_JOB} credits.")
-
     new_job = await create_job(
         session=session,
         current_user=current_user,
@@ -199,17 +233,9 @@ async def edit_job(
         platform=payload.platform,
         brand_safety=payload.brand_safety,
         idempotency_key=idempotency_key,
+        start_immediately=False,
     )
     await session.refresh(new_job)
-    await enqueue_job(
-        new_job,
-        payload.pacing,
-        payload.mood,
-        payload.ratio,
-        payload.tier,
-        payload.platform,
-        payload.brand_safety,
-    )
     return JobResponse.model_validate(new_job, from_attributes=True)
 
 
@@ -264,6 +290,7 @@ async def create_job(
     platform: str,
     brand_safety: str,
     idempotency_key: str | None = None,
+    start_immediately: bool = True,
 ) -> Job:
     COST_PER_JOB = 2 if tier == "pro" else 1
     job = Job(
@@ -279,26 +306,10 @@ async def create_job(
         platform=platform,
         brand_safety=brand_safety,
         cancel_requested=False,
+        progress_message="Starting pipeline..." if start_immediately else "Awaiting manual start.",
     )
     session.add(job)
-
-    if settings.credits_enabled:
-        current_user.credits = (current_user.credits or 0) - COST_PER_JOB
-        session.add(current_user)
-
     await session.flush()
-
-    if settings.credits_enabled:
-        session.add(
-            CreditLedger(
-                user_id=current_user.id,
-                job_id=job.id,
-                delta=-COST_PER_JOB,
-                balance_after=current_user.credits or 0,
-                reason=f"{tier}_job",
-                source="job",
-            )
-        )
 
     try:
         await session.commit()

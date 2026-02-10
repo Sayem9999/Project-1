@@ -232,7 +232,7 @@ async def admin_retry_job(
     if job.status not in ["failed"]:
         raise HTTPException(status_code=400, detail="Only failed jobs can be retried.")
     job.cancel_requested = False
-    job.status = "queued"
+    job.status = "processing"
     job.progress_message = "Retrying pipeline..."
     job.output_path = None
     job.thumbnail_path = None

@@ -89,6 +89,17 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
     }
   };
 
+  const handleStart = async () => {
+    if (!job) return;
+    setActionError('');
+    try {
+      await apiRequest(`/jobs/${job.id}/start`, { method: 'POST', auth: true });
+      fetchJob();
+    } catch (err: any) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to start job');
+    }
+  };
+
   const openEdit = () => {
     if (!job) return;
     setEditForm({
@@ -225,7 +236,8 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
 
   const isComplete = job.status === 'complete';
   const isFailed = job.status === 'failed';
-  const isProcessing = job.status === 'processing' || job.status === 'queued';
+  const isProcessing = job.status === 'processing';
+  const isQueued = job.status === 'queued';
   const videoUrl = job.output_path
     ? (job.output_path.startsWith('http') ? job.output_path : `${API_ORIGIN}/${job.output_path}`)
     : null;
@@ -262,6 +274,14 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
               Cancel Job
             </button>
           )}
+          {isQueued && (
+            <button
+              onClick={handleStart}
+              className="px-3 py-1.5 text-xs rounded-lg bg-brand-cyan/20 text-brand-cyan hover:bg-brand-cyan/30 transition-colors"
+            >
+              Start Pipeline
+            </button>
+          )}
           {isFailed && (
             <button
               onClick={handleRetry}
@@ -286,6 +306,11 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
       {actionError && (
         <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {actionError}
+        </div>
+      )}
+      {isQueued && (
+        <div className="rounded-2xl border border-brand-cyan/20 bg-brand-cyan/10 px-4 py-3 text-sm text-brand-cyan">
+          Awaiting manual start. Click “Start Pipeline” to begin processing.
         </div>
       )}
 

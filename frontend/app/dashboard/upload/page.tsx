@@ -263,7 +263,7 @@ export default function UploadPage() {
                     ) : (
                       <>
                         <Sparkles className="w-5 h-5" />
-                        <span>Launch Pipeline</span>
+                        <span>Upload Video</span>
                       </>
                     )}
                   </button>
