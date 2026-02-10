@@ -231,6 +231,26 @@ async def admin_retry_job(
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status not in ["failed"]:
         raise HTTPException(status_code=400, detail="Only failed jobs can be retried.")
+    user = await session.get(User, job.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if settings.credits_enabled:
+        cost = job.credits_cost or (2 if (job.tier or "standard") == "pro" else 1)
+        if (user.credits or 0) < cost:
+            raise HTTPException(status_code=403, detail="User has insufficient credits.")
+        user.credits = (user.credits or 0) - cost
+        session.add(user)
+        session.add(
+            CreditLedger(
+                user_id=user.id,
+                job_id=job.id,
+                delta=-cost,
+                balance_after=user.credits or 0,
+                reason=f"{job.tier}_job_retry",
+                source="job",
+                created_by=current_user.id,
+            )
+        )
     job.cancel_requested = False
     job.status = "processing"
     job.progress_message = "Retrying pipeline..."

@@ -128,6 +128,24 @@ async def retry_job(job_id: int, current_user: User = Depends(get_current_user),
         raise NotFoundError("Job not found")
     if job.status not in ["failed"]:
         raise HTTPException(status_code=400, detail="Only failed jobs can be retried.")
+
+    if settings.credits_enabled:
+        cost = job.credits_cost or (2 if (job.tier or "standard") == "pro" else 1)
+        if (current_user.credits or 0) < cost:
+            raise CreditError(f"Insufficient credits. {job.tier.title()} edit requires {cost} credits.")
+        current_user.credits = (current_user.credits or 0) - cost
+        session.add(current_user)
+        session.add(
+            CreditLedger(
+                user_id=current_user.id,
+                job_id=job.id,
+                delta=-cost,
+                balance_after=current_user.credits or 0,
+                reason=f"{job.tier}_job_retry",
+                source="job",
+            )
+        )
+
     job.cancel_requested = False
     job.status = "processing"
     job.progress_message = "Retrying pipeline..."
