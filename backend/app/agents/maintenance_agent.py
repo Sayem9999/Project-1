@@ -1,24 +1,16 @@
 import structlog
 from typing import List, Dict, Any, Optional
 from ..services.introspection import introspection_service
-from ..agents.base import BaseAgent
 from ..config import settings
 
 logger = structlog.get_logger()
 
-class MaintenanceAgent(BaseAgent):
+class MaintenanceAgent:
     """
     The 'Self-Healing' Agent.
     Monitors the system graph, detects anomalies, and auto-populates missing components.
     """
     
-    def __init__(self):
-        super().__init__(
-            name="Maintenance",
-            role="System Architect & Repair Specialist",
-            goal="Maintain 100% codebase integrity and auto-scale features.",
-            backstory="You are a meta-agent that lives inside the code. You see the project as a living graph."
-        )
 
     async def run(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
