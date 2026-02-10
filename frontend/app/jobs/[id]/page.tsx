@@ -400,6 +400,12 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
                 <Download className="w-4 h-4" />
                 Download Video
               </Link>
+              <button
+                onClick={openEdit}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-semibold transition-colors"
+              >
+                Create New Edit
+              </button>
               <div className="space-y-2">
                 {videoUrl && (
                   <a
