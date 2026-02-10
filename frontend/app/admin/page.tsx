@@ -35,6 +35,7 @@ interface JobData {
   progress_message: string;
   theme: string;
   created_at: string;
+  updated_at?: string | null;
 }
 
 interface AdminHealth {
@@ -74,6 +75,8 @@ export default function AdminDashboardPage() {
   const [health, setHealth] = useState<AdminHealth | null>(null);
   const [users, setUsers] = useState<UserData[]>([]);
   const [jobs, setJobs] = useState<JobData[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [lastJobsRefresh, setLastJobsRefresh] = useState<string | null>(null);
   const [ledger, setLedger] = useState<CreditLedgerEntry[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
@@ -90,6 +93,8 @@ export default function AdminDashboardPage() {
   const [userJobs, setUserJobs] = useState<JobData[]>([]);
   const [userLedger, setUserLedger] = useState<CreditLedgerEntry[]>([]);
   const [userLoading, setUserLoading] = useState(false);
+  const STALL_THRESHOLD_MINUTES = 10;
+  const STALL_THRESHOLD_MS = STALL_THRESHOLD_MINUTES * 60 * 1000;
 
   const fetchData = useCallback(async () => {
     const token = localStorage.getItem('token');
@@ -135,6 +140,33 @@ export default function AdminDashboardPage() {
     fetchData();
   }, [fetchData]);
 
+  const fetchJobs = useCallback(async (silent = false) => {
+    if (accessDenied) return;
+    if (!silent) setJobsLoading(true);
+    try {
+      const data = await apiRequest<JobData[]>('/admin/jobs', { auth: true });
+      setJobs(data);
+      setLastJobsRefresh(new Date().toISOString());
+    } catch (err: any) {
+      Sentry.captureException(err);
+      if (err instanceof ApiError) {
+        if (err.status === 403) {
+          setAccessDenied(true);
+        }
+        if (err.isAuth) {
+          clearAuth();
+          router.push('/login');
+          return;
+        }
+        setError(err.message);
+      } else {
+        setError('Failed to fetch admin jobs');
+      }
+    } finally {
+      if (!silent) setJobsLoading(false);
+    }
+  }, [accessDenied, router]);
+
   const fetchLedger = useCallback(async () => {
     if (accessDenied) return;
     setLedgerLoading(true);
@@ -159,6 +191,13 @@ export default function AdminDashboardPage() {
       fetchLedger();
     }
   }, [activeTab, fetchLedger]);
+
+  useEffect(() => {
+    if (activeTab !== 'jobs') return;
+    fetchJobs(true);
+    const interval = setInterval(() => fetchJobs(true), 15000);
+    return () => clearInterval(interval);
+  }, [activeTab, fetchJobs]);
 
   const handleUpdateCredits = async (userId: number, newCredits: number, reason = 'manual_set') => {
     try {
@@ -190,7 +229,7 @@ export default function AdminDashboardPage() {
   const handleAdminCancel = async (jobId: number) => {
     try {
       await apiRequest(`/admin/jobs/${jobId}/cancel`, { method: 'POST', auth: true });
-      fetchData();
+      fetchJobs(true);
     } catch (err) {
       console.error('Failed to cancel job', err);
     }
@@ -199,9 +238,18 @@ export default function AdminDashboardPage() {
   const handleAdminRetry = async (jobId: number) => {
     try {
       await apiRequest(`/admin/jobs/${jobId}/retry`, { method: 'POST', auth: true });
-      fetchData();
+      fetchJobs(true);
     } catch (err) {
       console.error('Failed to retry job', err);
+    }
+  };
+
+  const handleAdminForceRetry = async (jobId: number) => {
+    try {
+      await apiRequest(`/admin/jobs/${jobId}/force-retry`, { method: 'POST', auth: true });
+      fetchJobs(true);
+    } catch (err) {
+      console.error('Failed to force retry job', err);
     }
   };
 
@@ -247,6 +295,14 @@ export default function AdminDashboardPage() {
   const processingCount = jobs.filter((j) => j.status === 'processing').length;
   const failedCount = jobs.filter((j) => j.status === 'failed').length;
   const completeCount = jobs.filter((j) => j.status === 'complete').length;
+  const isStalledJob = (job: JobData) => {
+    if (job.status !== 'processing' && job.status !== 'queued') return false;
+    const stamp = job.updated_at || job.created_at;
+    const last = new Date(stamp).getTime();
+    if (Number.isNaN(last)) return false;
+    return Date.now() - last > STALL_THRESHOLD_MS;
+  };
+  const stalledCount = jobs.filter(isStalledJob).length;
 
   if (loading) {
     return (
@@ -614,6 +670,13 @@ export default function AdminDashboardPage() {
               <div>
                 <h3 className="text-lg font-semibold text-white">Jobs</h3>
                 <p className="text-xs text-gray-500">Track pipeline status and errors.</p>
+                <p className="text-[10px] text-gray-600 mt-1">
+                  Auto-refresh every 15s - Stalled: {stalledCount}
+                  {lastJobsRefresh && (
+                    <span className="ml-2">- Last refresh: {new Date(lastJobsRefresh).toLocaleTimeString()}</span>
+                  )}
+                  {jobsLoading && <span className="ml-2">- Refreshing...</span>}
+                </p>
               </div>
               <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
                 <div className="relative w-full md:w-64">
@@ -654,38 +717,71 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filteredJobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-5 font-mono text-cyan-400 text-sm">#{job.id}</td>
-                    <td className="px-6 py-5">
-                      <StatusBadge status={job.status} />
-                    </td>
-                    <td className="px-6 py-5 text-gray-300 text-sm capitalize">{job.theme}</td>
-                    <td className="px-6 py-5 text-gray-400 text-xs italic max-w-xs truncate">{job.progress_message}</td>
-                    <td className="px-6 py-5 text-gray-500 text-xs">
-                      {new Date(job.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-5 text-right">
-                      {job.status === 'failed' ? (
-                        <button
-                          onClick={() => handleAdminRetry(job.id)}
-                          className="text-xs font-semibold text-emerald-300 hover:text-emerald-200"
-                        >
-                          Retry
-                        </button>
-                      ) : job.status === 'processing' || job.status === 'queued' ? (
-                        <button
-                          onClick={() => handleAdminCancel(job.id)}
-                          className="text-xs font-semibold text-red-300 hover:text-red-200"
-                        >
-                          Cancel
-                        </button>
-                      ) : (
-                        <span className="text-xs text-gray-500">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                                {filteredJobs.map((job) => {
+                  const stalled = isStalledJob(job);
+                  const lastActivity = job.updated_at || job.created_at;
+                  return (
+                    <tr key={job.id} className="hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-5 font-mono text-cyan-400 text-sm">#{job.id}</td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={job.status} />
+                          {stalled && (
+                            <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase border border-amber-500/30 text-amber-300 bg-amber-500/10">
+                              Stalled
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 text-gray-300 text-sm capitalize">{job.theme}</td>
+                      <td className="px-6 py-5 text-gray-400 text-xs italic max-w-xs truncate">
+                        {job.progress_message}
+                        {stalled && (
+                          <div className="text-[10px] text-gray-600 mt-1">
+                            Last update: {new Date(lastActivity).toLocaleString()}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-5 text-gray-500 text-xs">
+                        {new Date(job.created_at).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        {stalled ? (
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              onClick={() => handleAdminForceRetry(job.id)}
+                              className="text-xs font-semibold text-amber-300 hover:text-amber-200"
+                            >
+                              Force Retry
+                            </button>
+                            <button
+                              onClick={() => handleAdminCancel(job.id)}
+                              className="text-xs font-semibold text-red-300 hover:text-red-200"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : job.status === 'failed' ? (
+                          <button
+                            onClick={() => handleAdminRetry(job.id)}
+                            className="text-xs font-semibold text-emerald-300 hover:text-emerald-200"
+                          >
+                            Retry
+                          </button>
+                        ) : job.status === 'processing' || job.status === 'queued' ? (
+                          <button
+                            onClick={() => handleAdminCancel(job.id)}
+                            className="text-xs font-semibold text-red-300 hover:text-red-200"
+                          >
+                            Cancel
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-500">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </motion.div>
@@ -795,7 +891,7 @@ export default function AdminDashboardPage() {
                               {entry.delta}
                             </td>
                             <td className="px-6 py-4 text-sm text-amber-400 font-mono">{entry.balance_after}</td>
-                            <td className="px-6 py-4 text-xs text-gray-400">{entry.reason || '—'}</td>
+                            <td className="px-6 py-4 text-xs text-gray-400">{entry.reason || '-'}</td>
                             <td className="px-6 py-4 text-xs text-gray-500">{entry.source}</td>
                             <td className="px-6 py-4 text-xs text-gray-500">{new Date(entry.created_at).toLocaleString()}</td>
                           </tr>
@@ -932,3 +1028,5 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+

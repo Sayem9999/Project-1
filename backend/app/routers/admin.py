@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
+from pathlib import Path
 import time
 
 from ..db import get_session
@@ -268,6 +269,42 @@ async def admin_retry_job(
         job.brand_safety or "standard",
     )
     return {"status": "ok", "job_id": job.id}
+
+
+@router.post("/jobs/{job_id}/force-retry")
+async def admin_force_retry_job(
+    job_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+    job = await session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status == "complete":
+        raise HTTPException(status_code=400, detail="Completed jobs cannot be retried.")
+    if job.source_path and not str(job.source_path).startswith("http"):
+        if not Path(job.source_path).exists():
+            raise HTTPException(status_code=400, detail="Source file is no longer available.")
+
+    job.cancel_requested = False
+    job.status = "processing"
+    job.progress_message = "Force retry by admin."
+    job.output_path = None
+    job.thumbnail_path = None
+    session.add(job)
+    await session.commit()
+    await enqueue_job(
+        job,
+        job.pacing or "medium",
+        job.mood or "professional",
+        job.ratio or "16:9",
+        job.tier or "standard",
+        job.platform or "youtube",
+        job.brand_safety or "standard",
+    )
+    return {"status": "ok", "job_id": job.id, "forced": True}
 
 @router.get("/stats")
 async def get_admin_stats(
