@@ -1,7 +1,13 @@
 from ..state import GraphState
 from moviepy import VideoFileClip, concatenate_videoclips, CompositeAudioClip, AudioFileClip, vfx
-import os
 from pathlib import Path
+from moviepy.config import change_settings
+import os
+
+# Configure MoviePy to use the correct FFmpeg binary
+FFMPEG_BINARY = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe"
+if os.path.exists(FFMPEG_BINARY):
+    change_settings({"FFMPEG_BINARY": FFMPEG_BINARY})
 
 async def compiler_node(state: GraphState) -> GraphState:
     """
@@ -48,17 +54,20 @@ async def compiler_node(state: GraphState) -> GraphState:
         try:
             from ...services.audio_service import audio_service
             
-            # 1. Export temp audio
-            temp_audio_path = f"storage/outputs/temp_audio_{state.get('job_id')}.mp3"
-            final_video.audio.write_audiofile(temp_audio_path, logger=None)
-            
-            # 2. Normalize
-            norm_audio_path = audio_service.normalize_audio(temp_audio_path)
-            
-            # 3. Re-attach
-            new_audio = AudioFileClip(norm_audio_path)
-            final_video = final_video.set_audio(new_audio)
-            print("Audio normalized successfully.")
+            if final_video.audio:
+                # 1. Export temp audio
+                temp_audio_path = f"storage/outputs/temp_audio_{state.get('job_id')}.mp3"
+                final_video.audio.write_audiofile(temp_audio_path, logger=None)
+                
+                # 2. Normalize
+                norm_audio_path = audio_service.normalize_audio(temp_audio_path)
+                
+                # 3. Re-attach
+                new_audio = AudioFileClip(norm_audio_path)
+                final_video = final_video.set_audio(new_audio)
+                print("Audio normalized successfully.")
+            else:
+                print("No audio detected in final video, skipping normalization.")
             
         except Exception as ae:
             print(f"Audio Enhancement Failed: {ae}")

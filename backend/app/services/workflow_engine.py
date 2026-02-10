@@ -232,7 +232,8 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             af = "loudnorm=I=-16:TP=-1.5:LRA=11"
             
             # Build FFmpeg command with GPU acceleration if available
-            cmd = ["ffmpeg", "-y", "-i", str(src)]
+            ffmpeg_path = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe" if os.path.exists("./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe") else "ffmpeg"
+            cmd = [ffmpeg_path, "-y", "-i", str(src)]
             
             if video_encoder == "h264_nvenc":
                 # NVIDIA GPU encoding
@@ -246,7 +247,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             
             cmd += ["-vf", vf, "-af", af, "-threads", "4", str(output_abs)]
             
-            if os.path.exists("./tools/ffmpeg"): cmd[0] = "./tools/ffmpeg"
+            # Path handled above
 
             proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
             await proc.communicate()

@@ -32,6 +32,7 @@ export default function Navbar() {
 
     const navLinks = [
         { href: '/', label: 'Home' },
+        { href: '/creator', label: 'Creator Mode' },
         { href: '/pricing', label: 'Pricing' },
     ];
 
@@ -39,8 +40,8 @@ export default function Navbar() {
 
     return (
         <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
-                ? 'py-3 bg-black/80 backdrop-blur-2xl border-b border-white/5'
-                : 'py-5 bg-transparent'
+            ? 'py-3 bg-black/80 backdrop-blur-2xl border-b border-white/5'
+            : 'py-5 bg-transparent'
             }`}>
             <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
                 {/* Logo */}
@@ -62,8 +63,8 @@ export default function Navbar() {
                             key={link.href}
                             href={link.href}
                             className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${pathname === link.href
-                                    ? 'bg-white text-black'
-                                    : 'text-gray-400 hover:text-white'
+                                ? 'bg-white text-black'
+                                : 'text-gray-400 hover:text-white'
                                 }`}
                         >
                             {link.label}
