@@ -1,5 +1,10 @@
+const DEFAULT_API_BASE =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:8000/api"
+    : "https://proedit-api-nzzr.onrender.com/api";
+
 export const API_BASE =
-  (process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api").replace(/\/$/, "");
+  (process.env.NEXT_PUBLIC_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
 
 export const API_ORIGIN = API_BASE.endsWith("/api")
   ? API_BASE.slice(0, -4)
@@ -23,6 +28,7 @@ export class ApiError extends Error {
 type ApiOptions = Omit<RequestInit, "body"> & {
   auth?: boolean;
   body?: any;
+  timeoutMs?: number;
 };
 
 export function getAuthToken(): string | null {
@@ -154,7 +160,26 @@ function withHeaders(options: ApiOptions): RequestInit {
 }
 
 export async function apiFetch(path: string, options: ApiOptions = {}): Promise<Response> {
-  const res = await fetch(buildUrl(path), withHeaders(options));
+  const timeoutMs = options.timeoutMs ?? 20000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path), { ...withHeaders(options), signal: controller.signal });
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      throw new ApiError(
+        `Request timed out after ${Math.round(timeoutMs / 1000)}s. Check API connectivity.`,
+        0,
+        "timeout"
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
   if (!res.ok) {
     throw await toApiError(res);
   }
