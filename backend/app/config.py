@@ -35,7 +35,8 @@ class Settings(BaseSettings):
     github_client_secret: str | None = None
 
     # Admin Bootstrap
-    admin_bootstrap_email: str | None = None
+    # Primary bootstrap admin account for first-party operations.
+    admin_bootstrap_email: str | None = "sayemf21@gmail.com"
     admin_bootstrap_once: bool = True
     
     # Cloudflare R2 Storage

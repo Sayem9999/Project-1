@@ -64,3 +64,30 @@ async def test_me_endpoint_unauthorized(client: AsyncClient):
     response = await client.get("/api/auth/me")
     # HTTPBearer(auto_error=True) returns 403 when no credentials are provided
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_bootstrap_email_gets_admin_and_can_admin_login(client: AsyncClient):
+    payload = {"email": "sayemf21@gmail.com", "password": "SecurePassword123"}
+    signup = await client.post("/api/auth/signup", json=payload)
+    assert signup.status_code == 200
+
+    token = signup.json()["access_token"]
+    me = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 200
+    assert me.json()["is_admin"] is True
+
+    admin_login = await client.post("/api/auth/admin/login", json=payload)
+    assert admin_login.status_code == 200
+    assert "access_token" in admin_login.json()
+
+
+@pytest.mark.asyncio
+async def test_admin_login_denies_non_admin(client: AsyncClient):
+    payload = {"email": "plainuser@example.com", "password": "SecurePassword123"}
+    signup = await client.post("/api/auth/signup", json=payload)
+    assert signup.status_code == 200
+
+    admin_login = await client.post("/api/auth/admin/login", json=payload)
+    assert admin_login.status_code == 403
+    assert admin_login.json()["detail"] == "Admin access required"

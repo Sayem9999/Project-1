@@ -16,11 +16,14 @@ function LoginForm() {
   const { showToast } = useToast();
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [adminMode, setAdminMode] = useState(false);
 
   useEffect(() => {
     const emailParam = searchParams.get('email');
     const messageParam = searchParams.get('message');
+    const adminParam = searchParams.get('admin');
     if (emailParam) setEmail(emailParam);
+    setAdminMode(adminParam === '1' || adminParam === 'true');
     if (messageParam === 'exists') {
       setInfo('Account already exists. Please sign in.');
     }
@@ -32,7 +35,8 @@ function LoginForm() {
     setError('');
 
     try {
-      const data = await apiRequest<{ access_token: string }>('/auth/login', {
+      const endpoint = adminMode ? '/auth/admin/login' : '/auth/login';
+      const data = await apiRequest<{ access_token: string }>(endpoint, {
         method: 'POST',
         body: { email, password },
       });
@@ -41,13 +45,18 @@ function LoginForm() {
       try {
         const me = await apiRequest<any>('/auth/me', { auth: true });
         setStoredUser(me);
+        if (adminMode && !me.is_admin) {
+          setError('Admin access required');
+          setLoading(false);
+          return;
+        }
         if (me.is_admin) {
           showToast("Welcome, Administrator", "success");
         }
       } catch {
         // no-op for now
       }
-      router.push('/dashboard/upload');
+      router.push(adminMode ? '/admin' : '/dashboard/upload');
     } catch (err: any) {
       const message = err instanceof ApiError ? err.message : 'Login failed';
       setError(message);
@@ -79,8 +88,12 @@ function LoginForm() {
       </Link>
 
       <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-        <h1 className="text-2xl font-bold text-white text-center mb-2">Sign in</h1>
-        <p className="text-gray-400 text-center mb-6">Sign in to your account</p>
+        <h1 className="text-2xl font-bold text-white text-center mb-2">
+          {adminMode ? 'Admin sign in' : 'Sign in'}
+        </h1>
+        <p className="text-gray-400 text-center mb-6">
+          {adminMode ? 'Sign in with an admin account' : 'Sign in to your account'}
+        </p>
 
         {info && (
           <div className="p-3 mb-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-cyan-400 text-sm text-center">
@@ -159,6 +172,13 @@ function LoginForm() {
         <p className="text-center text-sm text-gray-400 mt-4">
           Don&apos;t have an account{' '}
           <Link href="/signup" className="text-cyan-400 hover:underline">Sign up</Link>
+        </p>
+        <p className="text-center text-sm text-gray-500 mt-2">
+          {adminMode ? (
+            <Link href="/login" className="text-cyan-400 hover:underline">Back to user login</Link>
+          ) : (
+            <Link href="/login?admin=1" className="text-cyan-400 hover:underline">Admin login</Link>
+          )}
         </p>
       </div>
     </div>

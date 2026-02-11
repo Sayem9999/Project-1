@@ -2,13 +2,15 @@
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { apiRequest, ApiError, clearAuth, setStoredUser } from '@/lib/api';
+import { apiRequest, ApiError, API_ORIGIN, clearAuth, setStoredUser } from '@/lib/api';
 
 export default function TopBar() {
     const pathname = usePathname();
     const [credits, setCredits] = useState<number | null>(null);
     const [displayName, setDisplayName] = useState<string>('U');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [clock, setClock] = useState<string>('');
+    const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
 
     // Format pathname for breadcrumbs (e.g. /dashboard/upload -> Dashboard / Upload)
     const segments = pathname.split('/').filter(Boolean);
@@ -41,6 +43,33 @@ export default function TopBar() {
         return () => window.removeEventListener('credit-update', handleCreditUpdate);
     }, []);
 
+    useEffect(() => {
+        const updateClock = () => setClock(new Date().toLocaleTimeString());
+        updateClock();
+        const timer = window.setInterval(updateClock, 1000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const checkHealth = async () => {
+            try {
+                const res = await fetch(`${API_ORIGIN}/health`, { method: 'GET' });
+                if (!cancelled) setApiHealthy(res.ok);
+            } catch {
+                if (!cancelled) setApiHealthy(false);
+            }
+        };
+
+        checkHealth();
+        const interval = window.setInterval(checkHealth, 30000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(interval);
+        };
+    }, []);
+
     return (
         <header className="h-20 flex items-center justify-between px-8 z-40">
             {/* Breadcrumbs */}
@@ -57,6 +86,23 @@ export default function TopBar() {
 
             {/* Actions */}
             <div className="flex items-center gap-6">
+                <div className="hidden lg:flex items-center gap-3 px-3 py-2 rounded-xl bg-obsidian-800/40 border border-white/10 text-xs">
+                    <span
+                        className={`inline-block w-2.5 h-2.5 rounded-full shadow-[0_0_12px] ${
+                            apiHealthy === null
+                                ? 'bg-gray-400 shadow-gray-400/40'
+                                : apiHealthy
+                                  ? 'bg-emerald-400 shadow-emerald-400/50'
+                                  : 'bg-red-400 shadow-red-400/50'
+                        }`}
+                    />
+                    <span className="text-gray-300 font-medium">
+                        {apiHealthy === null ? 'API Checking...' : apiHealthy ? 'API Live' : 'API Offline'}
+                    </span>
+                    <span className="text-gray-500">|</span>
+                    <span className="font-mono text-gray-400">{clock || '--:--:--'}</span>
+                </div>
+
                 {/* Credits Badge */}
                 <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-obsidian-800/50 border border-white/5 text-xs font-semibold text-slate-300 shadow-sm backdrop-blur-sm">
                     <span className="text-amber-400 text-base">CR</span>

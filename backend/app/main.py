@@ -13,6 +13,7 @@ from .db import engine, Base, SessionLocal
 from .routers import auth, jobs, agents, oauth, websocket, maintenance
 from .logging_config import configure_logging
 from .models import User
+from .services.introspection import introspection_service
 
 import os
 
@@ -79,6 +80,7 @@ async def lifespan(app: FastAPI):
     # Schedule background tasks
     from .tasks.cleanup import run_cleanup_task
     asyncio.create_task(periodic_cleanup_wrapper(run_cleanup_task))
+    asyncio.create_task(periodic_introspection_wrapper())
     
     logger.info("startup_ready")
     yield
@@ -117,6 +119,30 @@ async def periodic_cleanup_wrapper(task_func):
         except Exception as e:
             logger.error("background_task_failed", error=str(e))
             await asyncio.sleep(60 * 5) # Retry after 5 min on error
+
+
+async def periodic_introspection_wrapper():
+    """Periodically self-heal and refresh system-map graph cache."""
+    interval = 60 * 10  # 10 minutes
+    # Warm initial snapshot after startup without blocking request handling.
+    try:
+        await asyncio.to_thread(introspection_service.scan, None, True)
+    except Exception as e:
+        logger.error("introspection_warmup_failed", error=str(e))
+
+    while True:
+        try:
+            await asyncio.sleep(interval)
+            result = await asyncio.to_thread(introspection_service.self_heal)
+            logger.info(
+                "introspection_self_heal_complete",
+                status=result.get("status"),
+                integrity_score=result.get("integrity_score"),
+                actions=result.get("actions", []),
+            )
+        except Exception as e:
+            logger.error("introspection_self_heal_failed", error=str(e))
+            await asyncio.sleep(60)
 
 app = FastAPI(
     title=settings.app_name,

@@ -2,6 +2,7 @@ import './globals.css';
 import { Toaster } from 'sonner';
 import { ToastProvider } from '@/components/ui/Toast';
 import SystemBanner from '@/components/ui/SystemBanner';
+import AppEnhancer from '@/components/ui/AppEnhancer';
 
 export const metadata = {
   title: 'Proedit.ai - AI Video Editing',
@@ -15,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ToastProvider>
           <SystemBanner />
           <Toaster richColors position="top-right" theme="dark" />
-          {children}
+          <AppEnhancer>{children}</AppEnhancer>
         </ToastProvider>
       </body>
     </html>

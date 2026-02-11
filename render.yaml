@@ -23,10 +23,9 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: REDIS_URL
-        fromService:
-          name: proedit-redis
-          type: redis
-          property: connectionString
+        sync: false
+      - key: REDIS_SSL_CERT_REQS
+        sync: false
       - key: SENTRY_DSN
         sync: false
       - key: R2_ACCOUNT_ID

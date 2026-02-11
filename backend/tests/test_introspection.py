@@ -31,3 +31,23 @@ def test_introspection_scan_finds_nodes():
 def test_introspection_scan_path_override():
     service = IntrospectionService(root_dir="app")
     assert service.root_dir == "app"
+
+
+def test_introspection_health_status_after_scan():
+    service = IntrospectionService()
+    status_before = service.get_health_status()
+    assert status_before["stale"] is True
+
+    service.scan(force=True)
+    status_after = service.get_health_status()
+    assert status_after["scan_failures"] == 0
+    assert status_after["last_scan_at_unix"] is not None
+    assert status_after["graph_nodes"] > 0
+
+
+def test_introspection_self_heal_returns_graph():
+    service = IntrospectionService()
+    result = service.self_heal()
+    assert result["status"] in {"healthy", "self_healed"}
+    assert "graph" in result
+    assert result["graph"]["stats"]["total_nodes"] == len(result["graph"]["nodes"])
