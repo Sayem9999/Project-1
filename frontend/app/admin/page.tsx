@@ -7,6 +7,11 @@ import { toast } from 'sonner';
 import * as Sentry from '@sentry/nextjs';
 import { apiRequest, ApiError, clearAuth } from '@/lib/api';
 import SystemMap from '@/components/admin/SystemMap';
+import StatCard from '@/components/admin/StatCard';
+import StatusBadge from '@/components/admin/StatusBadge';
+import UserTable from '@/components/admin/UserTable';
+import JobTable from '@/components/admin/JobTable';
+import SystemTrends from '@/components/admin/SystemTrends';
 
 interface SystemStats {
   users: { total: number; active_24h?: number };
@@ -512,39 +517,7 @@ export default function AdminDashboardPage() {
                 ))}
               </div>
             </div>
-            {stats?.trends && (
-              <div className="lg:col-span-3 bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
-                <h3 className="text-lg font-semibold text-white mb-4">7-Day Trends</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[
-                    { label: 'Jobs', data: stats.trends.jobs_by_day, color: 'bg-cyan-500' },
-                    { label: 'Failures', data: stats.trends.failures_by_day, color: 'bg-red-500' },
-                    { label: 'New Users', data: stats.trends.users_by_day, color: 'bg-emerald-500' },
-                  ].map((trend) => {
-                    const max = Math.max(...trend.data.map((d) => d.count), 1);
-                    return (
-                      <div key={trend.label} className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                        <div className="text-xs text-gray-400 mb-3">{trend.label}</div>
-                        <div className="space-y-2">
-                          {trend.data.map((point) => (
-                            <div key={point.date} className="flex items-center gap-3">
-                              <span className="text-[10px] text-gray-500 w-16">{point.date}</span>
-                              <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full ${trend.color}`}
-                                  style={{ width: `${Math.round((point.count / max) * 100)}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-gray-300 w-6 text-right">{point.count}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {stats?.trends && <SystemTrends trends={stats.trends} />}
           </motion.div>
         )}
 
@@ -571,98 +544,14 @@ export default function AdminDashboardPage() {
                 />
               </div>
             </div>
-            <table className="w-full text-left">
-              <thead className="bg-white/5 text-gray-400 text-xs font-bold uppercase tracking-widest border-b border-white/5">
-                <tr>
-                  <th className="px-6 py-4">User</th>
-                  <th className="px-6 py-4">Credits</th>
-                  <th className="px-6 py-4">Created</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-violet-500/20 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/20">
-                          {user.email[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-white font-medium">{user.full_name || 'Anonymous'}</p>
-                            {user.is_admin && (
-                              <span className="text-[10px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                                Admin
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5">
-                      {editingCredits?.id === user.id ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            value={editingCredits.credits}
-                            onChange={(e) =>
-                              setEditingCredits({ ...editingCredits, credits: parseInt(e.target.value, 10) })
-                            }
-                            className="w-20 bg-black border border-white/20 rounded px-2 py-1 text-white text-sm"
-                          />
-                          <button
-                            onClick={() => handleUpdateCredits(user.id, editingCredits.credits)}
-                            className="text-emerald-400 text-xs hover:underline"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="text-amber-400 font-bold font-mono">{user.credits}</span>
-                          <button
-                            onClick={() => setEditingCredits({ id: user.id, credits: user.credits })}
-                            className="text-gray-600 hover:text-white transition-colors"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-5 text-gray-400 text-sm">
-                      {new Date(user.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {quickCreditAdds.map((delta) => (
-                          <button
-                            key={delta}
-                            onClick={() => handleAddCredits(user.id, delta, "quick_add")}
-                            className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200 transition-colors"
-                          >
-                            +{delta}
-                          </button>
-                        ))}
-                        <button
-                          onClick={() => setEditingCredits({ id: user.id, credits: user.credits })}
-                          className="text-[10px] font-bold text-gray-400 hover:text-white transition-colors"
-                        >
-                          Set
-                        </button>
-                        <button
-                          onClick={() => openUserDetails(user)}
-                          className="text-[10px] font-bold text-brand-cyan hover:text-brand-accent transition-colors"
-                        >
-                          Details
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <UserTable
+              users={filteredUsers}
+              editingCredits={editingCredits}
+              setEditingCredits={setEditingCredits}
+              handleUpdateCredits={handleUpdateCredits}
+              handleAddCredits={handleAddCredits}
+              openUserDetails={openUserDetails}
+            />
           </motion.div>
         )}
 
@@ -712,85 +601,13 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
             </div>
-            <table className="w-full text-left">
-              <thead className="bg-white/5 text-gray-400 text-xs font-bold uppercase tracking-widest border-b border-white/5">
-                <tr>
-                  <th className="px-6 py-4">Job ID</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Theme</th>
-                  <th className="px-6 py-4">Message</th>
-                  <th className="px-6 py-4">Created</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {filteredJobs.map((job) => {
-                  const stalled = isStalledJob(job);
-                  const lastActivity = job.updated_at || job.created_at;
-                  return (
-                    <tr key={job.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-5 font-mono text-cyan-400 text-sm">#{job.id}</td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2">
-                          <StatusBadge status={job.status} />
-                          {stalled && (
-                            <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase border border-amber-500/30 text-amber-300 bg-amber-500/10">
-                              Stalled
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 text-gray-300 text-sm capitalize">{job.theme}</td>
-                      <td className="px-6 py-5 text-gray-400 text-xs italic max-w-xs truncate">
-                        {job.progress_message}
-                        {stalled && (
-                          <div className="text-[10px] text-gray-600 mt-1">
-                            Last update: {new Date(lastActivity).toLocaleString()}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-5 text-gray-500 text-xs">
-                        {new Date(job.created_at).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        {stalled ? (
-                          <div className="flex items-center justify-end gap-3">
-                            <button
-                              onClick={() => handleAdminForceRetry(job.id)}
-                              className="text-xs font-semibold text-amber-300 hover:text-amber-200"
-                            >
-                              Force Retry
-                            </button>
-                            <button
-                              onClick={() => handleAdminCancel(job.id)}
-                              className="text-xs font-semibold text-red-300 hover:text-red-200"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : job.status === 'failed' ? (
-                          <button
-                            onClick={() => handleAdminRetry(job.id)}
-                            className="text-xs font-semibold text-emerald-300 hover:text-emerald-200"
-                          >
-                            Retry
-                          </button>
-                        ) : job.status === 'processing' || job.status === 'queued' ? (
-                          <button
-                            onClick={() => handleAdminCancel(job.id)}
-                            className="text-xs font-semibold text-red-300 hover:text-red-200"
-                          >
-                            Cancel
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-500">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <JobTable
+              jobs={filteredJobs}
+              isStalledJob={isStalledJob}
+              handleAdminForceRetry={handleAdminForceRetry}
+              handleAdminCancel={handleAdminCancel}
+              handleAdminRetry={handleAdminRetry}
+            />
           </motion.div>
         )}
 
@@ -1067,59 +884,6 @@ export default function AdminDashboardPage() {
         )
       }
     </div >
+
   );
 }
-
-function StatCard({ icon: Icon, title, value, subtext, color, progress }: any) {
-  const colors = {
-    cyan: 'from-cyan-500/20 to-cyan-500/5 border-cyan-500/30 text-cyan-400',
-    violet: 'from-violet-500/20 to-violet-500/5 border-violet-500/30 text-violet-400',
-    emerald: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30 text-emerald-400',
-    amber: 'from-amber-500/20 to-amber-500/5 border-amber-500/30 text-amber-400',
-  };
-
-  return (
-    <div className={`p-6 bg-gradient-to-br ${colors[color as keyof typeof colors]} border rounded-3xl relative overflow-hidden group`}>
-      <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-        <Icon className="w-16 h-16" />
-      </div>
-      <div className="relative z-10">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-white/5 rounded-lg border border-white/10">
-            <Icon className="w-4 h-4" />
-          </div>
-          <h3 className="text-gray-300 font-medium text-sm">{title}</h3>
-        </div>
-        <div className="text-3xl font-black text-white mb-1 tracking-tighter">{value}</div>
-        <p className="text-xs text-gray-500 font-medium">{subtext}</p>
-
-        {progress !== undefined && (
-          <div className="mt-4 w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              className={`h-full rounded-full ${progress > 80 ? 'bg-red-500' : 'bg-current'}`}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles =
-    status === 'complete'
-      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-      : status === 'failed'
-        ? 'bg-red-500/10 border-red-500/30 text-red-400'
-        : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400 animate-pulse';
-
-  return (
-    <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase border ${styles}`}>
-      {status}
-    </span>
-  );
-}
-
-
