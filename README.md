@@ -88,6 +88,41 @@ ProEdit is an advanced automated video editing platform that uses a multi-agent 
     python -m celery -A app.celery_app worker --loglevel=info
     ```
 
+## Production Memory Mode (512MB Render)
+
+Use API-only mode on Render web service, and run the worker separately.
+
+1. Web service (`proedit-api`) must run with:
+   - `RUN_EMBEDDED_CELERY=false`
+2. Keep `REDIS_URL` configured on Render so jobs are queued.
+3. Run Celery worker on your PC (Windows PowerShell):
+   ```powershell
+   cd backend
+   .\.venv\Scripts\activate
+
+   # Set production envs (use your real values from Render)
+   $env:ENVIRONMENT = "production"
+   $env:REDIS_URL = "rediss://<render-redis-url>"
+   $env:DATABASE_URL = "postgresql+asyncpg://<render-postgres-url>"
+   $env:SECRET_KEY = "<same-secret-key-used-by-api>"
+   $env:GEMINI_API_KEY = "<optional>"
+   $env:GROQ_API_KEY = "<optional>"
+   $env:OPENAI_API_KEY = "<optional>"
+   $env:R2_ACCOUNT_ID = "<r2-account-id>"
+   $env:R2_ACCESS_KEY_ID = "<r2-access-key-id>"
+   $env:R2_SECRET_ACCESS_KEY = "<r2-secret>"
+   $env:R2_BUCKET_NAME = "proedit-uploads"
+   $env:MODAL_TOKEN_ID = "<modal-token-id>"
+   $env:MODAL_TOKEN_SECRET = "<modal-token-secret>"
+
+   celery -A app.celery_app worker --pool=solo --concurrency=1 --without-gossip --without-mingle --without-heartbeat -Q video,celery --loglevel=info
+   ```
+   Or use:
+   ```powershell
+   .\run_worker.ps1
+   ```
+4. Keep this worker terminal running continuously while processing jobs.
+
 ### Frontend Setup
 
 1.  **Navigate to frontend:**

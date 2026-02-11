@@ -12,6 +12,8 @@ services:
         value: production
       - key: MAX_CONCURRENT_JOBS
         value: "1"
+      - key: RUN_EMBEDDED_CELERY
+        value: "false"
       - key: DATABASE_URL
         fromDatabase:
           name: proedit-db

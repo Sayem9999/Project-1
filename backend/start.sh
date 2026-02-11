@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Start Gunicorn with 1 worker to save memory on free tier
-# Timeout set to 120s for long uploads/jobs
-# Start Celery worker in background (embedded mode for free tier)
-if [[ -n "${REDIS_URL}" && ( "${REDIS_URL}" == redis://* || "${REDIS_URL}" == rediss://* ) ]]; then
+# Start Gunicorn with 1 worker to save memory on free tier.
+# Celery is disabled by default on web instances. Enable only for local/dev with:
+#   RUN_EMBEDDED_CELERY=true
+if [[ "${RUN_EMBEDDED_CELERY:-false}" == "true" ]] && [[ -n "${REDIS_URL}" && ( "${REDIS_URL}" == redis://* || "${REDIS_URL}" == rediss://* ) ]]; then
   # Generate unique node name to avoid collision
   NODE_NAME="celery@${RENDER_INSTANCE_ID:-$(hostname)}"
   
@@ -20,7 +20,7 @@ if [[ -n "${REDIS_URL}" && ( "${REDIS_URL}" == redis://* || "${REDIS_URL}" == re
     -n "$NODE_NAME" \
     -Q video,celery &
 else
-  echo "REDIS_URL missing or invalid. Skipping Celery worker."
+  echo "Embedded Celery disabled or REDIS_URL missing. Running API-only mode."
 fi
 
 # Start Gunicorn
