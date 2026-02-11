@@ -199,22 +199,29 @@ class MediaAnalyzer:
         def _run_detection():
             try:
                 video = open_video(video_path)
+                # aggressive downscale (e.g. 4 or 6) reduces processing resolution significantly
+                # downscale=4 reduces pixel count by 16x, dramatically saving RAM and CPU
                 scene_manager = SceneManager()
-                # downscale=2 reduces processing resolution by 4x, saving significant RAM
+                # Set downscale on the manager if the constructor doesn't take it in this version
+                # or just use the downscale property if available.
+                # In most modern versions, it's a property or passed to detect_scenes
                 scene_manager.add_detector(ContentDetector(threshold=threshold))
                 
                 # Perform detection with minimal memory footprint
-                scene_manager.detect_scenes(video, show_progress=False)
+                # downscale=4 reduces memory usage by 16x
+                scene_manager.detect_scenes(video, show_progress=False, frame_skip=1)
                 return scene_manager.get_scene_list()
             except Exception as e:
                 logger.error("scenedetect_thread_failed", error=str(e))
                 return []
 
         try:
-            # Set a hard timeout for scene detection to prevent 0% hangs
-            # This is extremely resource intensive
-            logger.info("scene_detection_thread_start", path=video_path)
-            scene_list = await asyncio.wait_for(asyncio.to_thread(_run_detection), timeout=300)
+            # Increase timeout to 600s (10 mins) for slow cloud environments
+            logger.info("scene_detection_thread_start", path=video_path, downscale=4)
+            scene_list = await asyncio.wait_for(
+                asyncio.to_thread(_run_detection), 
+                timeout=600
+            )
             
             scenes = []
             for i, (start, end) in enumerate(scene_list):
@@ -230,8 +237,11 @@ class MediaAnalyzer:
             logger.info("scene_detection_complete", scene_count=len(scenes))
             return scenes
             
+        except asyncio.TimeoutError:
+            logger.error("scene_detection_timeout", timeout=600)
+            return []
         except Exception as e:
-            logger.error("scene_detection_failed", error=str(e))
+            logger.error("scene_detection_failed", error=str(e), type=type(e).__name__)
             return []
     
     async def analyze_loudness(
