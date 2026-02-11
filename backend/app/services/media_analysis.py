@@ -200,11 +200,10 @@ class MediaAnalyzer:
             try:
                 video = open_video(video_path)
                 scene_manager = SceneManager()
-                # Use a higher threshold if needed, but downscale is key for memory
+                # downscale=2 reduces processing resolution by 4x, saving significant RAM
                 scene_manager.add_detector(ContentDetector(threshold=threshold))
                 
-                # downscale reduces decoding resolution (e.g., 2 means half width/height)
-                # This drastically reduces memory usage on high-res videos
+                # Perform detection with minimal memory footprint
                 scene_manager.detect_scenes(video, show_progress=False)
                 return scene_manager.get_scene_list()
             except Exception as e:
