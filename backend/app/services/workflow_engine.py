@@ -148,9 +148,21 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
         publish_progress(job_id, "processing", "Analyzing video keyframes...", 10, user_id=user_id)
         memory_context = await hybrid_memory.get_agent_context(user_id)
         
-        keyframe_payload = {"source_path": source_path, "pacing": pacing}
-        keyframe_resp = await keyframe_agent.run(keyframe_payload)
-        keyframe_data = parse_json_safe(keyframe_resp.get("raw_response", "{}"))
+        # Holy Grail: Use client-provided intelligence if available
+        if job.media_intelligence and job.media_intelligence.get("visual", {}).get("scenes"):
+            print(f"[Workflow] Using client-provided intelligence for Standard job {job_id}")
+            visual_data = job.media_intelligence["visual"]
+            keyframe_data = {
+                "scene_count": len(visual_data["scenes"]),
+                "scenes": visual_data["scenes"],
+                "duration": visual_data.get("metadata", {}).get("duration", 0),
+                "source": "client"
+            }
+        else:
+            keyframe_payload = {"source_path": source_path, "pacing": pacing}
+            keyframe_resp = await keyframe_agent.run(keyframe_payload)
+            keyframe_data = parse_json_safe(keyframe_resp.get("raw_response", "{}"))
+        
         print(f"[Workflow] Keyframe Analysis: {keyframe_data.get('scene_count', 'N/A')} scenes")
         
         # === PHASE 2: Director Planning (20%) ===
