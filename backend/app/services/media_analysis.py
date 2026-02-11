@@ -6,6 +6,7 @@ import subprocess
 import json
 import structlog
 import asyncio
+import gc
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -95,11 +96,12 @@ class MediaAnalyzer:
         """Run complete analysis on video file."""
         logger.info("media_analysis_start", path=video_path)
         
-        # Run these in parallel threads to avoid blocking event loop
-        metadata_task = self.get_metadata(video_path)
-        scenes_task = self.detect_scenes(video_path)
+        # Run these sequentially to avoid peak memory pressure on 512MB tier
+        metadata = await self.get_metadata(video_path)
         
-        metadata, scenes = await asyncio.gather(metadata_task, scenes_task)
+        # Scenes is the most memory intensive part
+        scenes = await self.detect_scenes(video_path)
+        gc.collect() # Force cleanup after heavy decoding
         
         loudness = None
         if metadata and metadata.has_audio:
@@ -198,9 +200,12 @@ class MediaAnalyzer:
             try:
                 video = open_video(video_path)
                 scene_manager = SceneManager()
+                # Use a higher threshold if needed, but downscale is key for memory
                 scene_manager.add_detector(ContentDetector(threshold=threshold))
                 
-                scene_manager.detect_scenes(video)
+                # downscale reduces decoding resolution (e.g., 2 means half width/height)
+                # This drastically reduces memory usage on high-res videos
+                scene_manager.detect_scenes(video, show_progress=False)
                 return scene_manager.get_scene_list()
             except Exception as e:
                 logger.error("scenedetect_thread_failed", error=str(e))

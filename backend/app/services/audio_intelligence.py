@@ -5,6 +5,7 @@ import structlog
 import subprocess
 import json
 import asyncio
+import gc
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 
@@ -102,9 +103,11 @@ class AudioIntelligence:
                 overall_lufs=-70,
                 overall_peak=-70
             )
+        gc.collect()
         
         # Detect silence regions
         silence_regions = await self._detect_silence(audio_path)
+        gc.collect()
         
         # Detect speech regions (simple VAD)
         speech_regions = await self._detect_speech_regions(audio_path)
