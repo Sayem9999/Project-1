@@ -200,7 +200,7 @@ class MediaAnalyzer:
                 self.ffmpeg,
                 "-hide_banner",
                 "-i", video_path,
-                "-vf", f"scale=-1:360,select='gt(scene,{threshold})',showinfo",
+                "-vf", f"select='gt(scene,{threshold})',showinfo",
                 "-f", "null",
                 "-"
             ]
@@ -269,7 +269,6 @@ class MediaAnalyzer:
                 self.ffmpeg,
                 "-hide_banner",
                 "-t", str(analysis_seconds),
-                "-vn",
                 "-i", video_path,
                 "-af", "loudnorm=print_format=json",
                 "-f", "null",
