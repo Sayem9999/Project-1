@@ -24,29 +24,29 @@ async def test_deduct_credits_on_upload(client: AsyncClient):
     token = res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Mock storage and background tasks
-    with patch("app.routers.jobs.storage_service.save_upload", new_callable=AsyncMock) as mock_save:
-        mock_save.return_value = "tests/mock_upload.mp4"
-        
-        # We also need to prevent actual background task execution if possible, 
-        # but the code uses inline asyncio.create_task or celery. 
-        # We can mock `app.routers.jobs.process_video_task` and `app.routers.jobs.process_job`.
-        # Since imports happen inside the function in some cases, patching might be tricky.
-        # But let's try patching the router module imports.
-        
-        # Actually, simpler to just let it fail or mock the internal service call if it blocks.
-        # But `save_upload` is awaited, so that must be mocked.
-        
-        # Upload file
+    # Mock storage and queue dispatch.
+    with patch("app.routers.jobs.storage_service.save_upload", new_callable=AsyncMock) as mock_save, patch(
+        "app.routers.jobs.enqueue_job", new_callable=AsyncMock
+    ):
+        mock_save.return_value = "https://example.com/mock_upload.mp4"
+
+        # Upload only creates a queued job; credits are charged on /start.
         files = {"file": ("video.mp4", b"fake content", "video/mp4")}
-        data = {"tier": "free", "theme": "professional"} # Cost 1 credit
-        
+        data = {"tier": "free", "theme": "professional"}
+
         res = await client.post("/api/jobs/upload", headers=headers, files=files, data=data)
         assert res.status_code == 200, res.text
-        
-        # Check credits deducted
+
+        job_id = res.json()["id"]
         res = await client.get("/api/auth/me", headers=headers)
-        assert res.json()["credits"] == 9  # 10 - 1
+        assert res.json()["credits"] == 10
+
+        # Start the job and verify a 1-credit deduction for non-pro tier.
+        res = await client.post(f"/api/jobs/{job_id}/start", headers=headers)
+        assert res.status_code == 200, res.text
+
+        res = await client.get("/api/auth/me", headers=headers)
+        assert res.json()["credits"] == 9
 
 @pytest.mark.asyncio
 async def test_insufficient_credits(client: AsyncClient):

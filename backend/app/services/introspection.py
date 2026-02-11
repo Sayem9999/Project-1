@@ -6,6 +6,7 @@ from pathlib import Path
 import structlog
 
 logger = structlog.get_logger()
+HTTP_ROUTE_DECORATORS = {"get", "post", "put", "patch", "delete", "options", "head"}
 
 class IntrospectionService:
     """
@@ -163,6 +164,17 @@ class IntrospectionService:
                     for base in node.bases:
                         if isinstance(base, ast.Name) and base.id == "Base":
                              self.nodes[-1]["type"] = "model" # Update last node
+                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    for decorator in node.decorator_list:
+                        endpoint = self._extract_endpoint(decorator)
+                        if not endpoint:
+                            continue
+
+                        method, route_path = endpoint
+                        endpoint_id = f"endpoint:{rel_path}:{node.name}:{method}:{route_path}"
+                        endpoint_label = f"{method} {route_path}"
+                        self._add_node(endpoint_id, "endpoint", endpoint_label)
+                        self._add_edge(module_id, endpoint_id, "contains")
 
         except Exception as e:
             logger.warning(f"Failed to parse {file_path}: {e}")
@@ -177,6 +189,7 @@ class IntrospectionService:
             "service": "#4ecdc4",  # Cyan
             "agent": "#ffe66d",    # Yellow
             "model": "#ff9f43",    # Orange
+            "endpoint": "#54a0ff", # Blue
             "module": "#a55eea",   # Purple
             "class": "#ced6e0"     # Gray
         }
@@ -209,6 +222,23 @@ class IntrospectionService:
             "target": target,
             "type": type_str
         })
+
+    def _extract_endpoint(self, decorator: ast.expr) -> Optional[tuple[str, str]]:
+        """Extract (METHOD, route_path) from FastAPI route decorators like @router.get('/x')."""
+        if not isinstance(decorator, ast.Call):
+            return None
+        if not isinstance(decorator.func, ast.Attribute):
+            return None
+        if decorator.func.attr not in HTTP_ROUTE_DECORATORS:
+            return None
+
+        route_path = "/"
+        if decorator.args:
+            arg0 = decorator.args[0]
+            if isinstance(arg0, ast.Constant) and isinstance(arg0.value, str):
+                route_path = arg0.value
+
+        return decorator.func.attr.upper(), route_path
 
 # Global instance
 introspection_service = IntrospectionService()
