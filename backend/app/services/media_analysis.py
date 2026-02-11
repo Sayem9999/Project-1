@@ -10,6 +10,7 @@ import gc
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, asdict
 from pathlib import Path
+from .concurrency import limits
 
 logger = structlog.get_logger()
 
@@ -62,9 +63,7 @@ class MediaAnalysis:
     black_frame_pct: Optional[float]
 
 
-# Global semaphore to ensure only one heavy analysis runs at a time per process
-# This is critical for 512MB RAM tier
-_analysis_semaphore = asyncio.Semaphore(1)
+# Analysis lock is handled via limits.analysis_semaphore
 
 
 class MediaAnalyzer:
@@ -97,10 +96,10 @@ class MediaAnalyzer:
         """Run complete analysis on video file."""
         logger.info("media_analysis_start", path=video_path)
         
-        async with _analysis_semaphore:
-            # Run these sequentially to avoid peak memory pressure on 512MB tier
-            metadata = await self.get_metadata(video_path)
-            
+        # Metadata is lightweight, only scenes/loudness need the lock
+        metadata = await self.get_metadata(video_path)
+        
+        async with limits.analysis_semaphore:
             # Scenes is the most memory intensive part
             scenes = await self.detect_scenes(video_path)
             gc.collect() # Force cleanup after heavy decoding

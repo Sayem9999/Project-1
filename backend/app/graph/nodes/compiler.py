@@ -7,11 +7,14 @@ FFMPEG_BINARY = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe"
 if os.path.exists(FFMPEG_BINARY):
     os.environ["IMAGEIO_FFMPEG_EXE"] = FFMPEG_BINARY
 
+from ...services.concurrency import limits
+
 async def compiler_node(state: GraphState) -> GraphState:
     """
     Compiler Node: Assembles the final video using MoviePy.
     """
-    print("--- [Graph] Compiler Rendering ---")
+    async with limits.render_semaphore:
+        print("--- [Graph] Compiler Rendering ---")
     
     source_path = state.get("source_path")
     cuts = state.get("cuts", [])

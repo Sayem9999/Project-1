@@ -16,6 +16,7 @@ from ..agents import (
 )
 from ..agents.base import parse_json_response
 from .memory.hybrid_memory import hybrid_memory
+from .concurrency import limits
 
 # Redis for progress publishing (optional)
 REDIS_URL = os.getenv("REDIS_URL")
@@ -253,22 +254,23 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             ffmpeg_path = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe" if os.path.exists("./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe") else "ffmpeg"
             cmd = [ffmpeg_path, "-y", "-i", str(src)]
             
-            if video_encoder == "h264_nvenc":
-                # NVIDIA GPU encoding
-                cmd += ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "23"]
-            elif video_encoder == "h264_vaapi":
-                # AMD/Intel GPU encoding
-                cmd += ["-vaapi_device", "/dev/dri/renderD128", "-c:v", "h264_vaapi", "-qp", "23"]
-            else:
-                # CPU fallback
-                cmd += ["-c:v", "libx264", "-preset", "fast", "-crf", "23"]
+            async with limits.render_semaphore:
+                if video_encoder == "h264_nvenc":
+                    # NVIDIA GPU encoding
+                    cmd += ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "23"]
+                elif video_encoder == "h264_vaapi":
+                    # AMD/Intel GPU encoding
+                    cmd += ["-vaapi_device", "/dev/dri/renderD128", "-c:v", "h264_vaapi", "-qp", "23"]
+                else:
+                    # CPU fallback
+                    cmd += ["-c:v", "libx264", "-preset", "fast", "-crf", "23"]
             
-            cmd += ["-vf", vf, "-af", af, "-threads", "4", str(output_abs)]
+                cmd += ["-vf", vf, "-af", af, "-threads", "4", str(output_abs)]
             
-            # Path handled above
+                # Path handled above
 
-            proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-            await proc.communicate()
+                proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                await proc.communicate()
             
             publish_progress(job_id, "processing", "Render complete!", 80, user_id=user_id)
             
