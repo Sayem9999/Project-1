@@ -1,5 +1,4 @@
 from ..state import GraphState
-from moviepy import VideoFileClip, concatenate_videoclips, CompositeAudioClip, AudioFileClip, vfx
 from pathlib import Path
 import os
 # Configure MoviePy to use the correct FFmpeg binary (v2.0+ compatible)
@@ -8,6 +7,7 @@ if os.path.exists(FFMPEG_BINARY):
     os.environ["IMAGEIO_FFMPEG_EXE"] = FFMPEG_BINARY
 
 from ...services.concurrency import limits
+from ...config import settings
 
 async def compiler_node(state: GraphState) -> GraphState:
     """
@@ -41,6 +41,15 @@ async def compiler_node(state: GraphState) -> GraphState:
             }
         print("--- [Graph] Modal Rendering Failed, falling back to local CPU ---")
 
+    # On constrained production hosts, local Pro rendering is too memory-heavy.
+    if tier == "pro" and settings.environment == "production":
+        return {
+            "errors": [
+                "Pro render requires Modal GPU offload in production. "
+                "Local CPU fallback is disabled to avoid OOM on 512MB instances."
+            ]
+        }
+
     # 2. Local Fallback Rendering (CPU)
     async with limits.render_semaphore:
         print("--- [Graph] Compiler Rendering (Local) ---")
@@ -51,6 +60,9 @@ async def compiler_node(state: GraphState) -> GraphState:
         abs_output.parent.mkdir(parents=True, exist_ok=True)
         
         try:
+            # Import MoviePy lazily so non-render processes don't pay memory cost.
+            from moviepy import VideoFileClip, concatenate_videoclips, AudioFileClip
+
             # Load Source
             original_clip = VideoFileClip(source_path)
             
