@@ -25,10 +25,11 @@ function Import-DotEnvFile {
         $value = $parts[1].Trim().Trim('"').Trim("'")
 
         if ([string]::IsNullOrWhiteSpace($name)) { return }
-        if (-not [Environment]::GetEnvironmentVariable($name)) {
-            [Environment]::SetEnvironmentVariable($name, $value)
-            Set-Item -Path ("Env:{0}" -f $name) -Value $value
-        }
+
+        # [FORCE OVERWRITE] Prioritize the values in the .env file over system/shell environment variables.
+        # This prevents issues where a global DATABASE_URL (e.g. from Render/Postgres) shadows the local SQLite one.
+        [Environment]::SetEnvironmentVariable($name, $value)
+        Set-Item -Path ("Env:{0}" -f $name) -Value $value
     }
 }
 
