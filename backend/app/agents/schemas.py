@@ -2,7 +2,7 @@
 Agent Output Schemas - Pydantic models for structured agent outputs.
 Each agent returns validated JSON that matches these schemas.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Literal, Optional
 from enum import Enum
 
@@ -56,10 +56,69 @@ class ColorOutput(BaseModel):
 # ============================================================================
 class AudioOutput(BaseModel):
     """Output from ECHO - the Audio Engineer Agent."""
-    ffmpeg_audio_filter: str = Field(..., description="FFmpeg audio filter chain")
-    audio_character: str = Field(..., description="One-word descriptor")
-    notes: str = Field(..., description="Brief sonic signature explanation")
-    audio_tracks: list[dict] = Field(default=[], description="List of selected audio tracks")
+    ffmpeg_audio_filter: str = Field(
+        default="loudnorm=I=-14:TP=-1.5:LRA=11",
+        description="FFmpeg audio filter chain"
+    )
+    audio_character: str = Field(default="balanced", description="One-word descriptor")
+    notes: str = Field(default="Auto-normalized for consistency.", description="Brief sonic signature explanation")
+    audio_tracks: list[dict] = Field(default_factory=list, description="List of selected audio tracks")
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_audio_payload(cls, data):
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+
+        filter_value = normalized.get("ffmpeg_audio_filter")
+        if filter_value is None:
+            filter_value = (
+                normalized.get("audio_filter")
+                or normalized.get("filter")
+                or normalized.get("filters")
+                or normalized.get("audio_filters")
+            )
+        if isinstance(filter_value, dict):
+            filter_value = (
+                filter_value.get("ffmpeg_audio_filter")
+                or filter_value.get("filter")
+                or filter_value.get("chain")
+                or filter_value.get("value")
+                or "loudnorm=I=-14:TP=-1.5:LRA=11"
+            )
+        elif isinstance(filter_value, list):
+            filter_value = ",".join(str(item).strip() for item in filter_value if str(item).strip())
+        elif filter_value is not None and not isinstance(filter_value, str):
+            filter_value = str(filter_value)
+
+        if isinstance(filter_value, str):
+            normalized["ffmpeg_audio_filter"] = filter_value.strip() or "loudnorm=I=-14:TP=-1.5:LRA=11"
+
+        normalized["audio_character"] = (
+            normalized.get("audio_character")
+            or normalized.get("character")
+            or normalized.get("tone")
+            or normalized.get("style")
+            or "balanced"
+        )
+        normalized["notes"] = (
+            normalized.get("notes")
+            or normalized.get("reasoning")
+            or normalized.get("rationale")
+            or normalized.get("description")
+            or "Auto-normalized for consistency."
+        )
+
+        tracks = normalized.get("audio_tracks", normalized.get("tracks", []))
+        if isinstance(tracks, dict):
+            tracks = [tracks]
+        if not isinstance(tracks, list):
+            tracks = []
+        normalized["audio_tracks"] = tracks
+
+        return normalized
 
 
 # ============================================================================

@@ -188,18 +188,18 @@ async def run_agent_prompt(
         return None
 
     # Try the selected provider and its models
-        for model in provider.models:
-            try:
-                logger.debug("agent_api_attempt", provider=provider.name, model=model, agent=agent_name)
-                result = await attempt_provider(provider.name, model)
-                if result:
-                    return result
-            except Exception as e:
-                logger.warning("agent_api_failed", provider=provider.name, model=model, error=str(e))
-                last_error = e
-                provider_router.record_failure(provider.name, str(e))
-                provider_router.handle_provider_error(provider.name, model, str(e))
-                continue
+    for model in provider.models:
+        try:
+            logger.debug("agent_api_attempt", provider=provider.name, model=model, agent=agent_name)
+            result = await attempt_provider(provider.name, model)
+            if result:
+                return result
+        except Exception as e:
+            logger.warning("agent_api_failed", provider=provider.name, model=model, error=str(e))
+            last_error = e
+            provider_router.record_failure(provider.name, str(e))
+            provider_router.handle_provider_error(provider.name, model, str(e))
+            continue
 
     # Fallback if selected provider failed
     logger.warning("agent_provider_fallback", old_provider=provider.name, agent=agent_name)
