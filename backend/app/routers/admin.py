@@ -13,7 +13,7 @@ from ..services.storage_service import storage_service
 from ..services.llm_health import get_llm_health_summary
 from ..services.integration_health import get_integration_health
 from ..config import settings
-from .jobs import enqueue_job
+from .jobs import enqueue_job, get_celery_dispatch_diagnostics
 from ..tasks.cleanup import get_cleanup_status
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -410,6 +410,9 @@ async def get_admin_health(
             health["redis"] = {"configured": True, "reachable": False, "error": str(e)}
     else:
         health["redis"] = {"configured": False, "reachable": False}
+
+    # Celery broker/worker visibility from API process
+    health["celery"] = get_celery_dispatch_diagnostics(timeout=1.5)
 
     # LLM health
     health["llm"] = get_llm_health_summary()

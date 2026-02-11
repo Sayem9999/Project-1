@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+from urllib.parse import urlparse
+from typing import Any
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form, Request
 from fastapi.responses import FileResponse
 from sqlalchemy import select
@@ -20,6 +22,52 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 # Check if Celery/Redis is available (handle empty or invalid URLs)
 _REDIS_URL = os.getenv("REDIS_URL", "")
 USE_CELERY = _REDIS_URL.startswith("redis://") or _REDIS_URL.startswith("rediss://")
+
+
+def _broker_fingerprint(redis_url: str) -> str:
+    """Return a sanitized broker fingerprint without credentials."""
+    url = (redis_url or "").strip().strip('"').strip("'")
+    if not url:
+        return "unset"
+    parsed = urlparse(url)
+    if not parsed.scheme:
+        return "invalid"
+    host = parsed.hostname or "unknown"
+    port = parsed.port or 6379
+    db_name = parsed.path.lstrip("/") or "0"
+    return f"{parsed.scheme}://{host}:{port}/{db_name}"
+
+
+def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
+    """Inspect current broker/worker visibility from the API process."""
+    diagnostics: dict[str, Any] = {
+        "use_celery": USE_CELERY,
+        "broker": _broker_fingerprint(_REDIS_URL),
+        "worker_count": 0,
+        "workers": [],
+        "queues": {},
+        "error": None,
+    }
+    if not USE_CELERY:
+        return diagnostics
+
+    try:
+        from ..celery_app import celery_app
+
+        inspect = celery_app.control.inspect(timeout=timeout)
+        ping = inspect.ping() or {}
+        active_queues = inspect.active_queues() or {}
+
+        worker_names = sorted(set(list(ping.keys()) + list(active_queues.keys())))
+        diagnostics["workers"] = worker_names
+        diagnostics["worker_count"] = len(worker_names)
+        diagnostics["queues"] = {
+            worker: [q.get("name") for q in active_queues.get(worker, [])]
+            for worker in worker_names
+        }
+    except Exception as exc:
+        diagnostics["error"] = str(exc)
+    return diagnostics
 
 
 @router.post("/upload", response_model=JobResponse)
@@ -320,15 +368,32 @@ async def enqueue_job(
         )
 
     if USE_CELERY:
+        diagnostics = get_celery_dispatch_diagnostics(timeout=1.5 if settings.environment == "production" else 1.0)
+        if settings.environment == "production" and diagnostics.get("worker_count", 0) == 0:
+            raise HTTPException(
+                status_code=503,
+                detail=f"No active Celery worker reachable on {diagnostics.get('broker')}.",
+            )
+
         try:
             from ..tasks.video_tasks import process_video_task
-            process_video_task.delay(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety)
+            task = process_video_task.apply_async(
+                args=[job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety],
+                queue="video",
+            )
+            short_id = task.id[:8] if task and task.id else "unknown"
+            job.progress_message = f"Queued for worker pickup (task {short_id})."
+            print(
+                f"[Job] Enqueued job_id={job.id} task_id={task.id} "
+                f"broker={diagnostics.get('broker')} workers={diagnostics.get('workers')}"
+            )
             return
         except Exception as e:
             if settings.environment == "production":
                 raise HTTPException(
                     status_code=503,
-                    detail="Queue dispatch failed. Check Redis connectivity and worker health.",
+                    detail=f"Queue dispatch failed on {diagnostics.get('broker')}. "
+                           "Check Redis connectivity and worker health.",
                 ) from e
             print(f"[Job] Celery dispatch failed: {e}. Falling back to inline.")
     from ..services.workflow_engine import process_job
