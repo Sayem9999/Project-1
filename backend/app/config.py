@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str | None = None
     stripe_price_id_pro: str | None = None
 
+    # Modal (GPU Offloading)
+    modal_token_id: str | None = None
+    modal_token_secret: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=(".env", f".env.{os.getenv('ENVIRONMENT', 'development')}"),
         env_file_encoding="utf-8", 

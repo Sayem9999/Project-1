@@ -11,92 +11,97 @@ from ...services.concurrency import limits
 
 async def compiler_node(state: GraphState) -> GraphState:
     """
-    Compiler Node: Assembles the final video using MoviePy.
+    Compiler Node: Assembles the final video.
+    Supports local rendering (CPU) and Modal offloading (GPU).
     """
-    async with limits.render_semaphore:
-        print("--- [Graph] Compiler Rendering ---")
-    
+    job_id = state.get("job_id")
     source_path = state.get("source_path")
     cuts = state.get("cuts", [])
-    output_path = f"job-{state.get('job_id')}-pro.mp4"
-    abs_output = Path(os.getcwd()) / "storage" / "outputs" / output_path
-    abs_output.parent.mkdir(parents=True, exist_ok=True)
+    tier = state.get("tier", "standard")
     
-    try:
-        # Load Source
-        # Note: MoviePy v2 might handle context managers differently, but this is standard
-        original_clip = VideoFileClip(source_path)
-        
-        # Create Subclips based on Cuts
-        clips = []
-        for cut in cuts:
-            start = float(cut.get("start", 0))
-            end = float(cut.get("end", 5)) # Default 5s if missing
-            # Safety check
-            if start >= original_clip.duration: continue
-            if end > original_clip.duration: end = original_clip.duration
-            if start >= end: continue
-            
-            sub = original_clip.subclipped(start, end)
-            
-            # Apply Visual Effects (Simple placeholder for now)
-            # In a real app, parse "visual_effects" list and apply filters
-            # e.g. sub = sub.fx(vfx.colorx, 1.2)
-            
-            clips.append(sub)
-            
-        if not clips:
-            print("No valid clips found, using original.")
-            final_video = original_clip
-        else:
-            final_video = concatenate_videoclips(clips, method="compose")
-
-        # --- Audio Enhancement (Pydub) ---
-        try:
-            from ...services.audio_service import audio_service
-            
-            if final_video.audio:
-                # 1. Export temp audio
-                temp_audio_path = f"storage/outputs/temp_audio_{state.get('job_id')}.mp3"
-                final_video.audio.write_audiofile(temp_audio_path, logger=None)
-                
-                # 2. Normalize
-                norm_audio_path = audio_service.normalize_audio(temp_audio_path)
-                
-                # 3. Re-attach
-                new_audio = AudioFileClip(norm_audio_path)
-                final_video = final_video.set_audio(new_audio)
-                print("Audio normalized successfully.")
-            else:
-                print("No audio detected in final video, skipping normalization.")
-            
-        except Exception as ae:
-            print(f"Audio Enhancement Failed: {ae}")
-            # Continue with original audio
-        # ---------------------------------
-
-        # Render
-        # Threads=4 for speed
-        final_video.write_videofile(
-            str(abs_output), 
-            codec="libx264", 
-            audio_codec="aac", 
-            threads=4,
-            fps=24,
-            preset="medium",
-            ffmpeg_params=["-crf", "18"],
-            logger=None # Silence standard logger to avoid spam
+    # 1. Attempt Modal Offloading (GPU)
+    from ...services.modal_service import modal_service
+    from ...services.workflow_engine import publish_progress
+    
+    if modal_service.enabled:
+        publish_progress(job_id, "processing", "Offloading to GPU Cluster (Modal)...", 85)
+        modal_output = await modal_service.render_video(
+            job_id=job_id,
+            source_path=source_path,
+            cuts=cuts,
+            fps=24 if tier == "pro" else 24, # Standardize
+            crf=18 if tier == "pro" else 23
         )
+        if modal_output:
+            print(f"--- [Graph] Modal Rendering Success: {modal_output} ---")
+            return {
+                "output_path": modal_output,
+                "visual_effects": []
+            }
+        print("--- [Graph] Modal Rendering Failed, falling back to local CPU ---")
+
+    # 2. Local Fallback Rendering (CPU)
+    async with limits.render_semaphore:
+        print("--- [Graph] Compiler Rendering (Local) ---")
+        publish_progress(job_id, "processing", "Rendering video on local CPU...", 85)
         
-        original_clip.close()
+        output_path = f"job-{job_id}-pro.mp4"
+        abs_output = Path(os.getcwd()) / "storage" / "outputs" / output_path
+        abs_output.parent.mkdir(parents=True, exist_ok=True)
         
-        return {
-            "output_path": f"storage/outputs/{output_path}",
-            "visual_effects": [] # Cleared
-        }
-        
-    except Exception as e:
-        print(f"Compiler Error: {e}")
-        import traceback
-        traceback.print_exc()
-        return {"errors": [str(e)]}
+        try:
+            # Load Source
+            original_clip = VideoFileClip(source_path)
+            
+            # Create Subclips based on Cuts
+            clips = []
+            for cut in cuts:
+                start = float(cut.get("start", 0))
+                end = float(cut.get("end", original_clip.duration))
+                if start >= original_clip.duration: continue
+                if end > original_clip.duration: end = original_clip.duration
+                if start >= end: continue
+                
+                sub = original_clip.subclipped(start, end)
+                clips.append(sub)
+                
+            if not clips:
+                final_video = original_clip
+            else:
+                final_video = concatenate_videoclips(clips, method="compose")
+
+            # --- Audio Enhancement ---
+            try:
+                from ...services.audio_service import audio_service
+                if final_video.audio:
+                    temp_audio_path = f"storage/outputs/temp_audio_{job_id}.mp3"
+                    final_video.audio.write_audiofile(temp_audio_path, logger=None)
+                    norm_audio_path = audio_service.normalize_audio(temp_audio_path)
+                    new_audio = AudioFileClip(norm_audio_path)
+                    final_video = final_video.set_audio(new_audio)
+            except Exception as ae:
+                print(f"Audio Enhancement Failed: {ae}")
+            # -------------------------
+
+            # Render
+            final_video.write_videofile(
+                str(abs_output), 
+                codec="libx264", 
+                audio_codec="aac", 
+                threads=4,
+                fps=24,
+                preset="medium",
+                ffmpeg_params=["-crf", "18" if tier == "pro" else "23"],
+                logger=None
+            )
+            
+            original_clip.close()
+            
+            return {
+                "output_path": f"storage/outputs/{output_path}",
+                "visual_effects": [] 
+            }
+            
+        except Exception as e:
+            print(f"Compiler Error: {e}")
+            return {"errors": [str(e)]}
