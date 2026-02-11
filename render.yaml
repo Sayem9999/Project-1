@@ -45,6 +45,9 @@ services:
   - type: redis
     name: proedit-redis
     plan: free
+    ipAllowList:
+      - source: 0.0.0.0/0 # PLACEHOLDER: Replace with your specific IP CIDRs for security
+        description: "Default allow all (Restrict this for production)"
 
 
 databases:
