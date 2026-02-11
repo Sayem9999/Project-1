@@ -1,8 +1,8 @@
-$ErrorActionPreference = "Stop"
-
 param(
     [string]$Queue = "video,celery"
 )
+
+$ErrorActionPreference = "Stop"
 
 $required = @(
     "ENVIRONMENT",
