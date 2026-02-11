@@ -163,7 +163,7 @@ async def ready() -> dict[str, str]:
 
 # CORS configuration - allow frontend origins
 # Regex to match any Vercel deployment for this project
-origin_regex = r"https://.*\.vercel\.app|http://localhost:3000|https://.*\.onrender\.com"
+origin_regex = r"https://.*\\.vercel\\.app|http://localhost:3000|http://127.0.0.1:3000|https://.*\\.onrender\\.com"
 
 app.add_middleware(
     CORSMiddleware,

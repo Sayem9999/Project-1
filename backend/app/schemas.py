@@ -114,6 +114,10 @@ class AgentInput(BaseModel):
     clip_metadata: dict
 
 
+class ArchitectInput(BaseModel):
+    query: str
+
+
 class AgentOutput(BaseModel):
     agent: str
     directives: dict

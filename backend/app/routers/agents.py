@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from ..schemas import AgentInput, AgentOutput
-from ..agents import director_agent, cutter_agent, subtitle_agent, audio_agent, color_agent, qc_agent
+from ..schemas import AgentInput, AgentOutput, ArchitectInput
+from ..agents import director_agent, cutter_agent, subtitle_agent, audio_agent, color_agent, qc_agent, architect_agent
 from ..services.llm_health import get_llm_health_summary
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -34,6 +34,13 @@ async def color(payload: AgentInput):
 @router.post("/qc", response_model=AgentOutput)
 async def qc(payload: AgentInput):
     return AgentOutput(agent="qc", directives=await qc_agent.run(payload.model_dump()))
+
+
+@router.post("/architect")
+async def architect(payload: ArchitectInput):
+    # Special case: Architect returns 'answer' instead of 'directives' or just raw dict
+    result = await architect_agent.run(payload.model_dump())
+    return {"agent": "architect", "data": result}
 
 
 @router.get("/health")

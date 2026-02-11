@@ -60,3 +60,6 @@ class ArchitectAgent:
             return {"status": "error", "message": str(e)}
 
 architect_agent = ArchitectAgent()
+
+async def run(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return await architect_agent.run(payload)

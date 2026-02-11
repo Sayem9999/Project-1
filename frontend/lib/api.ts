@@ -8,7 +8,7 @@ const DEFAULT_TIMEOUT_MS = (() => {
   if (Number.isFinite(configured) && configured > 0) {
     return configured;
   }
-  return process.env.NODE_ENV === "production" ? 60000 : 20000;
+  return 60000;
 })();
 
 export const API_BASE =

@@ -11,6 +11,7 @@ from . import vfx_agent
 from . import keyframe_agent
 from . import thumbnail_agent
 from . import script_agent
+from . import architect_agent
 
 # New Specialist Agents
 from . import hook_agent
