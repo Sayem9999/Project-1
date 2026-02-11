@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     monthly_credits_default: int = 10
     sentry_dsn: str | None = None
     redis_url: str | None = None
+    celery_video_queue: str = "video"
     
     # AI API Keys
     openai_api_key: str | None = None

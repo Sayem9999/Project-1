@@ -1,5 +1,6 @@
 @echo off
 setlocal
+set "CELERY_VIDEO_QUEUE=video_local"
 
 if /I "%~1" NEQ "RUN" (
   start "ProEdit Worker" cmd /k ""%~f0" RUN"

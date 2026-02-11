@@ -95,7 +95,10 @@ Use API-only mode on Render web service, and run the worker separately.
 1. Web service (`proedit-api`) must run with:
    - `RUN_EMBEDDED_CELERY=false`
 2. Keep `REDIS_URL` configured on Render so jobs are queued.
-3. Run Celery worker on your PC (Windows PowerShell):
+3. Set a dedicated queue name on API and worker to avoid jobs being picked by the wrong worker:
+   - `CELERY_VIDEO_QUEUE=video_local`
+   - Use the same value in both Render API env and your local worker shell.
+4. Run Celery worker on your PC (Windows PowerShell):
    ```powershell
    cd backend
    .\.venv\Scripts\activate
@@ -103,6 +106,7 @@ Use API-only mode on Render web service, and run the worker separately.
    # Set production envs (use your real values from Render)
    $env:ENVIRONMENT = "production"
    $env:REDIS_URL = "rediss://<render-redis-url>"
+   $env:CELERY_VIDEO_QUEUE = "video_local"
    $env:DATABASE_URL = "postgresql+asyncpg://<render-postgres-url>"
    $env:SECRET_KEY = "<same-secret-key-used-by-api>"
    $env:GEMINI_API_KEY = "<optional>"
@@ -115,13 +119,13 @@ Use API-only mode on Render web service, and run the worker separately.
    $env:MODAL_TOKEN_ID = "<modal-token-id>"
    $env:MODAL_TOKEN_SECRET = "<modal-token-secret>"
 
-   celery -A app.celery_app worker --pool=solo --concurrency=1 --without-gossip --without-mingle --without-heartbeat -Q video,celery --loglevel=info
+   celery -A app.celery_app worker --pool=solo --concurrency=1 --without-gossip --without-mingle --without-heartbeat -Q video_local,celery --loglevel=info
    ```
    Or use:
    ```powershell
    .\run_worker.ps1
    ```
-4. Keep this worker terminal running continuously while processing jobs.
+5. Keep this worker terminal running continuously while processing jobs.
 
 ### Frontend Setup
 

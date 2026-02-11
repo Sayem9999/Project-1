@@ -75,5 +75,5 @@ celery_app.conf.update(
 
 # Optional: Task routes for different queues
 celery_app.conf.task_routes = {
-    "app.tasks.video_tasks.process_video_task": {"queue": "video"},
+    "app.tasks.video_tasks.process_video_task": {"queue": settings.celery_video_queue or "video"},
 }

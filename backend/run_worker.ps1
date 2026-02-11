@@ -1,11 +1,44 @@
 param(
-    [string]$Queue = "video,celery"
+    [string]$Queue = ""
 )
 
 $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
 $pythonExe = Join-Path $scriptDir ".venv\Scripts\python.exe"
+
+function Import-DotEnvFile {
+    param([string]$Path)
+
+    if (-not (Test-Path $Path)) {
+        return
+    }
+
+    Get-Content $Path | ForEach-Object {
+        $line = $_.Trim()
+        if ([string]::IsNullOrWhiteSpace($line)) { return }
+        if ($line.StartsWith("#")) { return }
+        if (-not $line.Contains("=")) { return }
+
+        $parts = $line.Split("=", 2)
+        $name = $parts[0].Trim()
+        $value = $parts[1].Trim().Trim('"').Trim("'")
+
+        if ([string]::IsNullOrWhiteSpace($name)) { return }
+        if (-not [Environment]::GetEnvironmentVariable($name)) {
+            [Environment]::SetEnvironmentVariable($name, $value)
+            Set-Item -Path ("Env:{0}" -f $name) -Value $value
+        }
+    }
+}
+
+# Auto-load local env file so double-click startup works without manual exports.
+Import-DotEnvFile (Join-Path $scriptDir ".env")
+Import-DotEnvFile (Join-Path $scriptDir ".env.local")
+
+if (-not [Environment]::GetEnvironmentVariable("ENVIRONMENT")) {
+    $env:ENVIRONMENT = "production"
+}
 
 $required = @(
     "ENVIRONMENT",
@@ -64,6 +97,17 @@ if (!(Test-Path $pythonExe)) {
     Write-Host "Create the backend venv first: python -m venv .venv" -ForegroundColor Yellow
     exit 1
 }
+
+if ([string]::IsNullOrWhiteSpace($Queue)) {
+    $configuredQueue = [Environment]::GetEnvironmentVariable("CELERY_VIDEO_QUEUE")
+    if ([string]::IsNullOrWhiteSpace($configuredQueue)) {
+        $Queue = "video,celery"
+    } else {
+        $Queue = "$($configuredQueue.Trim()),celery"
+    }
+}
+Write-Host ("Using REDIS_URL host: {0}" -f $uri.Host) -ForegroundColor DarkCyan
+Write-Host ("Listening queues: {0}" -f $Queue) -ForegroundColor DarkCyan
 
 & $pythonExe -m celery -A app.celery_app worker `
     --pool=solo `

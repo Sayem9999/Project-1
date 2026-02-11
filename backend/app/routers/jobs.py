@@ -40,9 +40,11 @@ def _broker_fingerprint(redis_url: str) -> str:
 
 def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
     """Inspect current broker/worker visibility from the API process."""
+    target_queue = (settings.celery_video_queue or "video").strip() or "video"
     diagnostics: dict[str, Any] = {
         "use_celery": USE_CELERY,
         "broker": _broker_fingerprint(_REDIS_URL),
+        "expected_queue": target_queue,
         "worker_count": 0,
         "workers": [],
         "queues": {},
@@ -370,6 +372,7 @@ async def enqueue_job(
     platform: str,
     brand_safety: str,
 ) -> None:
+    queue_name = (settings.celery_video_queue or "video").strip() or "video"
     if settings.environment == "production" and not USE_CELERY:
         raise HTTPException(
             status_code=503,
@@ -383,11 +386,11 @@ async def enqueue_job(
                 status_code=503,
                 detail=f"No active Celery worker reachable on {diagnostics.get('broker')}.",
             )
-        if settings.environment == "production" and not _has_queue_consumer(diagnostics, "video"):
+        if settings.environment == "production" and not _has_queue_consumer(diagnostics, queue_name):
             raise HTTPException(
                 status_code=503,
                 detail=(
-                    f"No active Celery worker subscribed to 'video' queue on {diagnostics.get('broker')}."
+                    f"No active Celery worker subscribed to '{queue_name}' queue on {diagnostics.get('broker')}."
                 ),
             )
 
@@ -395,13 +398,13 @@ async def enqueue_job(
             from ..tasks.video_tasks import process_video_task
             task = process_video_task.apply_async(
                 args=[job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety],
-                queue="video",
+                queue=queue_name,
             )
             short_id = task.id[:8] if task and task.id else "unknown"
             job.progress_message = f"Queued for worker pickup (task {short_id})."
             print(
                 f"[Job] Enqueued job_id={job.id} task_id={task.id} "
-                f"broker={diagnostics.get('broker')} workers={diagnostics.get('workers')}"
+                f"broker={diagnostics.get('broker')} queue={queue_name} workers={diagnostics.get('workers')}"
             )
             return
         except Exception as e:
