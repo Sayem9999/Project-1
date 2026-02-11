@@ -14,6 +14,14 @@ async def media_intelligence_node(state: GraphState) -> Dict[str, Any]:
     source_path = state.get("source_path")
     
     logger.info("media_intelligence_node_start", job_id=job_id)
+
+    # Use existing intelligence if provided by client (Better Way / Holy Grail)
+    existing_intel = state.get("media_intelligence")
+    if existing_intel and existing_intel.get("visual"):
+        logger.info("media_intelligence_skipping_analysis", job_id=job_id, source="client")
+        return {
+            "media_intelligence": existing_intel
+        }
     
     try:
         # Run visual analysis

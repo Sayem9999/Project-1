@@ -33,6 +33,7 @@ async def upload_video(
     platform: str = Form("youtube"),
     tier: str = Form("pro"),
     brand_safety: str = Form("standard"),
+    media_intelligence: str = Form(None),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -58,6 +59,15 @@ async def upload_video(
 
     source_path = await storage_service.save_upload(file)
 
+    # Parse media intelligence if provided
+    parsed_intel = None
+    if media_intelligence:
+        try:
+            import json
+            parsed_intel = json.loads(media_intelligence)
+        except:
+            pass
+
     job = await create_job(
         session=session,
         current_user=current_user,
@@ -70,6 +80,7 @@ async def upload_video(
         platform=platform,
         brand_safety=brand_safety,
         idempotency_key=idempotency_key,
+        media_intelligence=parsed_intel,
         start_immediately=False,
     )
     await session.refresh(job)
@@ -318,6 +329,7 @@ async def create_job(
     platform: str,
     brand_safety: str,
     idempotency_key: str | None = None,
+    media_intelligence: dict | None = None,
     start_immediately: bool = True,
 ) -> Job:
     COST_PER_JOB = 2 if tier == "pro" else 1
@@ -333,6 +345,7 @@ async def create_job(
         ratio=ratio,
         platform=platform,
         brand_safety=brand_safety,
+        media_intelligence=media_intelligence,
         cancel_requested=False,
         progress_message="Starting pipeline..." if start_immediately else "Awaiting manual start.",
     )

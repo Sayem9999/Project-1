@@ -3,6 +3,8 @@ import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X, Film, Zap, Layers, Monitor, Shield, Sparkles, CheckCircle2 } from 'lucide-react';
 import { apiUpload, apiRequest, ApiError, clearAuth } from '@/lib/api';
+import { ffmpegAnalyzer, MediaIntelligence } from '@/lib/ffmpeg-analyzer';
+import { Loader2 } from 'lucide-react';
 
 export default function UploadPage() {
   const router = useRouter();
@@ -16,6 +18,9 @@ export default function UploadPage() {
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [jobId, setJobId] = useState<number | null>(null);
   const [starting, setStarting] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<MediaIntelligence | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
 
   const [settings, setSettings] = useState({
     theme: 'cinematic',
@@ -50,6 +55,8 @@ export default function UploadPage() {
       setJobId(null);
       setStarting(false);
       setUploadProgress(0);
+      setAnalysisResult(null);
+      runAnalysis(droppedFile);
     }
   }, []);
 
@@ -62,6 +69,23 @@ export default function UploadPage() {
       setJobId(null);
       setStarting(false);
       setUploadProgress(0);
+      setAnalysisResult(null);
+      runAnalysis(selected);
+    }
+  };
+
+  const runAnalysis = async (videoFile: File) => {
+    setAnalyzing(true);
+    setAnalysisProgress(0);
+    try {
+      const result = await ffmpegAnalyzer.analyze(videoFile, (p) => setAnalysisProgress(p));
+      setAnalysisResult(result);
+      console.log('Client-side analysis complete:', result);
+    } catch (err) {
+      console.error('Analysis failed:', err);
+      // We don't block upload if analysis fails, backend can fallback
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -89,6 +113,10 @@ export default function UploadPage() {
       formData.append('platform', settings.platform);
       formData.append('tier', settings.premium ? 'pro' : 'standard');
       formData.append('brand_safety', settings.brandSafety);
+
+      if (analysisResult) {
+        formData.append('media_intelligence', JSON.stringify(analysisResult));
+      }
 
       const { promise, abort } = apiUpload<{ id: number }>('/jobs/upload', {
         body: formData,
@@ -191,8 +219,8 @@ export default function UploadPage() {
                   key={p.id}
                   onClick={() => setSettings(s => ({ ...s, platform: p.id }))}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 text-left ${settings.platform === p.id
-                      ? 'bg-brand-cyan/10 border-brand-cyan text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]'
-                      : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10 hover:text-white'
+                    ? 'bg-brand-cyan/10 border-brand-cyan text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]'
+                    : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10 hover:text-white'
                     }`}
                 >
                   {p.icon}
@@ -216,8 +244,8 @@ export default function UploadPage() {
                   key={theme.id}
                   onClick={() => setSettings(s => ({ ...s, theme: theme.id }))}
                   className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${settings.theme === theme.id
-                      ? 'bg-white text-black border-white'
-                      : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30'
+                    ? 'bg-white text-black border-white'
+                    : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30'
                     }`}
                 >
                   {theme.label}
@@ -276,10 +304,15 @@ export default function UploadPage() {
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       onClick={handleUpload}
-                      disabled={uploading || !!jobId}
+                      disabled={uploading || !!jobId || analyzing}
                       className="px-8 py-4 bg-brand-cyan hover:bg-brand-accent text-black font-bold rounded-xl transition-all hover:scale-105 disabled:opacity-50 disabled:scale-100 flex items-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]"
                     >
-                      {uploading ? (
+                      {analyzing ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>Analyzing {analysisProgress}%</span>
+                        </>
+                      ) : uploading ? (
                         <>
                           <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                           <span>Uploading {uploadProgress}%</span>
