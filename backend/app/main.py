@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
         openai_key_present=bool(settings.openai_api_key),
         groq_key_present=bool(settings.groq_api_key),
         google_oauth_configured=bool(settings.google_client_id),
-        redis_url_present=bool(os.getenv('REDIS_URL')),
+        redis_url_present=bool(settings.redis_url),
         r2_storage_configured=bool(settings.r2_account_id)
     )
     

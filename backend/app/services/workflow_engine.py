@@ -229,60 +229,68 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
 
             # === PHASE 4: Render (60-80%) ===
             await update_status(job_id, "processing", f"{status_prefix} Rendering video...")
-            publish_progress(job_id, "processing", f"Rendering with {video_encoder}...", 65, user_id=user_id)
+            
+            src = Path(source_path)
+            if not src.exists(): src = Path(".") / source_path
             
             output_filename = f"job-{job_id}-take{attempt}.mp4"
             output_abs = Path(settings.storage_root) / "outputs" / output_filename
             output_abs.parent.mkdir(parents=True, exist_ok=True)
             
-            src = Path(source_path)
-            if not src.exists(): src = Path(".") / source_path
-            
             # Build FFmpeg filter chain
             vf_filters = ["scale=1280:720:force_original_aspect_ratio=decrease", "pad=1280:720:(ow-iw)/2:(oh-ih)/2"]
-            
-            # Add VFX filters
             for effect in vfx_res.get("effects", []):
                 if isinstance(effect, dict) and "filter" in effect:
                     vf_filters.append(effect["filter"])
-            
-            # Watermark for free tier
             watermark_text = "Proedit.ai (Free)"
             vf_filters.append(f"drawtext=text='{watermark_text}':fontsize=24:fontcolor=white@0.5:x=w-tw-20:y=h-th-20")
             
             vf = ",".join(vf_filters)
             af = "loudnorm=I=-16:TP=-1.5:LRA=11"
             
-            # Build FFmpeg command with GPU acceleration if available
-            ffmpeg_path = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe" if os.path.exists("./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe") else "ffmpeg"
-            cmd = [ffmpeg_path, "-y", "-i", str(src)]
-            
-            print(f"[Workflow] Job {job_id} waiting for render semaphore...")
-            async with limits.render_semaphore:
-                print(f"[Workflow] Job {job_id} acquired render semaphore. Starting FFmpeg...")
-                if video_encoder == "h264_nvenc":
-                    # NVIDIA GPU encoding
-                    cmd += ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "23"]
-                elif video_encoder == "h264_vaapi":
-                    # AMD/Intel GPU encoding
-                    cmd += ["-vaapi_device", "/dev/dri/renderD128", "-c:v", "h264_vaapi", "-qp", "23"]
+            # 1. Attempt Modal Offloading (GPU Cluster)
+            from .modal_service import modal_service
+            modal_output = None
+            if modal_service.enabled:
+                publish_progress(job_id, "processing", "Offloading to GPU Cluster (Modal)...", 65, user_id=user_id)
+                modal_output = await modal_service.render_video(
+                    job_id=job_id,
+                    source_path=source_path,
+                    cuts=cutter_data.get("cuts", []) if isinstance(cutter_data, dict) else [],
+                    fps=24,
+                    crf=23,
+                    vf_filters=vf,
+                    af_filters=af
+                )
+                if modal_output:
+                    print(f"[Workflow] Modal Rendering Success for job {job_id}")
+                    final_output_path = modal_output
+                    publish_progress(job_id, "processing", "Modal render complete!", 80, user_id=user_id)
                 else:
-                    # CPU fallback - Higher quality (Standard Tier)
-                    cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "20"]
-            
-                cmd += ["-vf", vf, "-af", af, "-threads", "4", str(output_abs)]
-            
-                # Path handled above
+                    print(f"[Workflow] Modal Rendering Failed for job {job_id}, falling back...")
 
-                proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-                await proc.communicate()
-            print(f"[Workflow] Job {job_id} released render semaphore.")
-            publish_progress(job_id, "processing", "Render complete!", 80, user_id=user_id)
+            if not modal_output:
+                # 2. Local Fallback Render (CPU)
+                publish_progress(job_id, "processing", f"Local rendering fallback with {video_encoder}...", 65, user_id=user_id)
+                ffmpeg_path = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe" if os.path.exists("./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe") else "ffmpeg"
+                cmd = [ffmpeg_path, "-y", "-i", str(src)]
+                
+                async with limits.render_semaphore:
+                    if video_encoder == "h264_nvenc":
+                        cmd += ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "23"]
+                    elif video_encoder == "h264_vaapi":
+                        cmd += ["-vaapi_device", "/dev/dri/renderD128", "-c:v", "h264_vaapi", "-qp", "23"]
+                    else:
+                        cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "20"]
             
-            if proc.returncode != 0 or not output_abs.exists():
-                shutil.copy(src, output_abs)
-
-            final_output_path = f"storage/outputs/{output_filename}"
+                    cmd += ["-vf", vf, "-af", af, "-threads", "4", str(output_abs)]
+                    proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                    await proc.communicate()
+                
+                publish_progress(job_id, "processing", "Local render complete!", 80, user_id=user_id)
+                if proc.returncode != 0 or not output_abs.exists():
+                    shutil.copy(src, output_abs)
+                final_output_path = f"storage/outputs/{output_filename}"
 
             # === PHASE 5: QC Review (85%) ===
             if attempt <= max_retries:
@@ -505,4 +513,3 @@ async def update_status(
                 job.ab_test_result = ab_test_result
                 
             await session.commit()
-

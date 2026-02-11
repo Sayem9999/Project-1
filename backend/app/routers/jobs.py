@@ -19,8 +19,8 @@ from ..services.storage_service import storage_service as r2_storage
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
-# Check if Celery/Redis is available (handle empty or invalid URLs)
-_REDIS_URL = os.getenv("REDIS_URL", "")
+# Check if Celery/Redis is available
+_REDIS_URL = settings.redis_url or ""
 USE_CELERY = _REDIS_URL.startswith("redis://") or _REDIS_URL.startswith("rediss://")
 
 

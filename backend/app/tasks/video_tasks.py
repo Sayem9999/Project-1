@@ -6,8 +6,10 @@ import asyncio
 import os
 import json
 
+from ..config import settings
+
 # Redis for progress pub/sub
-REDIS_URL = os.getenv("REDIS_URL")
+REDIS_URL = settings.redis_url
 
 
 def get_redis():
