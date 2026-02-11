@@ -66,6 +66,11 @@ class MediaAnalysis:
     black_frame_pct: Optional[float]
 
 
+# Global semaphore to ensure only one heavy analysis runs at a time per process
+# This is critical for 512MB RAM tier
+_analysis_semaphore = asyncio.Semaphore(1)
+
+
 class MediaAnalyzer:
     """
     Comprehensive media analysis for intelligent editing decisions.
@@ -96,16 +101,17 @@ class MediaAnalyzer:
         """Run complete analysis on video file."""
         logger.info("media_analysis_start", path=video_path)
         
-        # Run these sequentially to avoid peak memory pressure on 512MB tier
-        metadata = await self.get_metadata(video_path)
-        
-        # Scenes is the most memory intensive part
-        scenes = await self.detect_scenes(video_path)
-        gc.collect() # Force cleanup after heavy decoding
-        
-        loudness = None
-        if metadata and metadata.has_audio:
-            loudness = await self.analyze_loudness(video_path, metadata.duration)
+        async with _analysis_semaphore:
+            # Run these sequentially to avoid peak memory pressure on 512MB tier
+            metadata = await self.get_metadata(video_path)
+            
+            # Scenes is the most memory intensive part
+            scenes = await self.detect_scenes(video_path)
+            gc.collect() # Force cleanup after heavy decoding
+            
+            loudness = None
+            if metadata and metadata.has_audio:
+                loudness = await self.analyze_loudness(video_path, metadata.duration)
         
         # Calculate average shot length
         avg_shot_length = None
@@ -202,13 +208,11 @@ class MediaAnalyzer:
                 # aggressive downscale (e.g. 4 or 6) reduces processing resolution significantly
                 # downscale=4 reduces pixel count by 16x, dramatically saving RAM and CPU
                 scene_manager = SceneManager()
-                # Set downscale on the manager if the constructor doesn't take it in this version
-                # or just use the downscale property if available.
-                # In most modern versions, it's a property or passed to detect_scenes
+                scene_manager.downscale = 4  # Critical for speed and memory
                 scene_manager.add_detector(ContentDetector(threshold=threshold))
                 
                 # Perform detection with minimal memory footprint
-                # downscale=4 reduces memory usage by 16x
+                # frame_skip=1 skips every other frame, saving 50% CPU/Memory
                 scene_manager.detect_scenes(video, show_progress=False, frame_skip=1)
                 return scene_manager.get_scene_list()
             except Exception as e:
