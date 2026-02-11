@@ -45,6 +45,7 @@ celery_app.conf.update(
     enable_utc=True,
     task_track_started=True,
     task_time_limit=600,  # 10 min max per task
+    worker_concurrency=1, # Crucial for 512MB tier: only one task at a time
     worker_prefetch_multiplier=1,  # One task at a time per worker
     task_acks_late=True,  # Acknowledge after completion
 )
