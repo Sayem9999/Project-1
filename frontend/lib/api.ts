@@ -3,6 +3,14 @@ const DEFAULT_API_BASE =
     ? "http://localhost:8000/api"
     : "https://proedit-api-nzzr.onrender.com/api";
 
+const DEFAULT_TIMEOUT_MS = (() => {
+  const configured = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS);
+  if (Number.isFinite(configured) && configured > 0) {
+    return configured;
+  }
+  return process.env.NODE_ENV === "production" ? 60000 : 20000;
+})();
+
 export const API_BASE =
   (process.env.NEXT_PUBLIC_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
 
@@ -160,7 +168,7 @@ function withHeaders(options: ApiOptions): RequestInit {
 }
 
 export async function apiFetch(path: string, options: ApiOptions = {}): Promise<Response> {
-  const timeoutMs = options.timeoutMs ?? 20000;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
