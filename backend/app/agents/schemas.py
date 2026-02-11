@@ -59,6 +59,7 @@ class AudioOutput(BaseModel):
     ffmpeg_audio_filter: str = Field(..., description="FFmpeg audio filter chain")
     audio_character: str = Field(..., description="One-word descriptor")
     notes: str = Field(..., description="Brief sonic signature explanation")
+    audio_tracks: list[dict] = Field(default=[], description="List of selected audio tracks")
 
 
 # ============================================================================

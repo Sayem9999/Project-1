@@ -1,7 +1,6 @@
 from ..state import GraphState
 from ...agents import audio_agent
 from ...services.audio_intelligence import audio_intelligence
-import json
 import structlog
 
 logger = structlog.get_logger()
@@ -32,20 +31,21 @@ async def audio_node(state: GraphState) -> GraphState:
     }
         
     try:
-        resp = await audio_agent.run(payload)
-        raw = resp.get("raw_response", "{}")
-        clean = raw.replace("```json", "").replace("```", "").strip()
-        audio_data = json.loads(clean)
+        # Run agent with schema validation and auto-retry
+        audio_response = await audio_agent.run(payload)
         
+        # Log success (using the model fields)
         logger.info(
             "audio_node_complete",
             job_id=state.get("job_id"),
-            track_count=len(audio_data.get("audio_tracks", []))
+            track_count=len(audio_response.audio_tracks)
         )
         
         return {
-            "audio_tracks": audio_data.get("audio_tracks", []),
+            "audio_tracks": audio_response.audio_tracks,
             "audio_intelligence": audio_intel,
+            # We might want to pass other fields too if needed by downstream nodes
+            # "ffmpeg_audio_filter": audio_response.ffmpeg_audio_filter
         }
     except Exception as e:
         logger.error("audio_node_error", job_id=state.get("job_id"), error=str(e))

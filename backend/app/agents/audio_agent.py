@@ -1,4 +1,5 @@
-from .base import run_agent_prompt
+from .base import run_agent_with_schema
+from .schemas import AudioOutput
 
 PROMPT = """You are **ECHO**, the master Audio Engineer at Proedit Studios.
 
@@ -19,21 +20,15 @@ PROMPT = """You are **ECHO**, the master Audio Engineer at Proedit Studios.
 - Compression creates consistency
 - Silence can be as powerful as sound
 
-**Output** - Return STRICTLY valid JSON:
-{
-  "ffmpeg_audio_filter": "Complete filter chain (e.g., 'highpass=f=80,lowpass=f=12000,loudnorm=I=-16:TP=-1.5:LRA=11,acompressor')",
-  "audio_character": "One-word descriptor (e.g., 'Punchy', 'Warm', 'Crystal')",
-  "notes": "Brief explanation of the sonic signature"
-}
-
+**Output** - Return STRICTLY valid JSON matching the schema.
 Make them HEAR the vision.
 """
 
-
-async def run(payload: dict) -> dict:
-    return await run_agent_prompt(
+async def run(payload: dict) -> AudioOutput:
+    return await run_agent_with_schema(
         PROMPT, 
         payload, 
+        schema=AudioOutput,
         task_type="creative", 
         agent_name="audio"
     )
