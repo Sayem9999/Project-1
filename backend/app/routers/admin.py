@@ -11,6 +11,7 @@ from ..models import User, Job, CreditLedger
 from ..schemas import AdminUserResponse, CreditLedgerResponse
 from ..services.storage_service import storage_service
 from ..services.llm_health import get_llm_health_summary
+from ..services.integration_health import get_integration_health
 from ..config import settings
 from .jobs import enqueue_job
 from ..tasks.cleanup import get_cleanup_status
@@ -416,5 +417,15 @@ async def get_admin_health(
     # Storage
     health["storage"] = storage_service.get_storage_usage()
     health["cleanup"] = get_cleanup_status()
+    health["integrations"] = get_integration_health(run_probe=False)
 
     return health
+
+
+@router.get("/integrations/health")
+async def get_admin_integrations_health(
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+    return get_integration_health(run_probe=True)
