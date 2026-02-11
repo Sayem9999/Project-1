@@ -25,4 +25,12 @@ async def brand_safety_node(state: GraphState) -> GraphState:
         return {"brand_safety_result": result.model_dump()}
     except Exception as e:
         logger.error("brand_safety_node_error", error=str(e))
-        return {"errors": [f"Brand Safety Agent failed: {str(e)}"]}
+        return {
+            "brand_safety_result": {
+                "is_safe": True,
+                "violations": [],
+                "risk_score": 0,
+                "recommendations": ["Brand safety agent unavailable; manual review recommended."],
+                "warning": f"Brand Safety Agent unavailable: {str(e)}",
+            }
+        }

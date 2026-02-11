@@ -18,7 +18,11 @@ async def audio_node(state: GraphState) -> GraphState:
     source_path = state.get("source_path", "")
     
     if not plan or not cuts:
-        return {"errors": ["Audio node missing inputs"]}
+        logger.warning("audio_node_missing_inputs", job_id=state.get("job_id"))
+        return {
+            "audio_tracks": [],
+            "audio_intelligence": {},
+        }
     
     # Analyze audio intelligence
     audio_intel = await _get_audio_intelligence(source_path)

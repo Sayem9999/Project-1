@@ -341,9 +341,9 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             shutil.move(take_path, final_abs_path)
         
         # Completion
-        completion_msg = "🎬 Your video is ready!"
+        completion_msg = "Your video is ready!"
         if meta_data.get("title"):
-            completion_msg = f"🎬 {meta_data['title']} is ready!"
+            completion_msg = f"{meta_data['title']} is ready!"
             
         await update_status(job_id, "complete", completion_msg, final_rel_path, final_thumb_rel_path)
         publish_progress(job_id, "complete", completion_msg, 100, user_id=user_id)
@@ -427,15 +427,17 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
                 await update_status(job_id, "processing", f"[AI] {msg}")
                 publish_progress(job_id, "processing", msg, progress_p, user_id=user_id)
         
-        if final_state.get("errors"):
-            raise Exception(f"Graph Errors: {final_state['errors']}")
-            
         output_rel_path = final_state.get("output_path")
+        graph_errors = final_state.get("errors") or []
+        if graph_errors and not output_rel_path:
+            raise Exception(f"Graph Errors: {graph_errors}")
         if not output_rel_path:
             raise Exception("No output path returned from Graph.")
             
         # Success
-        completion_msg = "🎬 Pro Edit Ready!"
+        completion_msg = "Pro Edit Ready!"
+        if graph_errors:
+            completion_msg = "Pro Edit Ready (with degraded AI recommendations)"
         
         # Extract metadata
         media_intelligence = final_state.get("media_intelligence")
@@ -503,3 +505,4 @@ async def update_status(
                 job.ab_test_result = ab_test_result
                 
             await session.commit()
+

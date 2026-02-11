@@ -2,6 +2,7 @@ import modal
 import os
 from pathlib import Path
 from typing import List, Dict, Any
+from urllib.parse import urlparse
 
 # 1. Setup Image
 # We need MoviePy, FFmpeg, and dependencies for audio/video processing
@@ -44,6 +45,8 @@ def render_video_v1(
     import moviepy as mp
     import boto3
     import requests
+    import subprocess
+    import time
     from botocore.config import Config
     
     print(f"--- Modal: Starting Render Job {job_id} ---")
@@ -63,14 +66,77 @@ def render_video_v1(
         region_name="auto",
     )
     
+    def _extract_r2_key_from_url(url: str) -> str | None:
+        """
+        Extract object key from account-style R2 URL:
+        https://<account>.r2.cloudflarestorage.com/<bucket>/<key>?...
+        """
+        parsed = urlparse(url)
+        expected_host = f"{r2_account_id}.r2.cloudflarestorage.com"
+        if parsed.netloc.lower() != expected_host.lower():
+            return None
+        path = parsed.path.lstrip("/")
+        prefix = f"{bucket_name}/"
+        if not path.startswith(prefix):
+            return None
+        key = path[len(prefix):]
+        return key or None
+
+    def _download_with_http_retries(url: str, dest: Path, retries: int = 3) -> None:
+        last_error = None
+        for attempt in range(1, retries + 1):
+            try:
+                with requests.get(url, stream=True, timeout=180) as resp:
+                    resp.raise_for_status()
+                    with open(dest, "wb") as f:
+                        for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                            if chunk:
+                                f.write(chunk)
+                if dest.exists() and dest.stat().st_size > 1024:
+                    return
+                raise RuntimeError(f"Downloaded file too small: {dest.stat().st_size if dest.exists() else 0} bytes")
+            except Exception as e:
+                last_error = e
+                print(f"HTTP download attempt {attempt}/{retries} failed: {e}")
+                time.sleep(min(5 * attempt, 15))
+        raise RuntimeError(f"HTTP download failed after {retries} attempts: {last_error}")
+
+    def _validate_video(path: Path) -> None:
+        probe = subprocess.run(
+            [
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=nk=1:nw=1",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if probe.returncode != 0:
+            raise RuntimeError(f"ffprobe validation failed: {probe.stderr.strip() or probe.stdout.strip()}")
+        duration_raw = (probe.stdout or "").strip()
+        try:
+            duration = float(duration_raw)
+        except Exception:
+            duration = 0.0
+        if duration <= 0:
+            raise RuntimeError(f"ffprobe returned invalid duration: {duration_raw!r}")
+
     # 1. Download Source
     source_local = Path(f"/tmp/source_{job_id}.mp4")
     print(f"Downloading source: {source_url}")
-    resp = requests.get(source_url, stream=True, timeout=120)
-    resp.raise_for_status()
-    with open(source_local, "wb") as f:
-        for chunk in resp.iter_content(chunk_size=8192):
-            f.write(chunk)
+    source_key = _extract_r2_key_from_url(source_url)
+    if source_key:
+        print(f"Downloading via R2 API key={source_key}")
+        with open(source_local, "wb") as f:
+            s3.download_fileobj(bucket_name, source_key, f)
+    else:
+        _download_with_http_retries(source_url, source_local, retries=3)
+
+    print(f"Downloaded size: {source_local.stat().st_size} bytes")
+    _validate_video(source_local)
             
     # 2. Process with MoviePy
     print(f"Processing {len(cuts)} cuts...")

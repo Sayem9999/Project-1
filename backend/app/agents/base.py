@@ -138,9 +138,6 @@ async def run_agent_prompt(
     """
     policy = RoutingPolicy(task_type=task_type)
     provider = provider_router.select_provider(policy)
-    
-    if not provider:
-        raise RuntimeError(f"No healthy provider found for task {task_type}")
 
     last_error = None
 
@@ -186,6 +183,51 @@ async def run_agent_prompt(
                 "provider": provider_name
             }
         return None
+
+    if not provider:
+        logger.warning("provider_emergency_mode", task_type=task_type, agent=agent_name)
+        emergency_order: list[str] = []
+        for name in [
+            settings.llm_fallback_provider,
+            settings.llm_primary_provider,
+            "gemini",
+            "groq",
+            "openai",
+        ]:
+            if not name:
+                continue
+            normalized = name.lower()
+            if normalized not in emergency_order:
+                emergency_order.append(normalized)
+
+        for provider_name in emergency_order:
+            if provider_name == "gemini" and not gemini_client:
+                continue
+            if provider_name == "groq" and not groq_client:
+                continue
+            if provider_name == "openai" and not openai_client:
+                continue
+            provider_cfg = PROVIDERS.get(provider_name)
+            if not provider_cfg:
+                continue
+            for model in provider_cfg.models:
+                try:
+                    logger.debug(
+                        "agent_api_attempt_emergency",
+                        provider=provider_name,
+                        model=model,
+                        agent=agent_name,
+                    )
+                    result = await attempt_provider(provider_name, model)
+                    if result:
+                        return result
+                except Exception as e:
+                    logger.warning("agent_api_failed", provider=provider_name, model=model, error=str(e))
+                    last_error = e
+                    provider_router.record_failure(provider_name, str(e))
+                    provider_router.handle_provider_error(provider_name, model, str(e))
+                    continue
+        raise RuntimeError(f"No provider available for task {task_type}. Last error: {last_error}")
 
     # Try the selected provider and its models
     for model in provider.models:

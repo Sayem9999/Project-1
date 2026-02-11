@@ -16,7 +16,17 @@ async def cutter_node(state: GraphState) -> GraphState:
     
     plan = state.get("director_plan")
     if not plan:
-        return {"errors": ["No director plan found"]}
+        logger.warning("cutter_missing_plan", job_id=state.get("job_id"))
+        duration = (
+            state.get("media_intelligence", {})
+            .get("visual", {})
+            .get("metadata", {})
+            .get("duration", 30.0)
+        )
+        return {
+            "cuts": [{"start": 0.0, "end": float(duration), "reason": "Fallback full clip"}],
+            "shot_metadata": {"shots": [], "scene_count": 0, "avg_duration": 0},
+        }
     
     # Get shot metadata if available
     shot_metadata = await _get_shot_metadata(state)
@@ -56,7 +66,16 @@ async def cutter_node(state: GraphState) -> GraphState:
         }
     except Exception as e:
         logger.error("cutter_node_error", job_id=state.get("job_id"), error=str(e))
-        return {"errors": [str(e)]}
+        duration = (
+            state.get("media_intelligence", {})
+            .get("visual", {})
+            .get("metadata", {})
+            .get("duration", 30.0)
+        )
+        return {
+            "cuts": [{"start": 0.0, "end": float(duration), "reason": "Fallback after cutter error"}],
+            "shot_metadata": shot_metadata or {"shots": [], "scene_count": 0, "avg_duration": 0},
+        }
 
 
 async def _get_shot_metadata(state: GraphState) -> dict:

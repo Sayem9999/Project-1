@@ -25,4 +25,12 @@ async def hook_node(state: GraphState) -> GraphState:
         return {"hook_result": result.model_dump()}
     except Exception as e:
         logger.error("hook_node_error", error=str(e))
-        return {"errors": [f"Hook Agent failed: {str(e)}"]}
+        return {
+            "hook_result": {
+                "attention_technique": "fallback",
+                "opening_cuts": [],
+                "hook_text": None,
+                "retention_score": 5,
+                "warning": f"Hook Agent unavailable: {str(e)}",
+            }
+        }
