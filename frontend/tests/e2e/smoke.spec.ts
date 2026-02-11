@@ -13,7 +13,12 @@ test.describe('Homepage', () => {
 
     test('should navigate to pricing', async ({ page }) => {
         await page.goto('/');
-        await page.click('a[href="/pricing"]');
+        const pricingLink = page.getByRole('link', { name: /pricing/i }).first();
+        await expect(pricingLink).toBeVisible();
+        await Promise.all([
+            page.waitForURL('**/pricing', { timeout: 15000 }),
+            pricingLink.click(),
+        ]);
         await expect(page).toHaveURL(/pricing/);
     });
 });
