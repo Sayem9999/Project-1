@@ -1,7 +1,11 @@
 import pytest
 from httpx import AsyncClient
+from fastapi import HTTPException
+from types import SimpleNamespace
+from unittest.mock import patch
 from sqlalchemy import select
 from app.models import User, Job, JobStatus
+import app.routers.jobs as jobs_router
 
 # Fixtures from conftest.py
 
@@ -51,3 +55,48 @@ async def test_job_permissions(client: AsyncClient, session):
     # but 403 is also acceptable depending on implementation.
     # checking jobs.py will confirm.
     assert res.status_code in [403, 404]
+
+
+@pytest.mark.asyncio
+async def test_enqueue_job_production_fails_if_celery_disabled(monkeypatch):
+    job = SimpleNamespace(id=1, source_path="uploads/test_video.mp4")
+    monkeypatch.setattr(jobs_router, "USE_CELERY", False)
+    monkeypatch.setattr(jobs_router.settings, "environment", "production", raising=False)
+
+    with pytest.raises(HTTPException) as exc:
+        await jobs_router.enqueue_job(
+            job,
+            pacing="medium",
+            mood="professional",
+            ratio="16:9",
+            tier="pro",
+            platform="youtube",
+            brand_safety="standard",
+        )
+
+    assert exc.value.status_code == 503
+    assert "Queue dispatch unavailable" in str(exc.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_enqueue_job_production_fails_if_celery_dispatch_errors(monkeypatch):
+    job = SimpleNamespace(id=1, source_path="uploads/test_video.mp4")
+    monkeypatch.setattr(jobs_router, "USE_CELERY", True)
+    monkeypatch.setattr(jobs_router.settings, "environment", "production", raising=False)
+
+    with patch("app.tasks.video_tasks.process_video_task") as mock_task:
+        mock_task.delay.side_effect = RuntimeError("redis down")
+
+        with pytest.raises(HTTPException) as exc:
+            await jobs_router.enqueue_job(
+                job,
+                pacing="medium",
+                mood="professional",
+                ratio="16:9",
+                tier="pro",
+                platform="youtube",
+                brand_safety="standard",
+            )
+
+    assert exc.value.status_code == 503
+    assert "Queue dispatch failed" in str(exc.value.detail)

@@ -48,6 +48,29 @@ celery_app.conf.update(
     worker_concurrency=1, # Keep memory stable on 512MB free tier
     worker_prefetch_multiplier=1,  # One task at a time per worker
     task_acks_late=True,  # Acknowledge after completion
+    # Keep retrying broker connection on startup and runtime interruptions.
+    broker_connection_retry=True,
+    broker_connection_retry_on_startup=True,
+    broker_connection_max_retries=None,
+    # Match Celery 6 default behavior explicitly for clearer recovery semantics.
+    worker_cancel_long_running_tasks_on_connection_loss=True,
+    # Limit connection fanout for low-memory workers.
+    broker_pool_limit=1,
+    # Harden Redis transport behavior for transient DNS/network issues.
+    broker_transport_options={
+        "socket_connect_timeout": 10,
+        "socket_timeout": 30,
+        "socket_keepalive": True,
+        "retry_on_timeout": True,
+        "health_check_interval": 30,
+    },
+    result_backend_transport_options={
+        "socket_connect_timeout": 10,
+        "socket_timeout": 30,
+        "socket_keepalive": True,
+        "retry_on_timeout": True,
+        "health_check_interval": 30,
+    },
 )
 
 # Optional: Task routes for different queues

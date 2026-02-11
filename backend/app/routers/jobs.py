@@ -168,16 +168,20 @@ async def retry_job(job_id: int, current_user: User = Depends(get_current_user),
     job.output_path = None
     job.thumbnail_path = None
     session.add(job)
+    try:
+        await enqueue_job(
+            job,
+            job.pacing or "medium",
+            job.mood or "professional",
+            job.ratio or "16:9",
+            job.tier or "standard",
+            job.platform or "youtube",
+            job.brand_safety or "standard",
+        )
+    except HTTPException:
+        await session.rollback()
+        raise
     await session.commit()
-    await enqueue_job(
-        job,
-        job.pacing or "medium",
-        job.mood or "professional",
-        job.ratio or "16:9",
-        job.tier or "standard",
-        job.platform or "youtube",
-        job.brand_safety or "standard",
-    )
     return {"status": "ok", "job_id": job.id}
 
 
@@ -219,16 +223,20 @@ async def start_job(job_id: int, current_user: User = Depends(get_current_user),
     job.progress_message = "Starting pipeline..."
     job.cancel_requested = False
     session.add(job)
+    try:
+        await enqueue_job(
+            job,
+            job.pacing or "medium",
+            job.mood or "professional",
+            job.ratio or "16:9",
+            job.tier or "standard",
+            job.platform or "youtube",
+            job.brand_safety or "standard",
+        )
+    except HTTPException:
+        await session.rollback()
+        raise
     await session.commit()
-    await enqueue_job(
-        job,
-        job.pacing or "medium",
-        job.mood or "professional",
-        job.ratio or "16:9",
-        job.tier or "standard",
-        job.platform or "youtube",
-        job.brand_safety or "standard",
-    )
     return {"status": "ok", "job_id": job.id}
 
 
@@ -305,12 +313,23 @@ async def enqueue_job(
     platform: str,
     brand_safety: str,
 ) -> None:
+    if settings.environment == "production" and not USE_CELERY:
+        raise HTTPException(
+            status_code=503,
+            detail="Queue dispatch unavailable. Configure REDIS_URL and a running Celery worker.",
+        )
+
     if USE_CELERY:
         try:
             from ..tasks.video_tasks import process_video_task
             process_video_task.delay(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety)
             return
         except Exception as e:
+            if settings.environment == "production":
+                raise HTTPException(
+                    status_code=503,
+                    detail="Queue dispatch failed. Check Redis connectivity and worker health.",
+                ) from e
             print(f"[Job] Celery dispatch failed: {e}. Falling back to inline.")
     from ..services.workflow_engine import process_job
     import asyncio
