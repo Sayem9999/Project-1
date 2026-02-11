@@ -19,6 +19,7 @@ PROMPT = """You are **SLICE**, the elite Cutter Agent at Proedit Studios.
 
 **Output** - Return STRICTLY valid JSON:
 {
+  "cuts": [{"start": 0.0, "end": 10.0, "reason": "Engaging intro"}],
   "ffmpeg_select_filter": "Complex filter string for FFmpeg (e.g., 'select=gt(scene,0.4),setpts=N/FRAME_RATE/TB')",
   "reasoning": "Why this filter creates the intended pacing effect",
   "estimated_cuts": "Rough estimate: 'Many jump cuts' | 'Moderate transitions' | 'Minimal cuts'"

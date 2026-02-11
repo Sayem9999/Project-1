@@ -373,13 +373,18 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
                 
                 # Create a human-readable status message and percentage from node name
                 node_to_info = {
+                    "media_intelligence": {"msg": "Analyzing Media Content...", "p": 10},
                     "director": {"msg": "Director Planning...", "p": 15},
+                    "platform": {"msg": "Platform Adaptation...", "p": 20},
                     "brand_safety": {"msg": "Guardian: Brand Safety Check...", "p": 25},
                     "ab_test": {"msg": "Variant: A/B Test Optimization...", "p": 35},
                     "cutter": {"msg": "AI Smart Cutting...", "p": 50},
                     "audio": {"msg": "Audio Mastery...", "p": 65},
                     "visuals": {"msg": "Visual Enhancement...", "p": 80},
-                    "validator": {"msg": "Quality Review...", "p": 90},
+                    "hook": {"msg": "Optimizing Hook...", "p": 82},
+                    "validator": {"msg": "Quality Review...", "p": 85},
+                    "qc_gate": {"msg": "Final Producer Check...", "p": 90},
+                    "iteration_control": {"msg": "Refining Content...", "p": 92},
                     "compiler": {"msg": "Final Rendering...", "p": 95},
                 }
                 

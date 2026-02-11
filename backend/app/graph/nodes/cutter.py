@@ -82,10 +82,10 @@ async def _get_shot_metadata(state: GraphState) -> dict:
         for i, scene in enumerate(scenes):
             shot = {
                 "id": i,
-                "start": scene.get("start", 0),
-                "end": scene.get("end", 0),
-                "duration": scene.get("end", 0) - scene.get("start", 0),
-                "scene_type": scene.get("type", "unknown"),
+                "start": scene.start_time,
+                "end": scene.end_time,
+                "duration": scene.duration,
+                "scene_type": "scenedetect",
             }
             shots.append(shot)
             total_duration += shot["duration"]

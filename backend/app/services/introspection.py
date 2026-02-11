@@ -29,6 +29,53 @@ class IntrospectionService:
         }
         self.node_ids: Set[str] = set()
 
+    def get_live_metrics(self) -> Dict[str, Any]:
+        """Get real-time system metrics using psutil."""
+        try:
+            import psutil
+            
+            # System stats
+            cpu = psutil.cpu_percent(interval=0.1) # Short blocking call
+            mem = psutil.virtual_memory()
+            
+            metrics = {
+                "system": {
+                    "cpu_percent": cpu,
+                    "memory_percent": mem.percent,
+                    "memory_used_gb": round(mem.used / (1024**3), 2),
+                    "memory_total_gb": round(mem.total / (1024**3), 2)
+                },
+                "processes": {}
+            }
+            
+            # Identify key processes (Celery, Uvicorn)
+            # Note: This can be expensive, so we might want to cache pid lookups
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmd = " ".join(proc.info['cmdline'] or [])
+                    
+                    if "celery" in cmd and "worker" in cmd:
+                        metrics["processes"]["celery"] = {
+                            "cpu": round(proc.cpu_percent(interval=None), 1),
+                            "mem": round(proc.memory_percent(), 1)
+                        }
+                    elif "uvicorn" in cmd:
+                         metrics["processes"]["api"] = {
+                            "cpu": round(proc.cpu_percent(interval=None), 1),
+                            "mem": round(proc.memory_percent(), 1)
+                        }
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+                    
+            return metrics
+            
+        except ImportError:
+            logger.warning("psutil not installed, cannot get live metrics")
+            return {}
+        except Exception as e:
+            logger.error("error_getting_metrics", error=str(e))
+            return {}
+
     def scan(self, root_dir: Optional[str] = None) -> Dict[str, Any]:
         """Perform full AST scan of the codebase."""
         if root_dir:

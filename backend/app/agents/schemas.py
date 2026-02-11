@@ -67,7 +67,7 @@ class AudioOutput(BaseModel):
 class QCOutput(BaseModel):
     """Output from THE PRODUCER - the QC Agent."""
     approved: bool
-    score: int = Field(..., ge=1, le=10)
+    score: float = Field(..., ge=1, le=10)
     verdict: Literal["APPROVED", "NEEDS REVISION"]
     feedback: str
     standout_element: str = Field(..., description="Best part of the plan")
@@ -243,13 +243,13 @@ class ABTestOutput(BaseModel):
 # Eval Agent
 class EvalScore(BaseModel):
     category: str
-    score: int = Field(..., ge=1, le=10)
+    score: float = Field(..., ge=1, le=10)
     reason: str
 
 
 class EvalOutput(BaseModel):
     """Output from EVAL - the technical and aesthetic evaluator."""
-    overall_score: int = Field(..., ge=1, le=10)
+    overall_score: float = Field(..., ge=1, le=10)
     scores: list[EvalScore]
     approved: bool
     verdict: str

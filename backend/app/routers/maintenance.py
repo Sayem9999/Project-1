@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any
 from ..services.introspection import introspection_service
 from ..agents.maintenance_agent import maintenance_agent
+from ..agents.architect_agent import architect_agent
 from ..deps import get_current_user
 from ..models import User
 
@@ -13,6 +14,20 @@ async def get_system_graph(current_user: User = Depends(get_current_user)):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
     return introspection_service.scan()
+
+@router.get("/metrics")
+async def get_live_metrics(current_user: User = Depends(get_current_user)):
+    """Get real-time system metrics (CPU, RAM, Process stats)."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    return introspection_service.get_live_metrics()
+
+@router.post("/architect")
+async def ask_architect(payload: Dict[str, Any], current_user: User = Depends(get_current_user)):
+    """Ask the System Architect a question about the codebase."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    return await architect_agent.run(payload)
 
 @router.post("/audit")
 async def run_audit(current_user: User = Depends(get_current_user)):

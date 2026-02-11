@@ -34,9 +34,20 @@ interface GraphData {
     links: GraphEdge[]; // Changed from edges to links for react-force-graph
 }
 
+interface SystemMetrics {
+    system: {
+        cpu_percent: number;
+        memory_percent: number;
+        memory_used_gb: number;
+        memory_total_gb: number;
+    };
+    processes: Record<string, { cpu: number; mem: number }>;
+}
+
 export default function InteractiveSystemMap() {
     const fgRef = useRef<any>(null);
     const [data, setData] = useState<GraphData>({ nodes: [], links: [] });
+    const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
     const [isLive, setIsLive] = useState(false);
@@ -101,10 +112,30 @@ export default function InteractiveSystemMap() {
         return () => window.removeEventListener('resize', updateDimensions);
     }, []);
 
+    const fetchMetrics = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+            const res = await fetch('/api/maintenance/metrics', { headers });
+            if (res.ok) {
+                const data = await res.json();
+                setMetrics(data);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     // Live polling
     useEffect(() => {
         if (!isLive) return;
-        const interval = setInterval(fetchGraph, 5000);
+
+        fetchMetrics(); // Fetch immediately on live enable
+
+        const interval = setInterval(() => {
+            fetchGraph();
+            fetchMetrics();
+        }, 5000);
         return () => clearInterval(interval);
     }, [isLive]);
 
@@ -247,6 +278,23 @@ export default function InteractiveSystemMap() {
                         <span className="text-slate-500 text-xs uppercase tracking-wider">Edges</span>
                         <span className="text-white font-mono text-xl">{data.links.length}</span>
                     </div>
+                    {metrics && (
+                        <>
+                            <div className="w-px bg-white/10" />
+                            <div className="flex flex-col">
+                                <span className="text-slate-500 text-xs uppercase tracking-wider">CPU</span>
+                                <span className={`font-mono text-xl ${metrics.system.cpu_percent > 80 ? 'text-red-400' : 'text-green-400'}`}>
+                                    {metrics.system.cpu_percent}%
+                                </span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-slate-500 text-xs uppercase tracking-wider">RAM</span>
+                                <span className="text-white font-mono text-xl">
+                                    {metrics.system.memory_percent}%
+                                </span>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

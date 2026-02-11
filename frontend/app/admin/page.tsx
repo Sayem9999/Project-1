@@ -95,6 +95,9 @@ export default function AdminDashboardPage() {
   const [userJobs, setUserJobs] = useState<JobData[]>([]);
   const [userLedger, setUserLedger] = useState<CreditLedgerEntry[]>([]);
   const [userLoading, setUserLoading] = useState(false);
+  const [architectQuery, setArchitectQuery] = useState('');
+  const [architectAnswer, setArchitectAnswer] = useState('');
+  const [architectLoading, setArchitectLoading] = useState(false);
   const STALL_THRESHOLD_MINUTES = 10;
   const STALL_THRESHOLD_MS = STALL_THRESHOLD_MINUTES * 60 * 1000;
 
@@ -799,62 +802,76 @@ export default function AdminDashboardPage() {
             exit={{ opacity: 0, y: -20 }}
             className="space-y-6"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-bold text-white">Codebase Architecture</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    const toastId = toast.loading('Running system audit...');
-                    try {
-                      const res = await apiRequest<any>('/maintenance/audit', { method: 'POST', auth: true });
-                      const issueCount = res.issues?.length || 0;
-                      const score = res.integrity_score || 0;
+            <SystemMap />
 
-                      if (issueCount > 0) {
-                        toast.warning(`Audit Complete: ${issueCount} issues found`, {
-                          id: toastId,
-                          description: `Integrity Score: ${score}%. check logs for details.`
-                        });
-                      } else {
-                        toast.success(`System Healthy: Score ${score}%`, { id: toastId });
-                      }
-                    } catch (err: any) {
-                      toast.error('Audit Failed', { id: toastId, description: err.message });
-                    }
-                  }}
-                  className="px-4 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm font-bold flex items-center gap-2 hover:bg-cyan-500/20 transition-all"
-                >
-                  <Search className="w-4 h-4" /> Run Audit
-                </button>
-                <button
-                  onClick={async () => {
-                    const toastId = toast.loading('Consulting maintenance agent...');
+            <div className="bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 border border-blue-500/20">
+                  <Network className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">System Architect</h3>
+                  <p className="text-xs text-gray-400"> AI-powered analysis of the live dependency graph.</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                {architectAnswer && (
+                  <div className="p-4 bg-white/5 rounded-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                      <span className="text-xs font-bold text-blue-300 uppercase tracking-wider">Architect Plan</span>
+                    </div>
+                    <div className="text-sm text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
+                      {architectAnswer}
+                    </div>
+                  </div>
+                )}
+
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!architectQuery.trim()) return;
+                    setArchitectLoading(true);
                     try {
-                      const res = await apiRequest<any>('/maintenance/heal', {
+                      // Using pure fetch if apiRequest types are strict, or cast if needed
+                      // Assuming apiRequest handles generic response
+                      const res: any = await apiRequest('/maintenance/architect', {
                         method: 'POST',
                         auth: true,
-                        body: { error_trace: "manual_trigger" }
+                        body: { query: architectQuery }
                       });
-
-                      toast.success('Heal Recommendation Ready', {
-                        id: toastId,
-                        description: "Agent has analyzed the system. Check console for patch.",
-                        action: {
-                          label: 'View',
-                          onClick: () => console.log(res.recommendation)
-                        }
-                      });
-                    } catch (err: any) {
-                      toast.error('Auto-Heal Failed', { id: toastId, description: err.message });
+                      setArchitectAnswer(res.answer);
+                    } catch (err) {
+                      toast.error("Failed to consult architect");
+                    } finally {
+                      setArchitectLoading(false);
                     }
                   }}
-                  className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-bold flex items-center gap-2 hover:bg-emerald-500/20 transition-all"
+                  className="flex gap-4 relative"
                 >
-                  <HeartPulse className="w-4 h-4" /> Auto-Heal
-                </button>
+                  <input
+                    value={architectQuery}
+                    onChange={(e) => setArchitectQuery(e.target.value)}
+                    placeholder="Ask a question (e.g., 'How do I add a new payment provider?')..."
+                    className="flex-1 bg-black/30 border border-white/10 rounded-xl px-5 py-3 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                  />
+                  <button
+                    type="submit"
+                    disabled={architectLoading}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-blue-900/20"
+                  >
+                    {architectLoading ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        Ask <ArrowLeft className="w-4 h-4 rotate-180" />
+                      </>
+                    )}
+                  </button>
+                </form>
               </div>
             </div>
-            <SystemMap />
           </motion.div>
         )}
 
@@ -924,127 +941,153 @@ export default function AdminDashboardPage() {
                   <p className="text-xs text-gray-500">Most recent credit changes.</p>
                 </div>
                 <button
-                  onClick={fetchLedger}
-                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-2"
+                    if (!creditForm.userId || !creditForm.delta) return;
+                    handleAddCredits(
+                      Number(creditForm.userId),
+                      creditForm.delta,
+                      creditForm.reason || 'manual_adjustment'
+                    );
+                    setCreditForm((s) => ({ ...s, reason: '' }));
+                  }}
+                  className="px-4 py-2 rounded-xl bg-brand-cyan text-black text-sm font-semibold hover:bg-brand-accent transition-colors"
                 >
-                  <RefreshCw className="w-4 h-4" /> Refresh
+                  Apply
                 </button>
               </div>
-              {ledgerError && (
-                <div className="px-6 py-3 text-xs text-red-300 bg-red-500/10 border-b border-red-500/20">
-                  {ledgerError}
-                </div>
-              )}
-              {ledgerLoading ? (
-                <div className="p-8 text-center text-gray-400">Loading ledger...</div>
-              ) : (
-                <>
-                  {ledger.length === 0 ? (
-                    <div className="p-8 text-center text-gray-400">No credit activity yet.</div>
-                  ) : (
-                    <table className="w-full text-left">
-                      <thead className="bg-white/5 text-gray-400 text-xs font-bold uppercase tracking-widest border-b border-white/5">
-                        <tr>
-                          <th className="px-6 py-4">User</th>
-                          <th className="px-6 py-4">Delta</th>
-                          <th className="px-6 py-4">Balance</th>
-                          <th className="px-6 py-4">Reason</th>
-                          <th className="px-6 py-4">Source</th>
-                          <th className="px-6 py-4">When</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {ledger.map((entry) => (
-                          <tr key={entry.id} className="hover:bg-white/5 transition-colors">
-                            <td className="px-6 py-4 text-sm text-white">{entry.user_email}</td>
-                            <td className={`px-6 py-4 text-sm font-mono ${entry.delta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {entry.delta >= 0 ? '+' : ''}
-                              {entry.delta}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-amber-400 font-mono">{entry.balance_after}</td>
-                            <td className="px-6 py-4 text-xs text-gray-400">{entry.reason || '-'}</td>
-                            <td className="px-6 py-4 text-xs text-gray-500">{entry.source}</td>
-                            <td className="px-6 py-4 text-xs text-gray-500">{new Date(entry.created_at).toLocaleString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </>
-              )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
 
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-          <div className="w-full max-w-4xl bg-slate-900 border border-white/10 rounded-3xl p-6 space-y-6">
-            <div className="flex items-start justify-between">
+          <div className="bg-slate-900/30 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between">
               <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-gray-500">User Detail</div>
-                <h3 className="text-2xl font-bold text-white">{selectedUser.full_name || 'Anonymous'}</h3>
-                <p className="text-sm text-gray-400">{selectedUser.email}</p>
-                <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
-                  <span>Credits: <span className="text-amber-300 font-semibold">{selectedUser.credits}</span></span>
-                  {selectedUser.monthly_credits !== undefined && (
-                    <span>Monthly: <span className="text-gray-200 font-semibold">{selectedUser.monthly_credits}</span></span>
-                  )}
-                </div>
+                <h3 className="text-lg font-semibold text-white">Credit Ledger</h3>
+                <p className="text-xs text-gray-500">Most recent credit changes.</p>
               </div>
               <button
-                onClick={closeUserDetails}
-                className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-xs"
+                onClick={fetchLedger}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-2"
               >
-                Close
+                <RefreshCw className="w-4 h-4" /> Refresh
               </button>
             </div>
-
-            {userLoading ? (
-              <div className="text-center text-gray-400">Loading user details...</div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                  <h4 className="text-sm font-semibold text-white mb-3">Recent Jobs</h4>
-                  {userJobs.length === 0 ? (
-                    <p className="text-xs text-gray-500">No jobs found.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {userJobs.map((job) => (
-                        <div key={job.id} className="flex items-center justify-between text-xs text-gray-400">
-                          <span>#{job.id}</span>
-                          <span className="capitalize">{job.status}</span>
-                          <span>{new Date(job.created_at).toLocaleDateString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                  <h4 className="text-sm font-semibold text-white mb-3">Credit Activity</h4>
-                  {userLedger.length === 0 ? (
-                    <p className="text-xs text-gray-500">No ledger entries yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {userLedger.map((entry) => (
-                        <div key={entry.id} className="flex items-center justify-between text-xs text-gray-400">
-                          <span className={entry.delta >= 0 ? 'text-emerald-300' : 'text-red-300'}>
-                            {entry.delta >= 0 ? '+' : ''}
-                            {entry.delta}
-                          </span>
-                          <span>{entry.reason || entry.source}</span>
-                          <span>{new Date(entry.created_at).toLocaleDateString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+            {ledgerError && (
+              <div className="px-6 py-3 text-xs text-red-300 bg-red-500/10 border-b border-red-500/20">
+                {ledgerError}
               </div>
             )}
+            {ledgerLoading ? (
+              <div className="p-8 text-center text-gray-400">Loading ledger...</div>
+            ) : (
+              <>
+                {ledger.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">No credit activity yet.</div>
+                ) : (
+                  <table className="w-full text-left">
+                    <thead className="bg-white/5 text-gray-400 text-xs font-bold uppercase tracking-widest border-b border-white/5">
+                      <tr>
+                        <th className="px-6 py-4">User</th>
+                        <th className="px-6 py-4">Delta</th>
+                        <th className="px-6 py-4">Balance</th>
+                        <th className="px-6 py-4">Reason</th>
+                        <th className="px-6 py-4">Source</th>
+                        <th className="px-6 py-4">When</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {ledger.map((entry) => (
+                        <tr key={entry.id} className="hover:bg-white/5 transition-colors">
+                          <td className="px-6 py-4 text-sm text-white">{entry.user_email}</td>
+                          <td className={`px-6 py-4 text-sm font-mono ${entry.delta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {entry.delta >= 0 ? '+' : ''}
+                            {entry.delta}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-amber-400 font-mono">{entry.balance_after}</td>
+                          <td className="px-6 py-4 text-xs text-gray-400">{entry.reason || '-'}</td>
+                          <td className="px-6 py-4 text-xs text-gray-500">{entry.source}</td>
+                          <td className="px-6 py-4 text-xs text-gray-500">{new Date(entry.created_at).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            )}
           </div>
+        </motion.div >
+      )
+}
+    </AnimatePresence >
+
+{
+  selectedUser && (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+      <div className="w-full max-w-4xl bg-slate-900 border border-white/10 rounded-3xl p-6 space-y-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-gray-500">User Detail</div>
+            <h3 className="text-2xl font-bold text-white">{selectedUser.full_name || 'Anonymous'}</h3>
+            <p className="text-sm text-gray-400">{selectedUser.email}</p>
+            <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
+              <span>Credits: <span className="text-amber-300 font-semibold">{selectedUser.credits}</span></span>
+              {selectedUser.monthly_credits !== undefined && (
+                <span>Monthly: <span className="text-gray-200 font-semibold">{selectedUser.monthly_credits}</span></span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={closeUserDetails}
+            className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-xs"
+          >
+            Close
+          </button>
         </div>
-      )}
+
+        {userLoading ? (
+          <div className="text-center text-gray-400">Loading user details...</div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+              <h4 className="text-sm font-semibold text-white mb-3">Recent Jobs</h4>
+              {userJobs.length === 0 ? (
+                <p className="text-xs text-gray-500">No jobs found.</p>
+              ) : (
+                <div className="space-y-2">
+                  {userJobs.map((job) => (
+                    <div key={job.id} className="flex items-center justify-between text-xs text-gray-400">
+                      <span>#{job.id}</span>
+                      <span className="capitalize">{job.status}</span>
+                      <span>{new Date(job.created_at).toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+              <h4 className="text-sm font-semibold text-white mb-3">Credit Activity</h4>
+              {userLedger.length === 0 ? (
+                <p className="text-xs text-gray-500">No ledger entries yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {userLedger.map((entry) => (
+                    <div key={entry.id} className="flex items-center justify-between text-xs text-gray-400">
+                      <span className={entry.delta >= 0 ? 'text-emerald-300' : 'text-red-300'}>
+                        {entry.delta >= 0 ? '+' : ''}
+                        {entry.delta}
+                      </span>
+                      <span>{entry.reason || entry.source}</span>
+                      <span>{new Date(entry.created_at).toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
+  )
+  }
+    </div >
   );
 }
 

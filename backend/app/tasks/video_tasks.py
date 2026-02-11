@@ -63,12 +63,25 @@ try:
         Celery task for video processing.
         Wraps the async workflow engine.
         """
-        Celery task for video processing.
-        Wraps the async workflow engine.
-        """
         publish_progress(job_id, "processing", f"Starting video processing ({tier})...", 5)
         
         try:
             from ..services.workflow_engine import process_job
+            asyncio.run(process_job(
+                job_id,
+                source_path,
+                pacing=pacing,
+                mood=mood,
+                ratio=ratio,
+                tier=tier, 
+                platform=platform,
+                brand_safety=brand_safety
+            ))
+        except Exception as e:
+            print(f"[Celery] Task execution failed: {e}")
+            publish_progress(job_id, "failed", f"Task execution failed: {str(e)}", 0)
+            raise e
+
+except Exception as e:
     print(f"[Celery] Could not initialize: {e}")
     process_video_task = None
