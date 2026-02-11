@@ -11,6 +11,19 @@ from ..config import settings
 
 logger = structlog.get_logger()
 HTTP_ROUTE_DECORATORS = {"get", "post", "put", "patch", "delete", "options", "head"}
+SKIP_DIRS = {
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    "node_modules",
+    ".git",
+    ".pytest_cache",
+    ".mypy_cache",
+    "tests",
+    "storage",
+    "artifacts",
+}
 
 
 class IntrospectionService:
@@ -121,8 +134,8 @@ class IntrospectionService:
                 }
 
                 for root, dirs, files in os.walk(self.root_dir):
-                    if "__pycache__" in root:
-                        continue
+                    # Prune directories in-place to avoid walking into them
+                    dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
 
                     for file in files:
                         if file.endswith(".py"):

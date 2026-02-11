@@ -1,3 +1,4 @@
+import asyncio
 import structlog
 from typing import Dict, Any
 from ..services.introspection import introspection_service
@@ -18,8 +19,8 @@ class ArchitectAgent:
             
         logger.info("architect_query_start", query=query)
         
-        # 1. Get current system state
-        graph = introspection_service.scan()
+        # 1. Get current system state - Offloaded to thread to avoid blocking event loop
+        graph = await asyncio.to_thread(introspection_service.scan)
         
         # 2. Prepare Context (Flatten graph for prompt)
         # Limit to avoid token overflow? For now, assume graph fits.
@@ -49,8 +50,8 @@ class ArchitectAgent:
         """
         
         try:
-            # Re-use run_agent_prompt helper
-            result = await run_agent_prompt(system_prompt, {"query": query}, task_type="reasoning")
+            # Re-use run_agent_prompt helper (using 'analytical' for better provider routing)
+            result = await run_agent_prompt(system_prompt, {"query": query}, task_type="analytical")
             return {
                 "status": "success",
                 "answer": result.get("raw_response", "No response generated")
