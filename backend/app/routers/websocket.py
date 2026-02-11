@@ -75,3 +75,51 @@ async def job_progress_websocket(websocket: WebSocket, job_id: int):
                 await r.close()
         except:
             pass
+@router.websocket("/ws/user/{user_id}")
+async def user_progress_websocket(websocket: WebSocket, user_id: int):
+    """
+    WebSocket endpoint for user-wide job updates.
+    """
+    await websocket.accept()
+    
+    if not REDIS_URL:
+        await websocket.close(code=1000, reason="Redis not configured")
+        return
+
+    r = None
+    pubsub = None
+    try:
+        # Connect to Redis
+        r = redis.from_url(REDIS_URL, decode_responses=True)
+        pubsub = r.pubsub()
+        await pubsub.subscribe(f"user:{user_id}:jobs")
+        
+        # Listen for updates
+        last_ping = time.monotonic()
+        while True:
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            if message and message.get("data"):
+                data = message["data"]
+                if isinstance(data, bytes):
+                    data = data.decode()
+                await websocket.send_text(data)
+            else:
+                # Send ping to keep connection alive every ~25s
+                if time.monotonic() - last_ping > 25:
+                    try:
+                        await websocket.send_json({"type": "ping"})
+                        last_ping = time.monotonic()
+                    except:
+                        break
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"[WebSocket] Error: {e}")
+    finally:
+        try:
+            if pubsub:
+                await pubsub.unsubscribe(f"user:{user_id}:jobs")
+            if r:
+                await r.close()
+        except:
+            pass

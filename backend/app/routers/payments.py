@@ -93,8 +93,8 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None),
         
         if user_id and credits_to_add > 0:
             print(f"[Stripe] Adding {credits_to_add} credits to user {user_id}")
-            # Update User Credits
-            stmt = select(User).where(User.id == int(user_id))
+            # Update User Credits with row locking
+            stmt = select(User).where(User.id == int(user_id)).with_for_update()
             result = await session.execute(stmt)
             user = result.scalar_one_or_none()
             

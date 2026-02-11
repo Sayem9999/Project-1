@@ -64,7 +64,7 @@ def detect_gpu_encoder() -> str:
     return "libx264"
 
 
-def publish_progress(job_id: int, status: str, message: str, progress: int = 0):
+def publish_progress(job_id: int, status: str, message: str, progress: int = 0, user_id: int | None = None):
     """Publish progress to Redis for WebSocket streaming (if available)."""
     if not REDIS_URL:
         return
@@ -78,8 +78,13 @@ def publish_progress(job_id: int, status: str, message: str, progress: int = 0):
             "message": message,
             "progress": progress
         })
+        # Publish to job channel (legacy)
         r.publish(f"job:{job_id}:progress", data)
         r.setex(f"job:{job_id}:latest", 3600, data)
+        
+        # Publish to user channel (new)
+        if user_id:
+            r.publish(f"user:{user_id}:jobs", data)
     except Exception as e:
         print(f"[Redis] Progress publish error: {e}")
 
@@ -123,8 +128,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
     Fast, efficient, but loose synchronization.
     """
     print(f"[Workflow v3] Starting Standard job {job_id}")
-    publish_progress(job_id, "processing", "Initializing Standard Workflow...", 5)
-    
+    user_id = None
     # Detect GPU encoder once at start
     video_encoder = detect_gpu_encoder()
     
@@ -136,10 +140,12 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
         user_id = job.user_id
         await session.commit()
 
+    publish_progress(job_id, "processing", "Initializing Standard Workflow...", 5, user_id=user_id)
+
     try:
         # === PHASE 1: Analysis (10%) ===
         await update_status(job_id, "processing", "[FRAME] Analyzing keyframes...")
-        publish_progress(job_id, "processing", "Analyzing video keyframes...", 10)
+        publish_progress(job_id, "processing", "Analyzing video keyframes...", 10, user_id=user_id)
         memory_context = await hybrid_memory.get_agent_context(user_id)
         
         keyframe_payload = {"source_path": source_path, "pacing": pacing}
@@ -158,7 +164,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             attempt += 1
             status_prefix = f"[Take {attempt}]" if attempt > 1 else "[MAX]"
             await update_status(job_id, "processing", f"{status_prefix} Director planning...")
-            publish_progress(job_id, "processing", f"Director planning strategy (Take {attempt})...", 20)
+            publish_progress(job_id, "processing", f"Director planning strategy (Take {attempt})...", 20, user_id=user_id)
             
             director_payload = {
                 "source_path": source_path,
@@ -176,7 +182,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
 
             # === PHASE 3: Parallel Specialists (30-60%) ===
             await update_status(job_id, "processing", f"{status_prefix} Specialists working...")
-            publish_progress(job_id, "processing", "6 AI agents working in parallel...", 35)
+            publish_progress(job_id, "processing", "6 AI agents working in parallel...", 35, user_id=user_id)
             
             # Run 6 agents in parallel using asyncio.gather()
             specialist_tasks = [
@@ -189,7 +195,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             ]
             
             results = await asyncio.gather(*specialist_tasks, return_exceptions=True)
-            publish_progress(job_id, "processing", "Specialist analysis complete!", 55)
+            publish_progress(job_id, "processing", "Specialist analysis complete!", 55, user_id=user_id)
             
             cutter_data = results[0] if not isinstance(results[0], Exception) else None
             color_data = results[1] if not isinstance(results[1], Exception) else None
@@ -207,7 +213,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
 
             # === PHASE 4: Render (60-80%) ===
             await update_status(job_id, "processing", f"{status_prefix} Rendering video...")
-            publish_progress(job_id, "processing", f"Rendering with {video_encoder}...", 65)
+            publish_progress(job_id, "processing", f"Rendering with {video_encoder}...", 65, user_id=user_id)
             
             output_filename = f"job-{job_id}-take{attempt}.mp4"
             output_abs = Path(settings.storage_root) / "outputs" / output_filename
@@ -252,7 +258,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
             await proc.communicate()
             
-            publish_progress(job_id, "processing", "Render complete!", 80)
+            publish_progress(job_id, "processing", "Render complete!", 80, user_id=user_id)
             
             if proc.returncode != 0 or not output_abs.exists():
                 shutil.copy(src, output_abs)
@@ -262,7 +268,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             # === PHASE 5: QC Review (85%) ===
             if attempt <= max_retries:
                 await update_status(job_id, "processing", f"[THE PRODUCER] Reviewing...")
-                publish_progress(job_id, "processing", "Quality control review...", 85)
+                publish_progress(job_id, "processing", "Quality control review...", 85, user_id=user_id)
                 
                 qc_payload = {"user_request": {"pacing": pacing, "mood": mood}, "director_plan": director_plan}
                 qc_data = await qc_agent.run(qc_payload)
@@ -278,7 +284,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
 
         # === PHASE 6: Post-Production (90-100%) ===
         await update_status(job_id, "processing", "[THUMB] Generating thumbnail...")
-        publish_progress(job_id, "processing", "Generating thumbnail & metadata...", 90)
+        publish_progress(job_id, "processing", "Generating thumbnail & metadata...", 90, user_id=user_id)
         
         # Parallel post-production
         thumb_task = thumbnail_agent.run({"source_path": source_path, "mood": mood})
@@ -321,7 +327,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             completion_msg = f"🎬 {meta_data['title']} is ready!"
             
         await update_status(job_id, "complete", completion_msg, final_rel_path, final_thumb_rel_path)
-        publish_progress(job_id, "complete", completion_msg, 100)
+        publish_progress(job_id, "complete", completion_msg, 100, user_id=user_id)
         print(f"[Workflow] Job {job_id} complete!")
 
     except Exception as e:
@@ -329,7 +335,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
         import traceback
         traceback.print_exc()
         await update_status(job_id, "failed", f"Processing failed: {str(e)[:100]}")
-        publish_progress(job_id, "failed", f"Processing failed: {str(e)[:100]}", 0)
+        publish_progress(job_id, "failed", f"Processing failed: {str(e)[:100]}", 0, user_id=user_id)
 
 
 async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9", platform: str = "youtube", brand_safety: str = "standard"):
@@ -338,14 +344,16 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
     Hierarchical: Director -> Cutter -> (Visuals/Audio) -> Compiler
     """
     print(f"[Workflow v4] Starting Pro job {job_id} (LangGraph)")
-    publish_progress(job_id, "processing", "Initializing Hollywood Pipeline (LangGraph)...", 5)
-    
+    user_id = None
     async with AsyncSession(engine) as session:
         job = await session.get(Job, job_id)
         if not job: return
         job.status = "processing"
         job.progress_message = "Initializing Hollywood Pipeline..."
+        user_id = job.user_id
         await session.commit()
+
+    publish_progress(job_id, "processing", "Initializing Hollywood Pipeline (LangGraph)...", 5, user_id=user_id)
 
     try:
         from ..graph.workflow import app as graph_app
@@ -394,7 +402,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
                 
                 # Update DB and Publish
                 await update_status(job_id, "processing", f"[AI] {msg}")
-                publish_progress(job_id, "processing", msg, progress_p)
+                publish_progress(job_id, "processing", msg, progress_p, user_id=user_id)
         
         if final_state.get("errors"):
             raise Exception(f"Graph Errors: {final_state['errors']}")
@@ -424,7 +432,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
             brand_safety_result=brand_safety_result,
             ab_test_result=ab_test_result
         )
-        publish_progress(job_id, "complete", completion_msg, 100)
+        publish_progress(job_id, "complete", completion_msg, 100, user_id=user_id)
         print(f"[Workflow v4] Job {job_id} complete!")
 
     except Exception as e:
@@ -432,7 +440,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         import traceback
         traceback.print_exc()
         await update_status(job_id, "failed", f"Processing failed: {str(e)[:100]}")
-        publish_progress(job_id, "failed", f"Processing failed: {str(e)[:100]}", 0)
+        publish_progress(job_id, "failed", f"Processing failed: {str(e)[:100]}", 0, user_id=user_id)
 
 
 async def update_status(

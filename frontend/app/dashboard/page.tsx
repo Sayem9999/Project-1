@@ -21,6 +21,7 @@ export default function DashboardPage() {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [loading, setLoading] = useState(true);
     const [userName, setUserName] = useState<string | null>(null);
+    const [userId, setUserId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [activeView, setActiveView] = useState<'projects' | 'media'>('projects');
     const socketsRef = useRef<Record<number, WebSocket>>({});
@@ -41,10 +42,11 @@ export default function DashboardPage() {
         const load = async () => {
             try {
                 const [me, data] = await Promise.all([
-                    apiRequest<{ full_name?: string; email?: string }>('/auth/me', { auth: true }),
+                    apiRequest<{ id: number; full_name?: string; email?: string }>('/auth/me', { auth: true }),
                     apiRequest<Job[]>('/jobs', { auth: true })
                 ]);
                 setUserName(me.full_name || me.email || 'Creator');
+                setUserId(me.id);
                 setJobs(data);
                 setLoading(false);
             } catch (err) {
@@ -62,60 +64,44 @@ export default function DashboardPage() {
     }, [router]);
 
     useEffect(() => {
-        processingJobs.forEach((job) => {
-            if (socketsRef.current[job.id]) return;
-            const ws = new WebSocket(getWebSocketUrl(`/ws/jobs/${job.id}`));
-            socketsRef.current[job.id] = ws;
+        if (!userId) return;
 
-            ws.onmessage = (event) => {
-                try {
-                    const payload = JSON.parse(event.data);
-                    setJobs((prev) =>
-                        prev.map((j) =>
-                            j.id === job.id
-                                ? {
-                                    ...j,
-                                    status: payload.status ?? j.status,
-                                    progress_message: payload.message ?? j.progress_message,
-                                }
-                                : j
-                        )
-                    );
-                    if (payload.status === 'complete' || payload.status === 'failed') {
-                        ws.close();
-                        delete socketsRef.current[job.id];
-                    }
-                } catch {
-                    // ignore parse errors
-                }
-            };
+        const url = getWebSocketUrl(`/ws/user/${userId}`);
+        const ws = new WebSocket(url);
 
-            ws.onerror = () => {
-                ws.close();
-                delete socketsRef.current[job.id];
-            };
-
-            ws.onclose = () => {
-                delete socketsRef.current[job.id];
-            };
-        });
-
-        // Cleanup sockets for jobs that are no longer processing
-        Object.keys(socketsRef.current).forEach((id) => {
-            const jobId = Number(id);
-            if (!processingJobs.find((job) => job.id === jobId)) {
-                socketsRef.current[jobId]?.close();
-                delete socketsRef.current[jobId];
-            }
-        });
-    }, [processingJobs]);
-
-    useEffect(() => {
-        return () => {
-            Object.values(socketsRef.current).forEach((ws) => ws.close());
-            socketsRef.current = {};
+        ws.onopen = () => {
+            console.log('[Dashboard] Connected to user updates channel');
         };
-    }, []);
+
+        ws.onmessage = (event) => {
+            try {
+                const payload = JSON.parse(event.data);
+                // payload: { job_id, status, message, progress }
+
+                setJobs((prev) =>
+                    prev.map((j) =>
+                        j.id === payload.job_id
+                            ? {
+                                ...j,
+                                status: payload.status ?? j.status,
+                                progress_message: payload.message ?? j.progress_message,
+                            }
+                            : j
+                    )
+                );
+            } catch (e) {
+                console.error('[Dashboard] WebSocket parse error', e);
+            }
+        };
+
+        ws.onerror = (e) => {
+            console.error('[Dashboard] WebSocket error', e);
+        };
+
+        return () => {
+            ws.close();
+        };
+    }, [userId]);
 
     const getStatusParams = (status: string) => {
         switch (status) {

@@ -130,17 +130,22 @@ async def retry_job(job_id: int, current_user: User = Depends(get_current_user),
         raise HTTPException(status_code=400, detail="Only failed jobs can be retried.")
 
     if settings.credits_enabled:
+        # Lock user row for update to prevent race conditions
+        result = await session.execute(select(User).where(User.id == current_user.id).with_for_update())
+        user_to_charge = result.scalar_one()
+        
         cost = job.credits_cost or (2 if (job.tier or "standard") == "pro" else 1)
-        if (current_user.credits or 0) < cost:
+        if (user_to_charge.credits or 0) < cost:
             raise CreditError(f"Insufficient credits. {job.tier.title()} edit requires {cost} credits.")
-        current_user.credits = (current_user.credits or 0) - cost
-        session.add(current_user)
+        
+        user_to_charge.credits = (user_to_charge.credits or 0) - cost
+        session.add(user_to_charge)
         session.add(
             CreditLedger(
-                user_id=current_user.id,
+                user_id=user_to_charge.id,
                 job_id=job.id,
                 delta=-cost,
-                balance_after=current_user.credits or 0,
+                balance_after=user_to_charge.credits or 0,
                 reason=f"{job.tier}_job_retry",
                 source="job",
             )
@@ -178,17 +183,22 @@ async def start_job(job_id: int, current_user: User = Depends(get_current_user),
 
     # Charge credits on start
     if settings.credits_enabled:
+        # Lock user row for update
+        result = await session.execute(select(User).where(User.id == current_user.id).with_for_update())
+        user_to_charge = result.scalar_one()
+
         cost = job.credits_cost or (2 if (job.tier or "standard") == "pro" else 1)
-        if (current_user.credits or 0) < cost:
+        if (user_to_charge.credits or 0) < cost:
             raise CreditError(f"Insufficient credits. {job.tier.title()} edit requires {cost} credits.")
-        current_user.credits = (current_user.credits or 0) - cost
-        session.add(current_user)
+        
+        user_to_charge.credits = (user_to_charge.credits or 0) - cost
+        session.add(user_to_charge)
         session.add(
             CreditLedger(
-                user_id=current_user.id,
+                user_id=user_to_charge.id,
                 job_id=job.id,
                 delta=-cost,
-                balance_after=current_user.credits or 0,
+                balance_after=user_to_charge.credits or 0,
                 reason=f"{job.tier}_job_start",
                 source="job",
             )
