@@ -36,7 +36,9 @@ def render_video_v1(
     cuts: List[Dict[str, Any]],
     output_key: str,
     fps: int = 24,
-    crf: int = 18
+    crf: int = 18,
+    vf_filters: str | None = None,
+    af_filters: str | None = None
 ):
     """
     Renders a video on Modal GPU.
@@ -158,6 +160,13 @@ def render_video_v1(
     else:
         final_video = mp.concatenate_videoclips(clips, method="compose")
         
+    # Prepare additional filters
+    extra_params = ["-crf", str(crf)]
+    if vf_filters:
+        extra_params += ["-vf", vf_filters]
+    if af_filters:
+        extra_params += ["-af", af_filters]
+
     # 3. Export
     output_local = Path(f"/tmp/output_{job_id}.mp4")
     try:
@@ -166,17 +175,17 @@ def render_video_v1(
             codec="h264_nvenc", # Prefer GPU encoding when available.
             audio_codec="aac",
             fps=fps,
-            ffmpeg_params=["-crf", str(crf), "-preset", "p4"], # NVENC presets: p1...p7
+            ffmpeg_params=extra_params + ["-preset", "p4"],
             logger=None
         )
     except Exception:
-        # Fallback keeps jobs completing even if NVENC is unavailable in the runtime image.
+        # Fallback keeps jobs completing even if NVENC is unavailable
         final_video.write_videofile(
             str(output_local),
             codec="libx264",
             audio_codec="aac",
             fps=fps,
-            ffmpeg_params=["-crf", str(crf), "-preset", "medium"],
+            ffmpeg_params=extra_params + ["-preset", "medium"],
             logger=None
         )
     

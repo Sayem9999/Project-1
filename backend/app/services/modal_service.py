@@ -22,7 +22,9 @@ class ModalService:
         source_path: str,
         cuts: List[Dict[str, Any]],
         fps: int = 24,
-        crf: int = 18
+        crf: int = 18,
+        vf_filters: Optional[str] = None,
+        af_filters: Optional[str] = None
     ) -> Optional[str]:
         """
         Offloads rendering to Modal.
@@ -62,7 +64,9 @@ class ModalService:
                 cuts=cuts,
                 output_key=output_key,
                 fps=fps,
-                crf=crf
+                crf=crf,
+                vf_filters=vf_filters,
+                af_filters=af_filters
             )
             if not remote_key:
                 return None

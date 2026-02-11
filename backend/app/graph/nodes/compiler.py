@@ -30,8 +30,10 @@ async def compiler_node(state: GraphState) -> GraphState:
             job_id=job_id,
             source_path=source_path,
             cuts=cuts,
-            fps=24 if tier == "pro" else 24, # Standardize
-            crf=18 if tier == "pro" else 23
+            fps=24,
+            crf=18 if tier == "pro" else 23,
+            vf_filters=None,
+            af_filters=None
         )
         if modal_output:
             print(f"--- [Graph] Modal Rendering Success: {modal_output} ---")
