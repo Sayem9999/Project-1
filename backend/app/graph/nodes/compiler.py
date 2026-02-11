@@ -18,13 +18,14 @@ async def compiler_node(state: GraphState) -> GraphState:
     source_path = state.get("source_path")
     cuts = state.get("cuts", [])
     tier = state.get("tier", "standard")
+    user_id = state.get("user_id")
     
     # 1. Attempt Modal Offloading (GPU)
     from ...services.modal_service import modal_service
     from ...services.workflow_engine import publish_progress
     
     if modal_service.enabled:
-        publish_progress(job_id, "processing", "Offloading to GPU Cluster (Modal)...", 85)
+        publish_progress(job_id, "processing", "Offloading to GPU Cluster (Modal)...", 85, user_id=user_id)
         modal_output = await modal_service.render_video(
             job_id=job_id,
             source_path=source_path,
@@ -43,7 +44,7 @@ async def compiler_node(state: GraphState) -> GraphState:
     # 2. Local Fallback Rendering (CPU)
     async with limits.render_semaphore:
         print("--- [Graph] Compiler Rendering (Local) ---")
-        publish_progress(job_id, "processing", "Rendering video on local CPU...", 85)
+        publish_progress(job_id, "processing", "Rendering video on local CPU...", 85, user_id=user_id)
         
         output_path = f"job-{job_id}-pro.mp4"
         abs_output = Path(os.getcwd()) / "storage" / "outputs" / output_path

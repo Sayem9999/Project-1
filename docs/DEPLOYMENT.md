@@ -77,3 +77,23 @@ We've added an `ipAllowList` placeholder in `render.yaml`.
 1. **Health Check**: Visit `https://proedit-api.onrender.com/health` -> Expect `{"status": "healthy"}`.
 2. **Admin Auth**: Login as an admin and visit `/admin/dashboard` to verify DB and Redis connectivity.
 3. **GPU Check**: Render Web Services use CPU by default. For massive performance, upgrade the service plan to use NVIDIA GPU nodes (H100/A10G).
+
+---
+
+## 7. Optional: Modal GPU Offloading (Pro Tier)
+If you want Pro renders to run on external GPU workers:
+
+1. Add backend environment variables:
+   - `MODAL_TOKEN_ID`
+   - `MODAL_TOKEN_SECRET`
+   - `R2_ACCOUNT_ID`
+   - `R2_ACCESS_KEY_ID`
+   - `R2_SECRET_ACCESS_KEY`
+   - `R2_BUCKET_NAME`
+   - `R2_PUBLIC_URL` (recommended so the app can return direct output URLs)
+2. From `backend/`, run:
+   - `python modal_setup.py`
+3. Confirm deployment:
+   - `modal app list` should include `proedit-worker`
+4. Run a Pro job and verify progress includes:
+   - `Offloading to GPU Cluster (Modal)...`

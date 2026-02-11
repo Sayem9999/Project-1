@@ -42,9 +42,12 @@ class ModalService:
             else:
                 source_url = source_path
                 
-            # 2. Lookup Modal Function
+            # 2. Lookup Modal Function (support old/new SDK method names)
             # Note: The function must be deployed with 'modal deploy modal_worker.py'
-            f = modal.Function.lookup("proedit-worker", "render_video_v1")
+            if hasattr(modal.Function, "from_name"):
+                f = modal.Function.from_name("proedit-worker", "render_video_v1")
+            else:
+                f = modal.Function.lookup("proedit-worker", "render_video_v1")
             
             # 3. Trigger remote execution
             # We pass the R2 URL to the worker.
@@ -61,6 +64,8 @@ class ModalService:
                 fps=fps,
                 crf=crf
             )
+            if not remote_key:
+                return None
             
             # 4. Construct the output URL
             if settings.r2_public_url:

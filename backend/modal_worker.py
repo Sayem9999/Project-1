@@ -66,7 +66,8 @@ def render_video_v1(
     # 1. Download Source
     source_local = Path(f"/tmp/source_{job_id}.mp4")
     print(f"Downloading source: {source_url}")
-    resp = requests.get(source_url, stream=True)
+    resp = requests.get(source_url, stream=True, timeout=120)
+    resp.raise_for_status()
     with open(source_local, "wb") as f:
         for chunk in resp.iter_content(chunk_size=8192):
             f.write(chunk)
@@ -93,14 +94,25 @@ def render_video_v1(
         
     # 3. Export
     output_local = Path(f"/tmp/output_{job_id}.mp4")
-    final_video.write_videofile(
-        str(output_local),
-        codec="h264_nvenc", # Use GPU for encoding!
-        audio_codec="aac",
-        fps=fps,
-        ffmpeg_params=["-crf", str(crf), "-preset", "p4"], # NVENC presets: p1...p7
-        logger=None
-    )
+    try:
+        final_video.write_videofile(
+            str(output_local),
+            codec="h264_nvenc", # Prefer GPU encoding when available.
+            audio_codec="aac",
+            fps=fps,
+            ffmpeg_params=["-crf", str(crf), "-preset", "p4"], # NVENC presets: p1...p7
+            logger=None
+        )
+    except Exception:
+        # Fallback keeps jobs completing even if NVENC is unavailable in the runtime image.
+        final_video.write_videofile(
+            str(output_local),
+            codec="libx264",
+            audio_codec="aac",
+            fps=fps,
+            ffmpeg_params=["-crf", str(crf), "-preset", "medium"],
+            logger=None
+        )
     
     # 4. Upload to R2
     print(f"Uploading to R2: {output_key}")
@@ -109,6 +121,7 @@ def render_video_v1(
         
     # Clean up
     original_clip.close()
+    final_video.close()
     source_local.unlink(missing_ok=True)
     output_local.unlink(missing_ok=True)
     
