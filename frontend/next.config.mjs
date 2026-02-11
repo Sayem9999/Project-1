@@ -1,12 +1,20 @@
 import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
+const enableCrossOriginIsolation = process.env.ENABLE_CROSS_ORIGIN_ISOLATION === "true";
+
 const nextConfig = {
   /* config options here */
   eslint: {
     ignoreDuringBuilds: true,
   },
   async headers() {
+    if (!enableCrossOriginIsolation) {
+      // Default mode: avoid COEP/CORP blocking for third-party scripts/images
+      // (e.g. Google avatars, Vercel preview tooling).
+      return [];
+    }
+
     return [
       {
         source: '/(.*)',

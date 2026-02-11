@@ -70,6 +70,15 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
     return diagnostics
 
 
+def _has_queue_consumer(diagnostics: dict[str, Any], queue_name: str) -> bool:
+    """Return True if any discovered worker is subscribed to queue_name."""
+    queues_by_worker = diagnostics.get("queues") or {}
+    for queue_list in queues_by_worker.values():
+        if isinstance(queue_list, list) and queue_name in queue_list:
+            return True
+    return False
+
+
 @router.post("/upload", response_model=JobResponse)
 async def upload_video(
     request: Request,
@@ -373,6 +382,13 @@ async def enqueue_job(
             raise HTTPException(
                 status_code=503,
                 detail=f"No active Celery worker reachable on {diagnostics.get('broker')}.",
+            )
+        if settings.environment == "production" and not _has_queue_consumer(diagnostics, "video"):
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    f"No active Celery worker subscribed to 'video' queue on {diagnostics.get('broker')}."
+                ),
             )
 
         try:

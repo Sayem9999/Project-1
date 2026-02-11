@@ -241,7 +241,8 @@ body {
 }
 
 .route-transition-root {
-  will-change: transform, opacity;
+  /* Keep compositing budget healthy; only promote layers when needed. */
+  will-change: auto;
 }
 
 .cursor-spotlight {

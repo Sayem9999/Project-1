@@ -86,7 +86,12 @@ async def test_enqueue_job_production_fails_if_celery_dispatch_errors(monkeypatc
     monkeypatch.setattr(
         jobs_router,
         "get_celery_dispatch_diagnostics",
-        lambda timeout=1.5: {"broker": "rediss://broker:6379/0", "worker_count": 1, "workers": ["celery@test"]},
+        lambda timeout=1.5: {
+            "broker": "rediss://broker:6379/0",
+            "worker_count": 1,
+            "workers": ["celery@test"],
+            "queues": {"celery@test": ["video", "celery"]},
+        },
     )
 
     with patch("app.tasks.video_tasks.process_video_task") as mock_task:
@@ -115,7 +120,12 @@ async def test_enqueue_job_production_fails_if_no_active_workers(monkeypatch):
     monkeypatch.setattr(
         jobs_router,
         "get_celery_dispatch_diagnostics",
-        lambda timeout=1.5: {"broker": "rediss://broker:6379/0", "worker_count": 0, "workers": []},
+        lambda timeout=1.5: {
+            "broker": "rediss://broker:6379/0",
+            "worker_count": 0,
+            "workers": [],
+            "queues": {},
+        },
     )
 
     with pytest.raises(HTTPException) as exc:
@@ -131,3 +141,34 @@ async def test_enqueue_job_production_fails_if_no_active_workers(monkeypatch):
 
     assert exc.value.status_code == 503
     assert "No active Celery worker reachable" in str(exc.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_enqueue_job_production_fails_if_no_video_queue_consumer(monkeypatch):
+    job = SimpleNamespace(id=1, source_path="uploads/test_video.mp4")
+    monkeypatch.setattr(jobs_router, "USE_CELERY", True)
+    monkeypatch.setattr(jobs_router.settings, "environment", "production", raising=False)
+    monkeypatch.setattr(
+        jobs_router,
+        "get_celery_dispatch_diagnostics",
+        lambda timeout=1.5: {
+            "broker": "rediss://broker:6379/0",
+            "worker_count": 1,
+            "workers": ["celery@test"],
+            "queues": {"celery@test": ["celery"]},
+        },
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await jobs_router.enqueue_job(
+            job,
+            pacing="medium",
+            mood="professional",
+            ratio="16:9",
+            tier="pro",
+            platform="youtube",
+            brand_safety="standard",
+        )
+
+    assert exc.value.status_code == 503
+    assert "No active Celery worker subscribed to 'video' queue" in str(exc.value.detail)
