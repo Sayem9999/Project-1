@@ -133,12 +133,14 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
     # Detect GPU encoder once at start
     video_encoder = detect_gpu_encoder()
     
+    media_intelligence = None
     async with AsyncSession(engine) as session:
         job = await session.get(Job, job_id)
         if not job: return
         job.status = "processing"
         job.progress_message = "Initializing Standard Workflow..."
         user_id = job.user_id
+        media_intelligence = job.media_intelligence
         await session.commit()
 
     publish_progress(job_id, "processing", "Initializing Standard Workflow...", 5, user_id=user_id)
@@ -150,9 +152,9 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
         memory_context = await hybrid_memory.get_agent_context(user_id)
         
         # Holy Grail: Use client-provided intelligence if available
-        if job.media_intelligence and job.media_intelligence.get("visual", {}).get("scenes"):
+        if media_intelligence and media_intelligence.get("visual", {}).get("scenes"):
             print(f"[Workflow] Using client-provided intelligence for Standard job {job_id}")
-            visual_data = job.media_intelligence["visual"]
+            visual_data = media_intelligence["visual"]
             keyframe_data = {
                 "scene_count": len(visual_data["scenes"]),
                 "scenes": visual_data["scenes"],
@@ -361,12 +363,14 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
     """
     print(f"[Workflow v4] Starting Pro job {job_id} (LangGraph)")
     user_id = None
+    media_intelligence = None
     async with AsyncSession(engine) as session:
         job = await session.get(Job, job_id)
         if not job: return
         job.status = "processing"
         job.progress_message = "Initializing Hollywood Pipeline..."
         user_id = job.user_id
+        media_intelligence = job.media_intelligence
         await session.commit()
 
     publish_progress(job_id, "processing", "Initializing Hollywood Pipeline (LangGraph)...", 5, user_id=user_id)
@@ -379,7 +383,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
             "job_id": job_id,
             "source_path": source_path,
             "user_request": {"pacing": pacing, "mood": mood, "ratio": ratio, "platform": platform, "brand_safety": brand_safety},
-            "media_intelligence": job.media_intelligence,
+            "media_intelligence": media_intelligence,
             "tier": "pro",
             "errors": []
         }
