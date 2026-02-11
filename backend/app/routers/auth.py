@@ -18,12 +18,15 @@ async def signup(payload: RegisterRequest, session: AsyncSession = Depends(get_s
     if existing:
         raise AppBaseException(status.HTTP_400_BAD_REQUEST, ErrorCode.EMAIL_ALREADY_EXISTS, "Email already registered")
 
-    user = User(
-        email=payload.email,
-        password_hash=hash_password(payload.password),
-        monthly_credits=settings.monthly_credits_default,
-        credits=settings.monthly_credits_default,
-    )
+    try:
+        user = User(
+            email=payload.email,
+            password_hash=hash_password(payload.password),
+            monthly_credits=settings.monthly_credits_default,
+            credits=settings.monthly_credits_default,
+        )
+    except ValueError as e:
+        raise AppBaseException(status.HTTP_400_BAD_REQUEST, ErrorCode.VALIDATION_ERROR, str(e))
     session.add(user)
     await session.commit()
     await session.refresh(user)
