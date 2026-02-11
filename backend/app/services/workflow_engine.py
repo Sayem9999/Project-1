@@ -262,8 +262,8 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                     # AMD/Intel GPU encoding
                     cmd += ["-vaapi_device", "/dev/dri/renderD128", "-c:v", "h264_vaapi", "-qp", "23"]
                 else:
-                    # CPU fallback
-                    cmd += ["-c:v", "libx264", "-preset", "fast", "-crf", "23"]
+                    # CPU fallback - Higher quality (Standard Tier)
+                    cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "20"]
             
                 cmd += ["-vf", vf, "-af", af, "-threads", "4", str(output_abs)]
             

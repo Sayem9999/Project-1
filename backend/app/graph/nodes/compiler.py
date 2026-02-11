@@ -83,6 +83,8 @@ async def compiler_node(state: GraphState) -> GraphState:
             audio_codec="aac", 
             threads=4,
             fps=24,
+            preset="medium",
+            ffmpeg_params=["-crf", "18"],
             logger=None # Silence standard logger to avoid spam
         )
         
