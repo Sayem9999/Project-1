@@ -232,10 +232,13 @@ async def admin_retry_job(
         raise HTTPException(status_code=404, detail="Job not found")
     if job.status not in ["failed"]:
         raise HTTPException(status_code=400, detail="Only failed jobs can be retried.")
-    user = await session.get(User, job.user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
     if settings.credits_enabled:
+        # Lock user row for update
+        result = await session.execute(select(User).where(User.id == job.user_id).with_for_update())
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
         cost = job.credits_cost or (2 if (job.tier or "standard") == "pro" else 1)
         if (user.credits or 0) < cost:
             raise HTTPException(status_code=403, detail="User has insufficient credits.")

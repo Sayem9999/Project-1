@@ -254,7 +254,9 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             ffmpeg_path = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe" if os.path.exists("./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe") else "ffmpeg"
             cmd = [ffmpeg_path, "-y", "-i", str(src)]
             
+            print(f"[Workflow] Job {job_id} waiting for render semaphore...")
             async with limits.render_semaphore:
+                print(f"[Workflow] Job {job_id} acquired render semaphore. Starting FFmpeg...")
                 if video_encoder == "h264_nvenc":
                     # NVIDIA GPU encoding
                     cmd += ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "23"]
@@ -271,7 +273,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
 
                 proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
                 await proc.communicate()
-            
+            print(f"[Workflow] Job {job_id} released render semaphore.")
             publish_progress(job_id, "processing", "Render complete!", 80, user_id=user_id)
             
             if proc.returncode != 0 or not output_abs.exists():
