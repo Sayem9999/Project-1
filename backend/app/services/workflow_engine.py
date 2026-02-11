@@ -4,9 +4,10 @@ import json
 import subprocess
 import shutil
 import os
+import copy
 from pathlib import Path
 from sqlalchemy import select
-from ..db import AsyncSession, engine
+from ..db import SessionLocal, engine
 from ..models import Job
 from ..config import settings
 from ..agents import (
@@ -134,13 +135,13 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
     video_encoder = detect_gpu_encoder()
     
     media_intelligence = None
-    async with AsyncSession(engine) as session:
+    async with SessionLocal() as session:
         job = await session.get(Job, job_id)
         if not job: return
         job.status = "processing"
         job.progress_message = "Initializing Standard Workflow..."
         user_id = job.user_id
-        media_intelligence = job.media_intelligence
+        media_intelligence = copy.deepcopy(job.media_intelligence) if job.media_intelligence else None
         await session.commit()
 
     publish_progress(job_id, "processing", "Initializing Standard Workflow...", 5, user_id=user_id)
@@ -364,13 +365,13 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
     print(f"[Workflow v4] Starting Pro job {job_id} (LangGraph)")
     user_id = None
     media_intelligence = None
-    async with AsyncSession(engine) as session:
+    async with SessionLocal() as session:
         job = await session.get(Job, job_id)
         if not job: return
         job.status = "processing"
         job.progress_message = "Initializing Hollywood Pipeline..."
         user_id = job.user_id
-        media_intelligence = job.media_intelligence
+        media_intelligence = copy.deepcopy(job.media_intelligence) if job.media_intelligence else None
         await session.commit()
 
     publish_progress(job_id, "processing", "Initializing Hollywood Pipeline (LangGraph)...", 5, user_id=user_id)
@@ -476,7 +477,7 @@ async def update_status(
     brand_safety_result: dict | None = None,
     ab_test_result: dict | None = None
 ):
-    async with AsyncSession(engine) as session:
+    async with SessionLocal() as session:
         job = await session.get(Job, job_id)
         if job:
             if job.cancel_requested:
