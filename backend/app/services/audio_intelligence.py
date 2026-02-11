@@ -143,7 +143,7 @@ class AudioIntelligence:
                 "-"
             ]
             
-            timeout_seconds = 120 if analysis_seconds >= 30 else 60
+            timeout_seconds = 300 if analysis_seconds >= 30 else 120
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
             return result, duration, analysis_seconds
 
@@ -182,7 +182,7 @@ class AudioIntelligence:
                 "-of", "default=nk=1:nw=1",
                 audio_path
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             if result.returncode != 0:
                 return None
             return float(result.stdout.strip() or 0)

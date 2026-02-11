@@ -138,7 +138,7 @@ class MediaAnalyzer:
                 "-show_streams",
                 video_path
             ]
-            return subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=180)
 
         try:
             result = await asyncio.to_thread(_run_ffprobe)
@@ -248,7 +248,7 @@ class MediaAnalyzer:
                 "-f", "null",
                 "-"
             ]
-            timeout_seconds = 120 if analysis_seconds >= 30 else 60
+            timeout_seconds = 300 if analysis_seconds >= 30 else 120
             return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
 
         try:
