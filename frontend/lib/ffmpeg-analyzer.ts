@@ -79,6 +79,15 @@ class FfmpegAnalyzer {
 
         // 2. Scene Detection
         const timestamps: number[] = [0];
+
+        // Connect progress callback
+        if (onProgress) {
+            ffmpeg.on('progress', ({ progress }) => {
+                // progress is 0-1
+                onProgress(Math.round(progress * 100));
+            });
+        }
+
         ffmpeg.on('log', ({ message }) => {
             if (message.includes('pts_time:')) {
                 const match = message.match(/pts_time:([\d.]+)/);
@@ -96,6 +105,11 @@ class FfmpegAnalyzer {
             '-f', 'null',
             '-'
         ]);
+
+        // Cleanup progress listener
+        if (onProgress) {
+            ffmpeg.on('progress', () => { });
+        }
 
         if (duration > timestamps[timestamps.length - 1]) {
             timestamps.push(duration);
