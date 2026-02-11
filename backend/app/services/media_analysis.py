@@ -10,6 +10,7 @@ import gc
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, asdict
 from pathlib import Path
+import os
 from .concurrency import limits
 
 logger = structlog.get_logger()
