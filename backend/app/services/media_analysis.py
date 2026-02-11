@@ -13,13 +13,9 @@ from pathlib import Path
 
 logger = structlog.get_logger()
 
-# PySceneDetect (lazy import)
-try:
-    from scenedetect import open_video, SceneManager
-    from scenedetect.detectors import ContentDetector
-    SCENEDETECT_AVAILABLE = True
-except ImportError:
-    SCENEDETECT_AVAILABLE = False
+# SCENEDETECT_AVAILABLE is now always False as we move to FFmpeg-native
+SCENEDETECT_AVAILABLE = False
+import re
 
 
 @dataclass
@@ -196,52 +192,65 @@ class MediaAnalyzer:
             logger.error("metadata_extraction_failed", error=str(e))
             return None
     
-    async def detect_scenes(self, video_path: str, threshold: float = 27.0) -> List[SceneInfo]:
-        """Detect scene changes using PySceneDetect (in background thread)."""
-        if not SCENEDETECT_AVAILABLE:
-            logger.warning("scenedetect_not_available")
-            return []
-        
+    async def detect_scenes(self, video_path: str, threshold: float = 0.4) -> List[SceneInfo]:
+        """Detect scene changes using native FFmpeg filters (highly memory efficient)."""
         def _run_detection():
-            try:
-                video = open_video(video_path)
-                # aggressive downscale (e.g. 4 or 6) reduces processing resolution significantly
-                # downscale=4 reduces pixel count by 16x, dramatically saving RAM and CPU
-                scene_manager = SceneManager()
-                scene_manager.downscale = 4  # Critical for speed and memory
-                scene_manager.add_detector(ContentDetector(threshold=threshold))
-                
-                # Perform detection with minimal memory footprint
-                # frame_skip=1 skips every other frame, saving 50% CPU/Memory
-                scene_manager.detect_scenes(video, show_progress=False, frame_skip=1)
-                return scene_manager.get_scene_list()
-            except Exception as e:
-                logger.error("scenedetect_thread_failed", error=str(e))
-                return []
+            # Use FFmpeg's built-in scene detection filter
+            # gt(scene, 0.4) matches the ContentDetector(threshold=27) roughly
+            cmd = [
+                self.ffmpeg,
+                "-hide_banner",
+                "-i", video_path,
+                "-vf", f"select='gt(scene,{threshold})',showinfo",
+                "-f", "null",
+                "-"
+            ]
+            # Use a longer timeout for decoding the whole file
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
 
         try:
-            # Increase timeout to 600s (10 mins) for slow cloud environments
-            logger.info("scene_detection_thread_start", path=video_path, downscale=4)
-            scene_list = await asyncio.wait_for(
-                asyncio.to_thread(_run_detection), 
-                timeout=600
-            )
+            logger.info("scene_detection_native_start", path=video_path, threshold=threshold)
+            result = await asyncio.to_thread(_run_detection)
+            
+            # Showinfo outputs to stderr
+            output = result.stderr
+            
+            # Parse pts_time from lines like:
+            # [Parsed_showinfo_1 @ 0x...] n:   0 pts:      0 pts_time:2.004 ...
+            timestamps = [0.0]  # Always start with 0
+            for line in output.splitlines():
+                if "pts_time:" in line:
+                    match = re.search(r"pts_time:([\d\.]+)", line)
+                    if match:
+                        timestamps.append(float(match.group(1)))
+            
+            # Get video duration from metadata to close the last scene
+            metadata = await self.get_metadata(video_path)
+            if metadata and metadata.duration > timestamps[-1]:
+                timestamps.append(metadata.duration)
+            
+            # Sort and remove near-duplicates
+            timestamps = sorted(list(set(timestamps)))
             
             scenes = []
-            for i, (start, end) in enumerate(scene_list):
-                start_time = start.get_seconds()
-                end_time = end.get_seconds()
-                scenes.append(SceneInfo(
-                    start_time=start_time,
-                    end_time=end_time,
-                    duration=end_time - start_time,
-                    scene_number=i + 1
-                ))
+            for i in range(len(timestamps) - 1):
+                start_time = timestamps[i]
+                end_time = timestamps[i+1]
+                duration = end_time - start_time
+                
+                # Filter out extremely short glitches (< 0.5s)
+                if duration > 0.5:
+                    scenes.append(SceneInfo(
+                        start_time=start_time,
+                        end_time=end_time,
+                        duration=duration,
+                        scene_number=len(scenes) + 1
+                    ))
             
-            logger.info("scene_detection_complete", scene_count=len(scenes))
+            logger.info("scene_detection_native_complete", scene_count=len(scenes))
             return scenes
             
-        except asyncio.TimeoutError:
+        except subprocess.TimeoutExpired:
             logger.error("scene_detection_timeout", timeout=600)
             return []
         except Exception as e:

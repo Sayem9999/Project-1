@@ -1,4 +1,4 @@
-# Source dependencies - unpinned ranges
+﻿# Source dependencies - unpinned ranges
 # Generate lock file with: pip-compile requirements.in -o requirements.lock
 
 # Core Framework
@@ -68,7 +68,6 @@ tenacity>=8.0.0
 orjson>=3.9.0
 
 # Media Intelligence
-scenedetect[opencv]>=0.6.0
 
 # Vector Store
 pgvector>=0.2.0
