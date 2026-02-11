@@ -95,22 +95,23 @@ class AudioIntelligence:
         """Run complete audio analysis."""
         logger.info("audio_analysis_start", path=audio_path)
         
-        # Get overall loudness
-        overall = await self._analyze_overall_loudness(audio_path)
-        if not overall:
-            return AudioAnalysis(
-                duration=0,
-                overall_lufs=-70,
-                overall_peak=-70
-            )
-        gc.collect()
+        async with limits.analysis_semaphore:
+            # Get overall loudness
+            overall = await self._analyze_overall_loudness(audio_path)
+            if not overall:
+                return AudioAnalysis(
+                    duration=0,
+                    overall_lufs=-70,
+                    overall_peak=-70
+                )
+            gc.collect()
+            
+            # Detect silence regions
+            silence_regions = await self._detect_silence(audio_path)
+            gc.collect()
         
-        # Detect silence regions
-        silence_regions = await self._detect_silence(audio_path)
-        gc.collect()
-        
-        # Detect speech regions (simple VAD)
-        speech_regions = await self._detect_speech_regions(audio_path)
+        # Detect speech regions (reuse silence regions to avoid redundant decoding)
+        speech_regions = self._extract_speech_from_silence(silence_regions)
         
         analysis = AudioAnalysis(
             duration=overall.get("duration", 0),
@@ -133,28 +134,29 @@ class AudioIntelligence:
     
     async def _analyze_overall_loudness(self, audio_path: str) -> Optional[Dict[str, float]]:
         """Analyze overall loudness using loudnorm filter."""
-        def _run_analysis():
-            duration = self._probe_duration(audio_path)
-            analysis_seconds = min(duration or self.max_analysis_seconds, self.max_analysis_seconds)
-            cmd = [
-                self.ffmpeg,
-                "-hide_banner",
-                "-t", str(analysis_seconds),
-                "-i", audio_path,
-                "-af", "loudnorm=print_format=json",
-                "-f", "null",
-                "-"
-            ]
-            
-            timeout_seconds = 300 if analysis_seconds >= 30 else 120
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
-            return result, duration, analysis_seconds
-
+        duration = self._probe_duration(audio_path)
+        analysis_seconds = min(duration or self.max_analysis_seconds, self.max_analysis_seconds)
+        cmd = [
+            self.ffmpeg,
+            "-hide_banner",
+            "-t", str(analysis_seconds),
+            "-i", audio_path,
+            "-af", "loudnorm=print_format=json",
+            "-f", "null",
+            "-"
+        ]
+        
         try:
-            result, duration, analysis_seconds = await asyncio.to_thread(_run_analysis)
+            timeout_seconds = 300 if analysis_seconds >= 30 else 120
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
             
             # Parse loudnorm output from stderr
-            output = result.stderr
+            output = stderr.decode()
             json_start = output.rfind("{")
             json_end = output.rfind("}") + 1
             
@@ -168,7 +170,7 @@ class AudioIntelligence:
                 }
             return None
             
-        except subprocess.TimeoutExpired:
+        except asyncio.TimeoutError:
             logger.warning("loudness_analysis_timeout")
             return None
         except Exception as e:
@@ -176,7 +178,7 @@ class AudioIntelligence:
             return None
 
     def _probe_duration(self, audio_path: str) -> Optional[float]:
-        """Return media duration in seconds using ffprobe."""
+        """Return media duration in seconds using ffprobe (lightweight sync call)."""
         try:
             cmd = [
                 self.ffprobe,
@@ -194,26 +196,29 @@ class AudioIntelligence:
     
     async def _detect_silence(self, audio_path: str) -> List[SilenceRegion]:
         """Detect silent regions using silencedetect filter."""
-        def _run_silence():
-            duration = self._probe_duration(audio_path)
-            analysis_seconds = min(duration or self.max_analysis_seconds, self.max_analysis_seconds)
-            cmd = [
-                self.ffmpeg,
-                "-hide_banner",
-                "-t", str(analysis_seconds),
-                "-i", audio_path,
-                "-af", f"silencedetect=noise={self.silence_threshold}dB:d=0.3",
-                "-f", "null",
-                "-"
-            ]
-            timeout_seconds = 45 if analysis_seconds >= 30 else 25
-            return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
-
+        duration = self._probe_duration(audio_path)
+        analysis_seconds = min(duration or self.max_analysis_seconds, self.max_analysis_seconds)
+        cmd = [
+            self.ffmpeg,
+            "-hide_banner",
+            "-t", str(analysis_seconds),
+            "-i", audio_path,
+            "-af", f"silencedetect=noise={self.silence_threshold}dB:d=0.3",
+            "-f", "null",
+            "-"
+        ]
+        
         try:
-            result = await asyncio.to_thread(_run_silence)
+            timeout_seconds = 45 if analysis_seconds >= 30 else 25
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
             
             regions = []
-            lines = result.stderr.split("\n")
+            lines = stderr.decode().split("\n")
             
             current_start = None
             for line in lines:
@@ -238,21 +243,15 @@ class AudioIntelligence:
             
             return regions
             
-        except subprocess.TimeoutExpired:
+        except asyncio.TimeoutError:
             logger.warning("silence_detection_timeout")
             return []
         except Exception as e:
             logger.warning("silence_detection_failed", error=str(e))
             return []
     
-    async def _detect_speech_regions(self, audio_path: str) -> List[Tuple[float, float]]:
-        """
-        Simple speech detection based on energy levels.
-        For production, use WhisperX or Pyannote.
-        """
-        # For now, invert silence regions as a simple heuristic
-        silence_regions = await self._detect_silence(audio_path)
-        
+    def _extract_speech_from_silence(self, silence_regions: List[SilenceRegion]) -> List[Tuple[float, float]]:
+        """Invert silence regions to estimate speech regions (heuristic)."""
         if not silence_regions:
             return []
         

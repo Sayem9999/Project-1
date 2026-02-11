@@ -51,4 +51,5 @@ class GraphState(TypedDict):
     errors: Annotated[List[str], add]
     output_path: Optional[str]
     tier: str  # "pro" or "standard"
+    user_id: Optional[int]
 

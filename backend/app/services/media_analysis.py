@@ -96,17 +96,13 @@ class MediaAnalyzer:
         """Run complete analysis on video file."""
         logger.info("media_analysis_start", path=video_path)
         
-        # Metadata is lightweight, only scenes/loudness need the lock
+        # Metadata is lightweight
         metadata = await self.get_metadata(video_path)
         
+        # Scenes is the most memory intensive part
         async with limits.analysis_semaphore:
-            # Scenes is the most memory intensive part
             scenes = await self.detect_scenes(video_path)
             gc.collect() # Force cleanup after heavy decoding
-            
-            loudness = None
-            if metadata and metadata.has_audio:
-                loudness = await self.analyze_loudness(video_path, metadata.duration)
         
         # Calculate average shot length
         avg_shot_length = None
@@ -116,9 +112,9 @@ class MediaAnalyzer:
         analysis = MediaAnalysis(
             metadata=metadata,
             scenes=scenes,
-            loudness=loudness,
+            loudness=None, # Defer to AudioIntelligence
             avg_shot_length=avg_shot_length,
-            black_frame_pct=None  # TODO: Implement black frame detection
+            black_frame_pct=None
         )
         
         logger.info(
@@ -132,24 +128,28 @@ class MediaAnalyzer:
     
     async def get_metadata(self, video_path: str) -> Optional[VideoMetadata]:
         """Extract video metadata using ffprobe."""
-        def _run_ffprobe():
-            cmd = [
-                self.ffprobe,
-                "-v", "quiet",
-                "-print_format", "json",
-                "-show_format",
-                "-show_streams",
-                video_path
-            ]
-            return subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-
+        cmd = [
+            self.ffprobe,
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_format",
+            "-show_streams",
+            video_path
+        ]
+        
         try:
-            result = await asyncio.to_thread(_run_ffprobe)
-            if result.returncode != 0:
-                logger.error("ffprobe_failed", error=result.stderr)
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=180)
+            
+            if proc.returncode != 0:
+                logger.error("ffprobe_failed", error=stderr.decode())
                 return None
             
-            data = json.loads(result.stdout)
+            data = json.loads(stdout.decode())
             
             # Find video stream
             video_stream = None
@@ -184,7 +184,7 @@ class MediaAnalyzer:
                 channels=int(audio_stream.get("channels", 0)) if audio_stream else None
             )
             
-        except subprocess.TimeoutExpired:
+        except asyncio.TimeoutError:
             logger.error("ffprobe_timeout")
             return None
         except Exception as e:
@@ -193,26 +193,26 @@ class MediaAnalyzer:
     
     async def detect_scenes(self, video_path: str, threshold: float = 0.4) -> List[SceneInfo]:
         """Detect scene changes using native FFmpeg filters (highly memory efficient)."""
-        def _run_detection():
-            # Use FFmpeg's built-in scene detection filter
-            # gt(scene, 0.4) matches the ContentDetector(threshold=27) roughly
-            cmd = [
-                self.ffmpeg,
-                "-hide_banner",
-                "-i", video_path,
-                "-vf", f"select='gt(scene,{threshold})',showinfo",
-                "-f", "null",
-                "-"
-            ]
-            # Use a longer timeout for decoding the whole file
-            return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-
+        cmd = [
+            self.ffmpeg,
+            "-hide_banner",
+            "-i", video_path,
+            "-vf", f"select='gt(scene,{threshold})',showinfo",
+            "-f", "null",
+            "-"
+        ]
+        
         try:
             logger.info("scene_detection_native_start", path=video_path, threshold=threshold)
-            result = await asyncio.to_thread(_run_detection)
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=600)
             
             # Showinfo outputs to stderr
-            output = result.stderr
+            output = stderr.decode()
             
             # Parse pts_time from lines like:
             # [Parsed_showinfo_1 @ 0x...] n:   0 pts:      0 pts_time:2.004 ...
@@ -249,71 +249,12 @@ class MediaAnalyzer:
             logger.info("scene_detection_native_complete", scene_count=len(scenes))
             return scenes
             
-        except subprocess.TimeoutExpired:
+        except asyncio.TimeoutError:
             logger.error("scene_detection_timeout", timeout=600)
             return []
         except Exception as e:
             logger.error("scene_detection_failed", error=str(e), type=type(e).__name__)
             return []
-    
-    async def analyze_loudness(
-        self,
-        video_path: str,
-        duration: Optional[float] = None,
-        target_lufs: float = -14.0
-    ) -> Optional[LoudnessInfo]:
-        """Analyze audio loudness using ffmpeg loudnorm filter."""
-        def _run_ffmpeg():
-            analysis_seconds = min(duration or 60.0, 60.0)
-            cmd = [
-                self.ffmpeg,
-                "-hide_banner",
-                "-t", str(analysis_seconds),
-                "-i", video_path,
-                "-af", "loudnorm=print_format=json",
-                "-f", "null",
-                "-"
-            ]
-            timeout_seconds = 300 if analysis_seconds >= 30 else 120
-            return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
-
-        try:
-            result = await asyncio.to_thread(_run_ffmpeg)
-            
-            # Parse loudnorm output from stderr
-            output = result.stderr
-            
-            # Find JSON block in output
-            json_start = output.rfind("{")
-            json_end = output.rfind("}") + 1
-            
-            if json_start >= 0 and json_end > json_start:
-                json_str = output[json_start:json_end]
-                loudness_data = json.loads(json_str)
-                
-                integrated = float(loudness_data.get("input_i", -70))
-                true_peak = float(loudness_data.get("input_tp", -70))
-                lra = float(loudness_data.get("input_lra", 0))
-                
-                # Check if normalization needed
-                needs_norm = abs(integrated - target_lufs) > 1.0 or true_peak > -1.0
-                
-                return LoudnessInfo(
-                    integrated_lufs=integrated,
-                    true_peak_dbfs=true_peak,
-                    lra=lra,
-                    needs_normalization=needs_norm,
-                    target_lufs=target_lufs
-                )
-            
-            return None
-            
-        except subprocess.TimeoutExpired:
-            logger.warning("loudness_analysis_timeout")
-            return None
-        except Exception as e:
-            logger.warning("loudness_analysis_failed", error=str(e))
-            return None
     
     def to_agent_context(self, analysis: MediaAnalysis) -> str:
         """Format analysis results for agent context injection."""

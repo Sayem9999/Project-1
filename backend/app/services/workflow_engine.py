@@ -386,6 +386,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
             "user_request": {"pacing": pacing, "mood": mood, "ratio": ratio, "platform": platform, "brand_safety": brand_safety},
             "media_intelligence": media_intelligence,
             "tier": "pro",
+            "user_id": user_id,
             "errors": []
         }
         
