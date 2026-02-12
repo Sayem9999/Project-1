@@ -313,6 +313,13 @@ class ProviderRouter:
             min_quality_tier="premium",
             prefer_cached=False  # QC should not use cache
         )
+        selected = self.select_provider(qc_policy)
+        if selected:
+            return selected
+            
+        # Fallback to any healthy provider if premium is unavailable
+        qc_policy.min_quality_tier = "fast"
+        qc_policy.allow_fallback = True
         return self.select_provider(qc_policy) or PROVIDERS["gemini"]
     
     def get_health_summary(self) -> Dict[str, Any]:
