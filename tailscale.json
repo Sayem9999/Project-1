@@ -1,18 +1,19 @@
 {
-    "run": [
-        {
-            "method": "shell.run",
-            "params": {
-                "id": "tailscale_funnel",
-                "message": "powershell -ExecutionPolicy Bypass -File .\\backend\\tailscale_funnel.ps1",
-                "daemon": true
-            }
-        },
-        {
-            "method": "notify",
-            "params": {
-                "html": "<h3>Tailscale Funnel Starting! 🛡️</h3><p>Check the 'tailscale_funnel' tab for your permanent URL.</p>"
-            }
-        }
-    ]
+  "run": [
+    {
+      "method": "shell.run",
+      "params": {
+        "id": "tailscale_funnel",
+        "path": "backend",
+        "message": "powershell -ExecutionPolicy Bypass -File .\\tailscale_funnel.ps1",
+        "daemon": true
+      }
+    },
+    {
+      "method": "notify",
+      "params": {
+        "html": "<h3>Tailscale Funnel Started</h3><p>Use the tailscale_funnel shell tab to copy your public URL.</p>"
+      }
+    }
+  ]
 }

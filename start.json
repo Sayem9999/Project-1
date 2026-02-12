@@ -1,26 +1,28 @@
 {
-    "run": [
-        {
-            "method": "shell.run",
-            "params": {
-                "id": "api_server",
-                "message": "powershell -ExecutionPolicy Bypass -File .\\backend\\start_production_local.ps1",
-                "daemon": true
-            }
-        },
-        {
-            "method": "shell.run",
-            "params": {
-                "id": "worker_node",
-                "message": "powershell -ExecutionPolicy Bypass -Command \"$env:CELERY_VIDEO_QUEUE='video_local'; .\\backend\\run_worker.ps1\"",
-                "daemon": true
-            }
-        },
-        {
-            "method": "notify",
-            "params": {
-                "html": "<h3>Proedit Hub Initialized! 🚀</h3><p>Both the <b>API</b> and <b>Worker</b> are starting. Check the Sidebar or Shell tabs to switch between logs.</p>"
-            }
-        }
-    ]
+  "run": [
+    {
+      "method": "shell.run",
+      "params": {
+        "id": "api_server",
+        "path": "backend",
+        "message": "powershell -ExecutionPolicy Bypass -File .\\start_production_local.ps1",
+        "daemon": true
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "id": "worker_node",
+        "path": "backend",
+        "message": "powershell -ExecutionPolicy Bypass -Command \"$env:CELERY_VIDEO_QUEUE='video_local'; .\\run_worker.ps1\"",
+        "daemon": true
+      }
+    },
+    {
+      "method": "notify",
+      "params": {
+        "html": "<h3>Proedit Hub Initialized</h3><p>API and Worker are starting. Check shell tabs for logs.</p>"
+      }
+    }
+  ]
 }

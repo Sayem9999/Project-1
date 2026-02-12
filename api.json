@@ -4,7 +4,8 @@
             "method": "shell.run",
             "params": {
                 "id": "api_server",
-                "message": "powershell -ExecutionPolicy Bypass -File .\\backend\\start_production_local.ps1",
+                "path": "backend",
+                "message": "powershell -ExecutionPolicy Bypass -File .\\start_production_local.ps1",
                 "daemon": true
             }
         }
