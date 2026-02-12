@@ -49,8 +49,10 @@ Follow these steps to move from Render to your super-powered Local + Cloud setup
   ```
 
 ### 3. Start the Server
-- Click **Start Proedit Hub** in Pinokio.
-- Ensure the terminal says: `Uvicorn running on http://0.0.0.0:8000`.
+- In Pinokio, click **Start Proedit Hub (All)**.
+- **Note**: If you don't see both the API and Worker terminals, you can use the **Start API Only** and **Start Worker Only** buttons in the menu.
+- Ensure the API shows: `Uvicorn running on http://0.0.0.0:8000`.
+- Ensure the Worker shows: `celery@... ready`.
 
 ---
 
