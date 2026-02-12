@@ -1,6 +1,12 @@
 from pydub import AudioSegment, effects
 import os
 
+# Set FFmpeg path for pydub
+FFMPEG_BINARY = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe"
+if os.path.exists(FFMPEG_BINARY):
+    AudioSegment.converter = os.path.abspath(FFMPEG_BINARY)
+    os.environ["PATH"] += os.pathsep + os.path.dirname(os.path.abspath(FFMPEG_BINARY))
+
 class AudioService:
     @staticmethod
     def normalize_audio(file_path: str, target_dBFS: float = -20.0) -> str:
