@@ -159,6 +159,15 @@ async def health() -> dict[str, Any]:
         "version": "1.0.0"
     }
 
+@app.get("/api/health")
+async def api_health() -> dict[str, Any]:
+    return {
+        "status": "healthy",
+        "environment": settings.environment,
+        "version": "1.0.0",
+        "api": "v1"
+    }
+
 @app.get("/ready")
 async def ready() -> dict[str, str]:
     return {"status": "ready"}
