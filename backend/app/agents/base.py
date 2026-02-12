@@ -101,6 +101,8 @@ async def run_agent_with_schema(
                 
                 # Validate against schema
                 try:
+                    import asyncio
+                    import random
                     validated = schema.model_validate(parsed)
                     return validated
                     
@@ -113,14 +115,22 @@ async def run_agent_with_schema(
                         details=str(e)
                     )
                     if attempt < max_retries:
+                        # Exponential backoff for validation retries
+                        wait_time = (2 ** attempt) + random.uniform(0, 1)
+                        await asyncio.sleep(wait_time)
                         payload["_repair_request"] = f"Your response did not match the required schema. Errors: {e}. Please fix and return valid JSON."
                         continue
                     raise
                     
             except Exception as e:
                 last_error = e
-                if attempt >= max_retries:
-                    raise
+                if attempt < max_retries:
+                    import asyncio
+                    import random
+                    wait_time = (2 ** attempt) + random.uniform(0, 1)
+                    await asyncio.sleep(wait_time)
+                    continue
+                raise
     
     raise RuntimeError(f"Agent {agent_name} failed after {max_retries + 1} attempts. Last error: {last_error}")
 
@@ -241,6 +251,10 @@ async def run_agent_prompt(
             last_error = e
             provider_router.record_failure(provider.name, str(e))
             provider_router.handle_provider_error(provider.name, model, str(e))
+            
+            # Short sleep before trying next model of the SAME provider
+            import asyncio
+            await asyncio.sleep(0.5)
             continue
 
     # Fallback if selected provider failed
@@ -272,7 +286,6 @@ async def run_agent_prompt(
         fallback_config = PROVIDERS.get(fallback_name)
         if not fallback_config:
             continue
-        for model in fallback_config.models:
             try:
                 logger.debug("agent_api_attempt", provider=fallback_name, model=model, agent=agent_name)
                 result = await attempt_provider(fallback_name, model)
@@ -283,6 +296,10 @@ async def run_agent_prompt(
                 last_error = e
                 provider_router.record_failure(fallback_name, str(e))
                 provider_router.handle_provider_error(fallback_name, model, str(e))
+                
+                # Add a small yield/delay before switching models or providers to ease rate limits
+                import asyncio
+                await asyncio.sleep(0.5)
                 continue
 
     raise RuntimeError(f"All attempts failed for agent {agent_name}. Last error: {last_error}")

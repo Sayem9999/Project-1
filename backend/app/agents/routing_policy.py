@@ -83,7 +83,7 @@ def _provider_configured(name: str) -> bool:
 PROVIDERS: Dict[str, ProviderConfig] = {
     "groq": ProviderConfig(
         name="groq",
-        models=["llama-3.3-70b-versatile", "llama-3.1-70b-versatile"],
+        models=["llama-3.3-70b-versatile"],
         quality_tier="fast",
         avg_latency_ms=500,
         cost_per_1k_tokens=0.0  # Free tier
@@ -91,10 +91,10 @@ PROVIDERS: Dict[str, ProviderConfig] = {
     "gemini": ProviderConfig(
         name="gemini",
         models=[
-            "gemini-2.0-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
             "gemini-2.0-flash",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-8b",
+            "gemini-2.0-flash-lite",
         ],
         quality_tier="standard",
         avg_latency_ms=2000,
@@ -232,20 +232,35 @@ class ProviderRouter:
         config = PROVIDERS.get(provider_name)
 
         # Quota / rate limits -> open circuit with retry delay if present
-        if "resource_exhausted" in err or "quota" in err or "rate limit" in err:
-            retry_seconds = 300
+        rate_limit_keywords = ["resource_exhausted", "quota", "rate limit", "429", "too many requests"]
+        if any(kw in err for kw in rate_limit_keywords):
+            # Default to 60s for rate limit if no specific time found
+            retry_seconds = 60
             import re
-            match = re.search(r"retry in ([0-9]+(?:\\.[0-9]+)?)s", err)
-            if match:
-                retry_seconds = float(match.group(1))
+            # Match formats like: "retry in 2.5s", "retry after 5 seconds", "try again in 10s"
+            patterns = [
+                r"retry in ([0-9]+(?:\.[0-9]+)?)s",
+                r"retry after ([0-9]+(?:\.[0-9]+)?)s",
+                r"retry in ([0-9]+(?:\.[0-9]+)?) seconds",
+                r"try again in ([0-9]+(?:\.[0-9]+)?)s"
+            ]
+            for pattern in patterns:
+                match = re.search(pattern, err)
+                if match:
+                    retry_seconds = float(match.group(1))
+                    break
+            
+            # Additional check for raw JSON headers if passed in some error strings
             match = re.search(r"retrydelay['\"]?:\\s*'?([0-9]+)s", err)
             if match:
                 retry_seconds = float(match.group(1))
+                
             health.open_circuit_for(retry_seconds)
             logger.warning(
                 "provider_quota_circuit_open",
                 provider=provider_name,
-                seconds=retry_seconds
+                seconds=retry_seconds,
+                error=err[:100]
             )
             return
 
