@@ -1,9 +1,5 @@
 import os
 from pathlib import Path
-import asyncio
-import uuid
-import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from urllib.parse import urlparse
 from typing import Any
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form, Request
@@ -13,12 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..errors import CreditError, NotFoundError
-import structlog
 from ..config import settings
 from ..deps import get_current_user
 from ..models import Job, User, CreditLedger
-
-logger = structlog.get_logger()
 from ..schemas import JobResponse, EditJobRequest
 from ..services.storage import storage_service
 from ..services.storage_service import storage_service as r2_storage
@@ -45,8 +38,8 @@ def _broker_fingerprint(redis_url: str) -> str:
     return f"{parsed.scheme}://{host}:{port}/{db_name}"
 
 
-async def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
-    """Inspect current broker/worker visibility from the API process (Async)."""
+def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
+    """Inspect current broker/worker visibility from the API process."""
     target_queue = (settings.celery_video_queue or "video").strip() or "video"
     diagnostics: dict[str, Any] = {
         "use_celery": USE_CELERY,
@@ -63,29 +56,9 @@ async def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any
     try:
         from ..celery_app import celery_app
 
-        inspect_timeout = max(float(timeout), 0.5)
-        hard_timeout = inspect_timeout + 1.0
-
-        def sync_inspect():
-            insp = celery_app.control.inspect(timeout=timeout)
-            ping = insp.ping() or {}
-            active_queues = insp.active_queues() or {}
-            return ping, active_queues
-
-        def run_with_timeout():
-            executor = ThreadPoolExecutor(max_workers=1)
-            try:
-                future = executor.submit(sync_inspect)
-                return future.result(timeout=hard_timeout)
-            finally:
-                executor.shutdown(wait=False, cancel_futures=True)
-
-        # Run inspect in a bounded thread, so this endpoint never hangs indefinitely.
-        try:
-            ping, active_queues = await asyncio.to_thread(run_with_timeout)
-        except FuturesTimeoutError:
-            diagnostics["error"] = f"Celery inspect timed out after {hard_timeout:.1f}s"
-            return diagnostics
+        inspect = celery_app.control.inspect(timeout=timeout)
+        ping = inspect.ping() or {}
+        active_queues = inspect.active_queues() or {}
 
         worker_names = sorted(set(list(ping.keys()) + list(active_queues.keys())))
         diagnostics["workers"] = worker_names
@@ -191,8 +164,8 @@ async def list_jobs(
 
 @router.get("/storage/usage")
 async def get_storage_usage(current_user: User = Depends(get_current_user)):
-    """Get current R2 storage usage (Async)."""
-    return await asyncio.to_thread(r2_storage.get_storage_usage)
+    """Get current R2 storage usage."""
+    return r2_storage.get_storage_usage()
 
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -407,72 +380,25 @@ async def enqueue_job(
         )
 
     if USE_CELERY:
-        diagnostics_result = get_celery_dispatch_diagnostics(
-            timeout=1.5 if settings.environment == "production" else 1.0
-        )
-        diagnostics = (
-            await diagnostics_result
-            if asyncio.iscoroutine(diagnostics_result)
-            else diagnostics_result
-        )
-
-        if settings.environment == "production":
-            diagnostics_error = diagnostics.get("error")
-            if diagnostics_error:
-                logger.warning(
-                    "celery_diagnostics_unavailable",
-                    job_id=job.id,
-                    error=diagnostics_error,
-                    broker=diagnostics.get("broker"),
-                )
-            else:
-                if int(diagnostics.get("worker_count") or 0) < 1:
-                    raise HTTPException(status_code=503, detail="No active Celery worker reachable.")
-
-                queue_to_check = diagnostics.get("expected_queue") or "video"
-                if not _has_queue_consumer(diagnostics, queue_to_check):
-                    queue_label = diagnostics.get("expected_queue") or queue_to_check
-                    raise HTTPException(
-                        status_code=503,
-                        detail=f"No active Celery worker subscribed to '{queue_label}' queue.",
-                    )
-
         try:
             from ..tasks.video_tasks import process_video_task
-
-            dispatch_timeout = 8.0 if settings.environment == "production" else 5.0
-            task = await asyncio.wait_for(
-                asyncio.to_thread(
-                    process_video_task.apply_async,
-                    args=[job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety],
-                    queue=queue_name,
-                ),
-                timeout=dispatch_timeout,
+            task = process_video_task.apply_async(
+                args=[job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety],
+                queue=queue_name,
             )
             short_id = task.id[:8] if task and task.id else "unknown"
             job.progress_message = f"Queued for worker pickup (task {short_id})."
-            print(
-                f"[Job] Enqueued job_id={job.id} task_id={task.id} "
-                f"queue={queue_name}"
-            )
+            print(f"[Job] Enqueued job_id={job.id} task_id={task.id} queue={queue_name}")
             return
-        except asyncio.TimeoutError as e:
-            logger.error("job_enqueue_timeout", job_id=job.id, queue=queue_name, timeout_seconds=dispatch_timeout)
-            if settings.environment == "production":
-                raise HTTPException(
-                    status_code=503,
-                    detail="Queue dispatch failed: timed out while contacting broker.",
-                ) from e
-            print("[Job] Celery dispatch timed out. Falling back to inline.")
         except Exception as e:
-            logger.error("job_enqueue_failed", job_id=job.id, error=str(e), exc_info=True)
             if settings.environment == "production":
                 raise HTTPException(
                     status_code=503,
-                    detail=f"Queue dispatch failed: {str(e)}",
+                    detail="Queue dispatch failed. Check Redis connectivity and worker health.",
                 ) from e
             print(f"[Job] Celery dispatch failed: {e}. Falling back to inline.")
     from ..services.workflow_engine import process_job
+    import asyncio
     asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety))
 
 
