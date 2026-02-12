@@ -172,14 +172,12 @@ async def api_health() -> dict[str, Any]:
 async def ready() -> dict[str, str]:
     return {"status": "ready"}
 
-# CORS configuration - allow frontend origins
-# Regex to match any Vercel deployment for this project
-origin_regex = r"https://.*\\.vercel\\.app|http://localhost:3000|http://127.0.0.1:3000|https://.*\\.onrender\\.com"
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=".*",
-    allow_credentials=True,
+    # We use bearer tokens (Authorization header), not cookie auth.
+    # Wildcard origin avoids proxy/funnel origin-matching edge cases.
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
