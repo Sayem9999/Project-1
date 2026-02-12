@@ -17,16 +17,16 @@ logger = structlog.get_logger()
 # Type variable for schema validation
 T = TypeVar("T", bound=BaseModel)
 
-# OpenAI Client
-openai_base_url = f"{settings.vercel_ai_gateway_url}/openai" if settings.vercel_ai_gateway_url else None
-openai_client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=openai_base_url) if settings.openai_api_key else None
+# OpenAI Client (Handles OpenAI, and becomes the Universal Gateway client if configured)
+openai_client = AsyncOpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
+if settings.vercel_ai_gateway_url and openai_client:
+    openai_client.base_url = settings.vercel_ai_gateway_url
 
-# Gemini Client (new unified SDK)
+# Gemini Client (New unified SDK - used when NO gateway or for native features)
 gemini_client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
 
-# Groq Client
-groq_base_url = f"{settings.vercel_ai_gateway_url}/groq" if settings.vercel_ai_gateway_url else None
-groq_client = Groq(api_key=settings.groq_api_key, base_url=groq_base_url) if settings.groq_api_key else None
+# Groq Client (Native client - used when NO gateway)
+groq_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
 
 
 def parse_json_response(text: str) -> dict:
@@ -148,32 +148,43 @@ async def run_agent_prompt(
         attempt_start = time.time()
         response_text = ""
 
-        if provider_name == "groq" and groq_client:
-            chat_completion = groq_client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": payload_json},
-                ],
-                model=model,
-            )
-            response_text = chat_completion.choices[0].message.content
-
-        elif provider_name == "gemini" and gemini_client:
-            full_prompt = f"System: {system_prompt}\n\nUser Input: {payload_json}"
-            
-            # If AI Gateway is configured, we use the OpenAI-compatible endpoint for Gemini
+        if provider_name == "groq" and (groq_client or settings.vercel_ai_gateway_url):
+            # Universal Gateway or Native
             if settings.vercel_ai_gateway_url and openai_client:
-                gemini_via_openai_url = f"{settings.vercel_ai_gateway_url}/google"
                 res = await openai_client.chat.completions.create(
-                    model=model,
+                    model=f"groq/{model}",
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": payload_json},
                     ],
-                    extra_headers={"Vercel-AI-Gateway-Base-URL": gemini_via_openai_url} # Optional depending on Vercel's exact proxy behavior
+                    extra_headers={"Authorization": f"Bearer {settings.groq_api_key}"}
                 )
                 response_text = res.choices[0].message.content
-            else:
+            elif groq_client:
+                chat_completion = groq_client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": payload_json},
+                    ],
+                    model=model,
+                )
+                response_text = chat_completion.choices[0].message.content
+
+        elif provider_name == "gemini" and (gemini_client or settings.vercel_ai_gateway_url):
+            # Universal Gateway or Native
+            if settings.vercel_ai_gateway_url and openai_client:
+                # Use standard Vercel Universal prefix: google/
+                res = await openai_client.chat.completions.create(
+                    model=f"google/{model}",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": payload_json},
+                    ],
+                    extra_headers={"Authorization": f"Bearer {settings.gemini_api_key}"}
+                )
+                response_text = res.choices[0].message.content
+            elif gemini_client:
+                full_prompt = f"System: {system_prompt}\n\nUser Input: {payload_json}"
                 response = await gemini_client.aio.models.generate_content(
                     model=model,
                     contents=full_prompt,
@@ -181,8 +192,10 @@ async def run_agent_prompt(
                 response_text = response.text
 
         elif provider_name == "openai" and openai_client:
+            # If gateway is active, prefix with openai/
+            model_id = f"openai/{model}" if settings.vercel_ai_gateway_url else model
             response = await openai_client.chat.completions.create(
-                model=model,
+                model=model_id,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": payload_json},
