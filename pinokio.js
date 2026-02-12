@@ -16,12 +16,12 @@ module.exports = {
       href: "worker.json"
     },
     {
-      html: '<i class="fa-solid fa-plug"></i> Install Dependencies',
-      href: "install.json"
+      html: '<i class="fa-solid fa-shield-halved"></i> Start Tailscale Funnel (Fixed URL)',
+      href: "tailscale.json"
     },
     {
-      html: '<i class="fa-solid fa-terminal"></i> Tunnel Guide',
-      href: "CLOUD_TUNNEL_GUIDE.md"
+      html: '<i class="fa-solid fa-terminal"></i> Local Hosting Guide',
+      href: "LOCAL_HOSTING_GUIDE.md"
     },
     {
       html: '<i class="fa-solid fa-gear"></i> View Settings',
