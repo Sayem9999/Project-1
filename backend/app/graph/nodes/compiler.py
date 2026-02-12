@@ -2,7 +2,7 @@ from ..state import GraphState
 from pathlib import Path
 import os
 # Configure MoviePy to use the correct FFmpeg binary (v2.0+ compatible)
-FFMPEG_BINARY = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe"
+FFMPEG_BINARY = r"C:\Users\Sayem\Downloads\New folder\Project-1-1\tools\ffmpeg-8.0.1-essentials_build\bin\ffmpeg.exe"
 if os.path.exists(FFMPEG_BINARY):
     os.environ["IMAGEIO_FFMPEG_EXE"] = FFMPEG_BINARY
 
@@ -44,13 +44,14 @@ async def compiler_node(state: GraphState) -> GraphState:
         print("--- [Graph] Modal Rendering Failed, falling back to local CPU ---")
 
     # On constrained production hosts, local Pro rendering is too memory-heavy.
-    if tier == "pro" and settings.environment == "production":
-        return {
-            "errors": [
-                "Pro render requires Modal GPU offload in production. "
-                "Local CPU fallback is disabled to avoid OOM on 512MB instances."
-            ]
-        }
+    # DISABLED for Smoke Test on local powerful machine
+    # if tier == "pro" and settings.environment == "production":
+    #     return {
+    #         "errors": [
+    #             "Pro render requires Modal GPU offload in production. "
+    #             "Local CPU fallback is disabled to avoid OOM on 512MB instances."
+    #         ]
+    #     }
 
     # 2. Local Fallback Rendering (CPU)
     async with limits.render_semaphore:

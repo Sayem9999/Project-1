@@ -1,5 +1,9 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
+
+# Ensure .env values override system environment variables on Windows
+load_dotenv(override=True)
 
 
 class Settings(BaseSettings):
@@ -59,8 +63,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=(".env", f".env.{os.getenv('ENVIRONMENT', 'development')}"),
         env_file_encoding="utf-8", 
+        case_sensitive=False,
         extra="ignore"
     )
+
+    def __init__(self, **values):
+        super().__init__(**values)
+        # FORCE OVERRIDE: If we see the old PostgreSQL URL from Render in a local environment,
+        # we revert to the local SQLite default. This prevents Windows User Env Var shadowing.
+        if "dpg-" in self.database_url and "onrender.com" not in os.getenv("HOST", ""):
+             self.database_url = "sqlite+aiosqlite:///./storage/edit_ai.db"
 
     def validate_required_settings(self):
         """Validate that essential settings are present in non-development environments."""

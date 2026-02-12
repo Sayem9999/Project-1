@@ -34,7 +34,9 @@ async def lifespan(app: FastAPI):
         groq_key_present=bool(settings.groq_api_key),
         google_oauth_configured=bool(settings.google_client_id),
         redis_url_present=bool(settings.redis_url),
-        r2_storage_configured=bool(settings.r2_account_id)
+        r2_storage_configured=bool(settings.r2_account_id),
+        db_url_redacted=re.sub(r'://.*@', '://***@', settings.database_url) if settings.database_url else "none",
+        redis_url_redacted=re.sub(r'://.*@', '://***@', settings.redis_url) if settings.redis_url else "none"
     )
     
     # Ensure storage directories
@@ -125,10 +127,10 @@ async def periodic_introspection_wrapper():
     """Periodically self-heal and refresh system-map graph cache."""
     interval = 60 * 10  # 10 minutes
     # Warm initial snapshot after startup without blocking request handling.
-    try:
-        await asyncio.to_thread(introspection_service.scan, None, True)
-    except Exception as e:
-        logger.error("introspection_warmup_failed", error=str(e))
+    # try:
+    #     await asyncio.to_thread(introspection_service.scan, None, True)
+    # except Exception as e:
+    #     logger.error("introspection_warmup_failed", error=str(e))
 
     while True:
         try:

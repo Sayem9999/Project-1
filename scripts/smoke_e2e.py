@@ -1,11 +1,10 @@
-
 #!/usr/bin/env python3
 import json
 import time
 import uuid
 import subprocess
 from pathlib import Path
-from urllib import request
+from urllib import request, error
 
 API = "http://127.0.0.1:8000/api"
 OUT_DIR = Path("tmp/smoke")
@@ -20,8 +19,13 @@ def http_json(method: str, url: str, payload: dict | None = None, token: str | N
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
     req = request.Request(url, data=data, headers=headers, method=method)
-    with request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    timeout = 60 if "/start" in url else 30
+    try:
+        with request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except error.HTTPError as e:
+        print(f"HTTP Error {e.code}: {e.read().decode('utf-8')}")
+        raise
 
 
 def upload_file(path: Path, token: str):
@@ -61,15 +65,19 @@ def upload_file(path: Path, token: str):
 
 def main():
     video = OUT_DIR / "real-input.mp4"
+    ffmpeg_path = r"C:\Users\Sayem\Downloads\New folder\Project-1-1\tools\ffmpeg-8.0.1-essentials_build\bin\ffmpeg.exe"
+    if video.exists() and video.stat().st_size < 1000: # Delete dummy/small files
+        video.unlink()
+        
     if not video.exists():
         try:
             subprocess.run([
-                "ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30",
+                ffmpeg_path, "-y", "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30",
                 "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
                 "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(video)
             ], check=True, capture_output=True)
-        except Exception:
-            print("FFmpeg not found/failed, checking for existing video...")
+        except Exception as e:
+            print(f"FFmpeg generation failed: {e}")
             if not video.exists():
                  # Try to copy an existing upload if available
                  uploads = list(Path("backend/storage/uploads").glob("*.mp4"))
@@ -91,13 +99,20 @@ def main():
 
     job = upload_file(video, token)
     job_id = job["id"]
+    print(f"Uploaded job {job_id}, starting...")
+
+    # Explicitly start the job
+    http_json("POST", f"{API}/jobs/{job_id}/start", token=token)
+    print("Job started successfully.")
 
     status = job
     seen_statuses = {status["status"]}
-    for _ in range(40):
-        time.sleep(0.5)
+    for i in range(600):  # Wait up to 10 minutes
+        time.sleep(1)
         status = http_json("GET", f"{API}/jobs/{job_id}", token=token)
         seen_statuses.add(status["status"])
+        if i % 10 == 0:
+            print(f"Status check {i}: {status['status']} - {status.get('progress_message')}")
         if status["status"] in ("complete", "failed"):
             break
 
