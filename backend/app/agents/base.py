@@ -18,13 +18,15 @@ logger = structlog.get_logger()
 T = TypeVar("T", bound=BaseModel)
 
 # OpenAI Client
-openai_client = AsyncOpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
+openai_base_url = f"{settings.vercel_ai_gateway_url}/openai" if settings.vercel_ai_gateway_url else None
+openai_client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=openai_base_url) if settings.openai_api_key else None
 
 # Gemini Client (new unified SDK)
 gemini_client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
 
 # Groq Client
-groq_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
+groq_base_url = f"{settings.vercel_ai_gateway_url}/groq" if settings.vercel_ai_gateway_url else None
+groq_client = Groq(api_key=settings.groq_api_key, base_url=groq_base_url) if settings.groq_api_key else None
 
 
 def parse_json_response(text: str) -> dict:
@@ -158,11 +160,25 @@ async def run_agent_prompt(
 
         elif provider_name == "gemini" and gemini_client:
             full_prompt = f"System: {system_prompt}\n\nUser Input: {payload_json}"
-            response = await gemini_client.aio.models.generate_content(
-                model=model,
-                contents=full_prompt,
-            )
-            response_text = response.text
+            
+            # If AI Gateway is configured, we use the OpenAI-compatible endpoint for Gemini
+            if settings.vercel_ai_gateway_url and openai_client:
+                gemini_via_openai_url = f"{settings.vercel_ai_gateway_url}/google"
+                res = await openai_client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": payload_json},
+                    ],
+                    extra_headers={"Vercel-AI-Gateway-Base-URL": gemini_via_openai_url} # Optional depending on Vercel's exact proxy behavior
+                )
+                response_text = res.choices[0].message.content
+            else:
+                response = await gemini_client.aio.models.generate_content(
+                    model=model,
+                    contents=full_prompt,
+                )
+                response_text = response.text
 
         elif provider_name == "openai" and openai_client:
             response = await openai_client.chat.completions.create(

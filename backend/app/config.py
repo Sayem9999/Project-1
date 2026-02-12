@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     gemini_api_key: str | None = None
     groq_api_key: str | None = None
+    vercel_ai_gateway_url: str | None = None
     llm_primary_provider: str = "gemini"
     llm_fallback_provider: str = "groq"
     password_policy: str = "basic"
