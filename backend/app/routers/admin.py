@@ -382,11 +382,11 @@ async def get_admin_stats(
 @router.get("/health")
 async def get_admin_health(
     session: AsyncSession = Depends(get_session),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
-    # if not current_user.is_admin:
-    #     from fastapi import HTTPException
-    #     raise HTTPException(status_code=403, detail="Admin permissions required")
+    if not current_user.is_admin:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Admin permissions required")
 
     health: dict = {}
 
@@ -412,16 +412,16 @@ async def get_admin_health(
     else:
         health["redis"] = {"configured": False, "reachable": False}
 
-    # HEAVY DIAGNOSTICS - Incremental Enablement
-    # health["celery"] = await get_celery_dispatch_diagnostics(timeout=1.5)
-    health["llm"] = await asyncio.to_thread(get_llm_health_summary)
+    # Celery broker/worker visibility from API process
+    health["celery"] = await asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=2.0)
+
+    # LLM health
+    health["llm"] = get_llm_health_summary()
+
+    # Storage
     health["storage"] = await asyncio.to_thread(storage_service.get_storage_usage)
-    # health["cleanup"] = get_cleanup_status()
-    # health["integrations"] = await asyncio.to_thread(get_integration_health, run_probe=False)
-    
-    health["celery"] = {"status": "skipped"}
-    health["integrations"] = {"status": "skipped"}
-    health["cleanup"] = {"status": "skipped"}
+    health["cleanup"] = get_cleanup_status()
+    health["integrations"] = await asyncio.to_thread(get_integration_health, run_probe=False)
 
     return health
 
