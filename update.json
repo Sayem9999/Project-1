@@ -1,0 +1,35 @@
+{
+    "run": [
+        {
+            "method": "shell.run",
+            "params": {
+                "message": "git pull origin main --rebase",
+                "path": "."
+            }
+        },
+        {
+            "method": "shell.run",
+            "params": {
+                "message": [
+                    "python -m venv .venv",
+                    ".venv\\Scripts\\python -m pip install --upgrade pip",
+                    ".venv\\Scripts\\pip install -r requirements.txt"
+                ],
+                "path": "backend"
+            }
+        },
+        {
+            "method": "shell.run",
+            "params": {
+                "message": "powershell -ExecutionPolicy Bypass -Command \"npm install\"",
+                "path": "frontend"
+            }
+        },
+        {
+            "method": "notify",
+            "params": {
+                "html": "Proedit Hub updated successfully! 🚀"
+            }
+        }
+    ]
+}

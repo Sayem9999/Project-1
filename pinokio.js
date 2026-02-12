@@ -24,6 +24,10 @@ module.exports = {
       href: "LOCAL_HOSTING_GUIDE.md"
     },
     {
+      html: '<i class="fa-solid fa-rotate"></i> Update Hub',
+      href: "update.json"
+    },
+    {
       html: '<i class="fa-solid fa-gear"></i> View Settings',
       href: "backend/.env"
     }
