@@ -86,6 +86,17 @@ async def compiler_node(state: GraphState) -> GraphState:
             else:
                 final_video = concatenate_videoclips(clips, method="compose")
 
+            # --- Visual Effects ---
+            visual_effects = state.get("visual_effects", [])
+            vf_filters = []
+            for effect in visual_effects:
+                if effect.get("type") == "ffmpeg_filter" and effect.get("value"):
+                    # Clean the filter value (remove -vf if agent included it)
+                    val = effect["value"].replace('-vf "', '').replace('"', '').strip()
+                    if val:
+                        vf_filters.append(val)
+            # ----------------------
+
             # --- Audio Enhancement ---
             try:
                 from ...services.audio_service import audio_service
@@ -100,6 +111,10 @@ async def compiler_node(state: GraphState) -> GraphState:
             # -------------------------
 
             # Render
+            ffmpeg_args = ["-crf", "18" if tier == "pro" else "23"]
+            if vf_filters:
+                ffmpeg_args += ["-vf", ",".join(vf_filters)]
+
             final_video.write_videofile(
                 str(abs_output), 
                 codec="libx264", 
@@ -107,7 +122,7 @@ async def compiler_node(state: GraphState) -> GraphState:
                 threads=4,
                 fps=24,
                 preset="medium",
-                ffmpeg_params=["-crf", "18" if tier == "pro" else "23"],
+                ffmpeg_params=ffmpeg_args,
                 logger=None
             )
             
@@ -115,7 +130,7 @@ async def compiler_node(state: GraphState) -> GraphState:
             
             return {
                 "output_path": f"storage/outputs/{output_path}",
-                "visual_effects": [] 
+                "visual_effects": visual_effects 
             }
             
         except Exception as e:

@@ -33,7 +33,33 @@ async def visuals_node(state: GraphState) -> GraphState:
     
     # Merge effects
     effects = []
-    if color_data.get("lut"): effects.append({"type": "lut", "value": color_data["lut"]})
-    if vfx_data.get("effects"): effects.extend(vfx_data["effects"])
+    
+    # Handle color agent output
+    if color_data.get("ffmpeg_color_filter"):
+        effects.append({
+            "type": "ffmpeg_filter", 
+            "value": color_data["ffmpeg_color_filter"],
+            "name": "color_grading"
+        })
+    if color_data.get("lut_recommendation"):
+        effects.append({
+            "type": "lut", 
+            "value": color_data["lut_recommendation"]
+        })
+        
+    # Handle VFX agent output
+    if vfx_data.get("effects"):
+        for effect in vfx_data["effects"]:
+            effects.append({
+                "type": "ffmpeg_filter",
+                "value": effect.get("filter", ""),
+                "name": effect.get("name", "vfx")
+            })
+    elif vfx_data.get("ffmpeg_filter"):
+        effects.append({
+            "type": "ffmpeg_filter",
+            "value": vfx_data["ffmpeg_filter"],
+            "name": "vfx_summary"
+        })
     
     return {"visual_effects": effects}
