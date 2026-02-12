@@ -10,8 +10,19 @@ MODAL_APP_NAME = "proedit-worker"
 MODAL_FUNCTION_NAME = "render_video_v1"
 
 
+# Global Cache for performance
+_CACHED_MODAL = None
+_LAST_MODAL_CHECK = 0.0
+
 def check_modal_lookup() -> dict[str, Any]:
-    """Verify Modal credentials are configured and function lookup resolves."""
+    """Verify Modal credentials with 10-min caching."""
+    global _CACHED_MODAL, _LAST_MODAL_CHECK
+    
+    # 10-minute cache
+    now = time.time()
+    if _CACHED_MODAL and (now - _LAST_MODAL_CHECK < 600):
+        return _CACHED_MODAL
+
     configured = bool(settings.modal_token_id and settings.modal_token_secret)
     result: dict[str, Any] = {
         "configured": configured,
@@ -37,6 +48,11 @@ def check_modal_lookup() -> dict[str, Any]:
             result["reachable"] = True
 
         result["latency_ms"] = int((time.perf_counter() - start) * 1000)
+        
+        # Update Cache
+        _CACHED_MODAL = result.copy()
+        _LAST_MODAL_CHECK = now
+        
         return result
     except Exception as e:
         result["error"] = str(e)

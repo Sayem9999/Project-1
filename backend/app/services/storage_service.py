@@ -45,9 +45,16 @@ class StorageService:
             print("[Storage] Local filesystem (R2 not configured)")
     
     def get_storage_usage(self) -> dict:
-        """Get current storage usage in bytes and file count."""
+        """Get current storage usage in bytes and file count with 5-min caching."""
         if not self.use_r2 or not self.s3_client:
             return {"bytes": 0, "files": 0, "percent": 0}
+            
+        # 5-minute cache
+        import time
+        now = time.time()
+        if hasattr(self, "_cached_usage") and hasattr(self, "_last_usage_check"):
+            if now - self._last_usage_check < 300:  # 5 minutes
+                return self._cached_usage
         
         total_bytes = 0
         file_count = 0
@@ -61,13 +68,20 @@ class StorageService:
         except Exception as e:
             print(f"[Storage] Error getting usage: {e}")
             
-        return {
+        usage = {
             "bytes": total_bytes,
             "files": file_count,
             "percent": round((total_bytes / MAX_STORAGE_BYTES) * 100, 1),
             "limit_gb": MAX_STORAGE_BYTES / (1024**3),
             "used_gb": round(total_bytes / (1024**3), 2),
+            "cached": False,
         }
+        
+        self._cached_usage = usage.copy()
+        self._cached_usage["cached"] = True
+        self._last_usage_check = now
+        
+        return usage
     
     def cleanup_old_files(self, force: bool = False) -> int:
         """Delete files older than retention period. Returns count deleted."""

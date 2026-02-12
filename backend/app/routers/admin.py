@@ -339,24 +339,28 @@ async def get_admin_stats(
 
     # Trend data (last 7 days)
     start_date = datetime.utcnow().date() - timedelta(days=6)
-    jobs_by_day = await session.execute(
+    
+    # Run aggregation queries in parallel
+    jobs_task = session.execute(
         select(func.date(Job.created_at), func.count(Job.id))
         .where(Job.created_at >= start_date)
         .group_by(func.date(Job.created_at))
         .order_by(func.date(Job.created_at))
     )
-    failures_by_day = await session.execute(
+    failures_task = session.execute(
         select(func.date(Job.created_at), func.count(Job.id))
         .where(Job.created_at >= start_date, Job.status == "failed")
         .group_by(func.date(Job.created_at))
         .order_by(func.date(Job.created_at))
     )
-    users_by_day = await session.execute(
+    users_task = session.execute(
         select(func.date(User.created_at), func.count(User.id))
         .where(User.created_at >= start_date)
         .group_by(func.date(User.created_at))
         .order_by(func.date(User.created_at))
     )
+    
+    jobs_by_day, failures_by_day, users_by_day = await asyncio.gather(jobs_task, failures_task, users_task)
     
     # Storage Stats
     storage_stats = await asyncio.to_thread(storage_service.get_storage_usage)
@@ -412,16 +416,21 @@ async def get_admin_health(
     else:
         health["redis"] = {"configured": False, "reachable": False}
 
-    # Celery broker/worker visibility from API process
-    health["celery"] = await asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=2.0)
+    # Run diagnostic checks in parallel
+    celery_task = asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=1.0)
+    storage_task = asyncio.to_thread(storage_service.get_storage_usage)
+    integrations_task = asyncio.to_thread(get_integration_health, run_probe=False)
+    
+    # We await these in parallel to avoid stacking timeouts
+    celery_res, storage_res, integrations_res = await asyncio.gather(
+        celery_task, storage_task, integrations_task
+    )
 
-    # LLM health
+    health["celery"] = celery_res
+    health["storage"] = storage_res
+    health["integrations"] = integrations_res
     health["llm"] = get_llm_health_summary()
-
-    # Storage
-    health["storage"] = await asyncio.to_thread(storage_service.get_storage_usage)
     health["cleanup"] = get_cleanup_status()
-    health["integrations"] = await asyncio.to_thread(get_integration_health, run_probe=False)
 
     return health
 
