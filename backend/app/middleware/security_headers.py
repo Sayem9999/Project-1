@@ -9,6 +9,9 @@ async def security_headers_middleware(request: Request, call_next):
     """
     Add security headers to all responses.
     """
+    if request.method == "OPTIONS":
+        return await call_next(request)
+    
     response = await call_next(request)
     
     # Prevent MIME sniffing
