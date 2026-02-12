@@ -1,0 +1,9 @@
+# Replace YOUR_DOMAIN with your real domain (recommended) or use:
+#   YOUR_IP.sslip.io
+#
+# This reverse proxies public HTTPS traffic to the local API.
+YOUR_DOMAIN {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:8000
+}
+

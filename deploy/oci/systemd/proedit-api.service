@@ -1,0 +1,21 @@
+[Unit]
+Description=ProEdit API (FastAPI via Uvicorn)
+After=network.target redis-server.service
+Wants=redis-server.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/proedit/backend
+Environment=PYTHONUNBUFFERED=1
+Environment=PORT=8000
+Environment=OLLAMA_BASE_URL=http://127.0.0.1:11434
+Environment=REDIS_URL=redis://127.0.0.1:6379
+EnvironmentFile=-/opt/proedit/backend/.env
+ExecStart=/opt/proedit/backend/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --log-level info --timeout-keep-alive 65
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+
