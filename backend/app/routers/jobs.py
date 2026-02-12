@@ -44,8 +44,8 @@ def _broker_fingerprint(redis_url: str) -> str:
     return f"{parsed.scheme}://{host}:{port}/{db_name}"
 
 
-def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
-    """Inspect current broker/worker visibility from the API process."""
+async def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
+    """Inspect current broker/worker visibility from the API process (Async)."""
     target_queue = (settings.celery_video_queue or "video").strip() or "video"
     diagnostics: dict[str, Any] = {
         "use_celery": USE_CELERY,
@@ -62,9 +62,14 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
     try:
         from ..celery_app import celery_app
 
-        inspect = celery_app.control.inspect(timeout=timeout)
-        ping = inspect.ping() or {}
-        active_queues = inspect.active_queues() or {}
+        def sync_inspect():
+            insp = celery_app.control.inspect(timeout=timeout)
+            ping = insp.ping() or {}
+            active_queues = insp.active_queues() or {}
+            return ping, active_queues
+
+        # Run blocking inspect in a thread to keep event loop alive
+        ping, active_queues = await asyncio.to_thread(sync_inspect)
 
         worker_names = sorted(set(list(ping.keys()) + list(active_queues.keys())))
         diagnostics["workers"] = worker_names
@@ -170,8 +175,8 @@ async def list_jobs(
 
 @router.get("/storage/usage")
 async def get_storage_usage(current_user: User = Depends(get_current_user)):
-    """Get current R2 storage usage."""
-    return r2_storage.get_storage_usage()
+    """Get current R2 storage usage (Async)."""
+    return await asyncio.to_thread(r2_storage.get_storage_usage)
 
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -386,9 +391,32 @@ async def enqueue_job(
         )
 
     if USE_CELERY:
-        # Temporarily bypassing detailed worker diagnostics for smoke test stability
-        # diagnostics = get_celery_dispatch_diagnostics(timeout=1.5 if settings.environment == "production" else 1.0)
-        pass
+        diagnostics_result = get_celery_dispatch_diagnostics(
+            timeout=1.5 if settings.environment == "production" else 1.0
+        )
+        diagnostics = (
+            await diagnostics_result
+            if asyncio.iscoroutine(diagnostics_result)
+            else diagnostics_result
+        )
+
+        if settings.environment == "production":
+            diagnostics_error = diagnostics.get("error")
+            if diagnostics_error:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Queue diagnostics unavailable: {diagnostics_error}",
+                )
+            if int(diagnostics.get("worker_count") or 0) < 1:
+                raise HTTPException(status_code=503, detail="No active Celery worker reachable.")
+
+            queue_to_check = diagnostics.get("expected_queue") or "video"
+            if not _has_queue_consumer(diagnostics, queue_to_check):
+                queue_label = diagnostics.get("expected_queue") or queue_to_check
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"No active Celery worker subscribed to '{queue_label}' queue.",
+                )
 
         try:
             from ..tasks.video_tasks import process_video_task

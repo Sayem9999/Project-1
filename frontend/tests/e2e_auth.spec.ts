@@ -38,6 +38,18 @@ test.describe('E2E Flow', () => {
                 body: JSON.stringify({ status: 'ok', job_id: 123 }),
             });
         });
+        await page.route('**/jobs/123', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    id: 123,
+                    status: 'processing',
+                    progress_message: 'Starting pipeline...',
+                    created_at: new Date().toISOString(),
+                }),
+            });
+        });
 
         const timestamp = Date.now();
         const email = `testuser${timestamp}@example.com`;

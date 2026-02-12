@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any
 from ..services.introspection import introspection_service
@@ -13,7 +14,7 @@ async def get_system_graph(current_user: User = Depends(get_current_user)):
     """Get the current visualization graph of the codebase."""
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
-    return introspection_service.scan()
+    return await asyncio.to_thread(introspection_service.scan)
 
 
 @router.get("/status")
@@ -28,7 +29,7 @@ async def get_live_metrics(current_user: User = Depends(get_current_user)):
     """Get real-time system metrics (CPU, RAM, Process stats)."""
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
-    return introspection_service.get_live_metrics()
+    return await asyncio.to_thread(introspection_service.get_live_metrics)
 
 @router.post("/architect")
 async def ask_architect(payload: Dict[str, Any], current_user: User = Depends(get_current_user)):
@@ -50,7 +51,7 @@ async def refresh_graph(current_user: User = Depends(get_current_user)):
     """Force-refresh the system graph cache."""
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
-    return introspection_service.scan(force=True)
+    return await asyncio.to_thread(introspection_service.scan, force=True)
 
 @router.post("/heal")
 async def trigger_healing(payload: Dict[str, Any], current_user: User = Depends(get_current_user)):
@@ -65,7 +66,7 @@ async def trigger_self_heal(current_user: User = Depends(get_current_user)):
     """Run cache/data self-healing for maintenance graph."""
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
-    return introspection_service.self_heal()
+    return await asyncio.to_thread(introspection_service.self_heal)
 
 
 @router.post("/populate")
@@ -81,6 +82,5 @@ async def trigger_chaos(duration: int = 60, current_user: User = Depends(get_cur
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
     from ..services.chaos import chaos_monkey
-    import asyncio
     asyncio.create_task(chaos_monkey.start_chaos_session(duration))
     return {"status": "chaos_unleashed", "duration": duration}
