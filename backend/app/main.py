@@ -226,8 +226,6 @@ async def api_health() -> dict[str, Any]:
 async def ready() -> dict[str, str]:
     return {"status": "ready"}
 
-app.add_middleware(PrivateNetworkAccessMiddleware)
-
 app.add_middleware(
     CORSMiddleware,
     # We use bearer tokens (Authorization header), not cookie auth.
@@ -237,6 +235,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(PrivateNetworkAccessMiddleware)
 
 # Rate limiting middleware
 from .middleware.rate_limit import rate_limit_middleware
