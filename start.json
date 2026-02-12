@@ -3,8 +3,9 @@
         {
             "method": "shell.run",
             "params": {
-                "id": "api",
+                "id": "api_server",
                 "message": "powershell -ExecutionPolicy Bypass -File .\\backend\\start_production_local.ps1",
+                "daemon": true,
                 "on": [
                     {
                         "event": "/Uvicorn running on/i",
@@ -16,8 +17,9 @@
         {
             "method": "shell.run",
             "params": {
-                "id": "worker",
+                "id": "celery_worker",
                 "message": "powershell -ExecutionPolicy Bypass -Command \"$env:CELERY_VIDEO_QUEUE='video_local'; .\\backend\\run_worker.ps1\"",
+                "daemon": true,
                 "on": [
                     {
                         "event": "/ready/i",
@@ -29,7 +31,7 @@
         {
             "method": "notify",
             "params": {
-                "html": "<h3>Proedit Hub is Live! 🚀</h3><p>API and Worker are running in separate background tabs. Check the tabs on the left.</p>"
+                "html": "<h3>Proedit Hub is Live! 🚀</h3><p>API and Worker are running in parallel tabs. Check the sidebar or tabs to switch between them.</p>"
             }
         }
     ]
