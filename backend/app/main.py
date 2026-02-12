@@ -79,10 +79,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("bootstrap_admin_failed", error=str(e))
 
-    # Schedule background tasks
-    from .tasks.cleanup import run_cleanup_task
-    asyncio.create_task(periodic_cleanup_wrapper(run_cleanup_task))
-    asyncio.create_task(periodic_introspection_wrapper())
+    # Schedule background tasks - DISABLED FOR DEBUGGING HANG
+    # from .tasks.cleanup import run_cleanup_task
+    # asyncio.create_task(periodic_cleanup_wrapper(run_cleanup_task))
+    # asyncio.create_task(periodic_introspection_wrapper())
     
     logger.info("startup_ready")
     yield

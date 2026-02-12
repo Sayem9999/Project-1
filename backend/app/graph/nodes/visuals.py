@@ -15,18 +15,24 @@ async def visuals_node(state: GraphState) -> GraphState:
     if not plan:
         return {"errors": ["Visuals node missing plan"]}
 
+    from ..agents.base import parse_json_response
+
     # Run Color and VFX in parallel
     async def run_color():
         try:
             resp = await color_agent.run({"plan": plan, "mood": mood})
-            return json.loads(resp.get("raw_response", "{}").replace("```json", "").replace("```", "").strip())
-        except: return {}
+            return parse_json_response(resp.get("raw_response", "{}"))
+        except Exception as e:
+            print(f"Color Agent Parse Error: {e}")
+            return {}
 
     async def run_vfx():
         try:
             resp = await vfx_agent.run({"plan": plan, "mood": mood})
-            return json.loads(resp.get("raw_response", "{}").replace("```json", "").replace("```", "").strip())
-        except: return {}
+            return parse_json_response(resp.get("raw_response", "{}"))
+        except Exception as e:
+            print(f"VFX Agent Parse Error: {e}")
+            return {}
 
     results = await asyncio.gather(run_color(), run_vfx())
     color_data, vfx_data = results
@@ -41,6 +47,14 @@ async def visuals_node(state: GraphState) -> GraphState:
             "value": color_data["ffmpeg_color_filter"],
             "name": "color_grading"
         })
+    elif color_data.get("color_mood"):
+        # Fallback to a basic enhancement if no specific filter but mood is given
+        effects.append({
+            "type": "ffmpeg_filter",
+            "value": "eq=contrast=1.1:saturation=1.1",
+            "name": f"mood_{color_data['color_mood']}"
+        })
+
     if color_data.get("lut_recommendation"):
         effects.append({
             "type": "lut", 
@@ -56,9 +70,11 @@ async def visuals_node(state: GraphState) -> GraphState:
                 "name": effect.get("name", "vfx")
             })
     elif vfx_data.get("ffmpeg_filter"):
+        # Strip potential -vf lead-in
+        clean_filter = vfx_data["ffmpeg_filter"].replace('-vf "', '').replace('"', '').strip()
         effects.append({
             "type": "ffmpeg_filter",
-            "value": vfx_data["ffmpeg_filter"],
+            "value": clean_filter,
             "name": "vfx_summary"
         })
     

@@ -1,7 +1,4 @@
-const DEFAULT_API_BASE =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:8000/api"
-    : "https://proedit-api-nzzr.onrender.com/api";
+const DEFAULT_API_BASE = "http://localhost:8000/api";
 
 const DEFAULT_TIMEOUT_MS = (() => {
   const configured = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS);
@@ -11,8 +8,7 @@ const DEFAULT_TIMEOUT_MS = (() => {
   return 60000;
 })();
 
-export const API_BASE =
-  (process.env.NEXT_PUBLIC_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
+export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
 
 export const API_ORIGIN = API_BASE.endsWith("/api")
   ? API_BASE.slice(0, -4)

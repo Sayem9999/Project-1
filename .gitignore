@@ -17,3 +17,13 @@ frontend/dummy_video.mp4
 tmp/
 tools/
 storage/
+
+# Runtime/log artifacts
+*.log
+backend/*.log
+frontend_*.log
+backend/api*.log
+backend/worker*.log
+
+# Local one-off debug scripts
+backend/repro_*.py
