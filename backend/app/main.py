@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Any
-from sqlalchemy import select
+from sqlalchemy import select, update
 import time
 import uuid
 import asyncio
@@ -80,6 +80,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("bootstrap_admin_failed", error=str(e))
 
+    # Clean up processing jobs left behind by previous run
+    try:
+        await clear_stuck_jobs()
+    except Exception as e:
+        logger.error("startup_cleanup_failed", error=str(e))
+
     # Schedule background tasks - DISABLED FOR DEBUGGING HANG
     # from .tasks.cleanup import run_cleanup_task
     # asyncio.create_task(periodic_cleanup_wrapper(run_cleanup_task))
@@ -111,6 +117,31 @@ async def bootstrap_admin() -> None:
             user_id=user.id,
             already_admin=already_admin
         )
+
+async def clear_stuck_jobs():
+    """Reset jobs that were left in 'processing' state after a crash or restart."""
+    from .models import Job
+    
+    logger.info("startup_cleanup_stuck_jobs_start")
+    try:
+        async with SessionLocal() as session:
+            # Set to 'failed' with a clear message.
+            # This follows the user request to "cancel" them on restart.
+            result = await session.execute(
+                update(Job)
+                .where(Job.status == "processing")
+                .values(
+                    status="failed",
+                    progress_message="Job interrupted by system restart. Please retry manually."
+                )
+            )
+            await session.commit()
+            if result.rowcount > 0:
+                logger.info("startup_cleanup_stuck_jobs_complete", affected_rows=result.rowcount)
+            else:
+                logger.info("startup_cleanup_stuck_jobs_none")
+    except Exception as e:
+        logger.error("startup_cleanup_stuck_jobs_failed", error=str(e))
 
 async def periodic_cleanup_wrapper(task_func):
     """Run cleanup every 24 hours."""
