@@ -12,7 +12,7 @@ async def run():
             res_jobs = await session.execute(select(Job).where(Job.user_id == u.id).order_by(Job.id.desc()).limit(5))
             jobs = res_jobs.scalars().all()
             for j in jobs:
-                print(f"  Job {j.id}: status={j.status}, cost={j.cost}, msg={j.progress_message}")
+                print(f"  Job {j.id}: status={j.status.value}, cost={j.credits_cost}, msg={j.progress_message}")
         break
 
 if __name__ == "__main__":

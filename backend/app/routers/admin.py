@@ -340,27 +340,25 @@ async def get_admin_stats(
     # Trend data (last 7 days)
     start_date = datetime.utcnow().date() - timedelta(days=6)
     
-    # Run aggregation queries in parallel
-    jobs_task = session.execute(
+    # Run aggregation queries sequentially on the same session
+    jobs_by_day = await session.execute(
         select(func.date(Job.created_at), func.count(Job.id))
         .where(Job.created_at >= start_date)
         .group_by(func.date(Job.created_at))
         .order_by(func.date(Job.created_at))
     )
-    failures_task = session.execute(
+    failures_by_day = await session.execute(
         select(func.date(Job.created_at), func.count(Job.id))
         .where(Job.created_at >= start_date, Job.status == "failed")
         .group_by(func.date(Job.created_at))
         .order_by(func.date(Job.created_at))
     )
-    users_task = session.execute(
+    users_by_day = await session.execute(
         select(func.date(User.created_at), func.count(User.id))
         .where(User.created_at >= start_date)
         .group_by(func.date(User.created_at))
         .order_by(func.date(User.created_at))
     )
-    
-    jobs_by_day, failures_by_day, users_by_day = await asyncio.gather(jobs_task, failures_task, users_task)
     
     # Storage Stats
     storage_stats = await asyncio.to_thread(storage_service.get_storage_usage)
