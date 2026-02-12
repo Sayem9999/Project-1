@@ -83,7 +83,7 @@ def _provider_configured(name: str) -> bool:
 PROVIDERS: Dict[str, ProviderConfig] = {
     "groq": ProviderConfig(
         name="groq",
-        models=["llama-3.3-70b-versatile"],
+        models=["llama-3.3-70b-versatile", "llama-3.1-70b-versatile"],
         quality_tier="fast",
         avg_latency_ms=500,
         cost_per_1k_tokens=0.0  # Free tier
@@ -91,10 +91,10 @@ PROVIDERS: Dict[str, ProviderConfig] = {
     "gemini": ProviderConfig(
         name="gemini",
         models=[
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite",
-            "gemini-2.0-flash",
             "gemini-2.0-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-8b",
         ],
         quality_tier="standard",
         avg_latency_ms=2000,

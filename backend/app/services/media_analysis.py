@@ -79,18 +79,20 @@ class MediaAnalyzer:
     
     def _resolve_path(self, cmd: str) -> str:
         """Resolve command path, checking project tools as fallback."""
-        import shutil
-        if shutil.which(cmd):
-            return cmd
-        
-        # Look in tools directory relative to project root
-        project_root = Path(__file__).parent.parent.parent.parent.absolute()
-        local_bin = project_root / "tools" / "ffmpeg-8.0.1-essentials_build" / "bin"
+        # Use the same verified absolute path pattern that works in smoke_e2e.py
+        project_root = r"C:\Users\Sayem\Downloads\New folder\Project-1-1"
+        local_bin = os.path.join(project_root, "tools", "ffmpeg-8.0.1-essentials_build", "bin")
         ext = ".exe" if os.name == 'nt' else ""
-        local_cmd = local_bin / f"{cmd}{ext}"
+        local_cmd = os.path.join(local_bin, f"{cmd}{ext}")
         
-        if local_cmd.exists():
-            return str(local_cmd)
+        if os.path.exists(local_cmd):
+            return local_cmd
+            
+        import shutil
+        found = shutil.which(cmd)
+        if found:
+            return found
+            
         return cmd
     
     async def analyze(self, video_path: str) -> MediaAnalysis:

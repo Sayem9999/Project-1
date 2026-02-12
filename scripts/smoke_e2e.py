@@ -64,7 +64,12 @@ def upload_file(path: Path, token: str):
 
 
 def main():
-    video = OUT_DIR / "real-input.mp4"
+    video = OUT_DIR / "multi-scene.mp4"
+    if not video.exists():
+        video = OUT_DIR / "manual-test.mp4"
+    if not video.exists():
+        video = OUT_DIR / "real-input.mp4"
+    
     ffmpeg_path = r"C:\Users\Sayem\Downloads\New folder\Project-1-1\tools\ffmpeg-8.0.1-essentials_build\bin\ffmpeg.exe"
     if video.exists() and video.stat().st_size < 1000: # Delete dummy/small files
         video.unlink()
