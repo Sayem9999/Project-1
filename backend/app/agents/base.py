@@ -14,18 +14,13 @@ from ..config import settings
 
 logger = structlog.get_logger()
 
-# Type variable for schema validation
-T = TypeVar("T", bound=BaseModel)
-
-# OpenAI Client (Handles OpenAI, and becomes the Universal Gateway client if configured)
+# OpenAI Client
 openai_client = AsyncOpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
-if settings.vercel_ai_gateway_url and openai_client:
-    openai_client.base_url = settings.vercel_ai_gateway_url
 
-# Gemini Client (New unified SDK - used when NO gateway or for native features)
+# Gemini Client (Unified SDK)
 gemini_client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
 
-# Groq Client (Native client - used when NO gateway)
+# Groq Client
 groq_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
 
 
@@ -148,54 +143,27 @@ async def run_agent_prompt(
         attempt_start = time.time()
         response_text = ""
 
-        if provider_name == "groq" and (groq_client or settings.vercel_ai_gateway_url):
-            # Universal Gateway or Native
-            if settings.vercel_ai_gateway_url and openai_client:
-                res = await openai_client.chat.completions.create(
-                    model=f"groq/{model}",
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": payload_json},
-                    ],
-                    extra_headers={"Authorization": f"Bearer {settings.groq_api_key}"}
-                )
-                response_text = res.choices[0].message.content
-            elif groq_client:
-                chat_completion = groq_client.chat.completions.create(
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": payload_json},
-                    ],
-                    model=model,
-                )
-                response_text = chat_completion.choices[0].message.content
+        if provider_name == "groq" and groq_client:
+            chat_completion = groq_client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": payload_json},
+                ],
+                model=model,
+            )
+            response_text = chat_completion.choices[0].message.content
 
-        elif provider_name == "gemini" and (gemini_client or settings.vercel_ai_gateway_url):
-            # Universal Gateway or Native
-            if settings.vercel_ai_gateway_url and openai_client:
-                # Use standard Vercel Universal prefix: google/
-                res = await openai_client.chat.completions.create(
-                    model=f"google/{model}",
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": payload_json},
-                    ],
-                    extra_headers={"Authorization": f"Bearer {settings.gemini_api_key}"}
-                )
-                response_text = res.choices[0].message.content
-            elif gemini_client:
-                full_prompt = f"System: {system_prompt}\n\nUser Input: {payload_json}"
-                response = await gemini_client.aio.models.generate_content(
-                    model=model,
-                    contents=full_prompt,
-                )
-                response_text = response.text
+        elif provider_name == "gemini" and gemini_client:
+            full_prompt = f"System: {system_prompt}\n\nUser Input: {payload_json}"
+            response = await gemini_client.aio.models.generate_content(
+                model=model,
+                contents=full_prompt,
+            )
+            response_text = response.text
 
         elif provider_name == "openai" and openai_client:
-            # If gateway is active, prefix with openai/
-            model_id = f"openai/{model}" if settings.vercel_ai_gateway_url else model
             response = await openai_client.chat.completions.create(
-                model=model_id,
+                model=model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": payload_json},

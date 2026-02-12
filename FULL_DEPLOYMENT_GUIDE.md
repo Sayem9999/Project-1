@@ -21,11 +21,6 @@ Follow these steps to move from Render to your super-powered Local + Cloud setup
 - Create an **API Token** with "Edit" permissions.
 - Get your `Account ID`, `Access Key`, and `Secret Key`.
 
-### 3. Vercel AI Gateway (LLM Stability)
-- Go to [Vercel AI Gateway](https://vercel.com/dashboard/ai).
-- Create a gateway named `proedit`.
-- Copy your unique Gateway URL (e.g., `https://gateway.vercel.ai/v1/.../proedit`).
-
 ---
 
 ## Phase 2: Set Up Local Hub (The Brain)
