@@ -222,6 +222,7 @@ async def api_health() -> dict[str, Any]:
     }
 
 @app.get("/ready")
+@app.get(f"{settings.api_prefix}/ready")
 async def ready() -> dict[str, str]:
     return {"status": "ready"}
 
