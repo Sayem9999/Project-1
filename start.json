@@ -4,11 +4,10 @@
             "method": "shell.run",
             "params": {
                 "message": "powershell -ExecutionPolicy Bypass -File .\\backend\\start_production_local.ps1",
-                "daemon": true,
                 "on": [
                     {
                         "event": "/Uvicorn running on/i",
-                        "done": true
+                        "next": 1
                     }
                 ]
             }
@@ -17,11 +16,10 @@
             "method": "shell.run",
             "params": {
                 "message": "powershell -ExecutionPolicy Bypass -Command \"$env:CELERY_VIDEO_QUEUE='video_local'; .\\backend\\run_worker.ps1\"",
-                "daemon": true,
                 "on": [
                     {
                         "event": "/ready/i",
-                        "done": true
+                        "next": 2
                     }
                 ]
             }
@@ -29,7 +27,7 @@
         {
             "method": "notify",
             "params": {
-                "html": "Proedit Hub is fully online! API & Worker are running in the background. 🚀"
+                "html": "<h3>Proedit Hub is Live! 🚀</h3><p>API and Worker are running in the background tabs. Do not close Pinokio.</p>"
             }
         }
     ]
