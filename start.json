@@ -4,6 +4,7 @@
             "method": "shell.run",
             "params": {
                 "message": "powershell -ExecutionPolicy Bypass -File .\\backend\\start_production_local.ps1",
+                "daemon": true,
                 "on": [
                     {
                         "event": "/Uvicorn running on/i",
@@ -16,6 +17,7 @@
             "method": "shell.run",
             "params": {
                 "message": "powershell -ExecutionPolicy Bypass -Command \"$env:CELERY_VIDEO_QUEUE='video_local'; .\\backend\\run_worker.ps1\"",
+                "daemon": true,
                 "on": [
                     {
                         "event": "/ready/i",
@@ -27,7 +29,7 @@
         {
             "method": "notify",
             "params": {
-                "html": "Proedit Hub is fully online! API & Worker are ready. 🚀"
+                "html": "Proedit Hub is fully online! API & Worker are running in the background. 🚀"
             }
         }
     ]
