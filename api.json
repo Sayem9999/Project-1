@@ -5,7 +5,7 @@
             "params": {
                 "id": "api_server",
                 "path": "backend",
-                "message": "powershell -ExecutionPolicy Bypass -File .\\start_production_local.ps1",
+                "message": "powershell -ExecutionPolicy Bypass -Command \".\\start_production_local.ps1 -Port 8000\"",
                 "daemon": true
             }
         }

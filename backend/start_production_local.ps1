@@ -1,5 +1,5 @@
 param(
-    [int]$Port = 10000,
+    [int]$Port = 8000,
     [int]$Workers = 1
 )
 
@@ -10,6 +10,15 @@ Set-Location $scriptDir
 $pythonExe = Join-Path $scriptDir ".venv\Scripts\python.exe"
 
 Write-Host "--- Starting Proedit API (Production Local) ---" -ForegroundColor Cyan
+
+# Permanent Fix: Kill any existing process on the target port
+Write-Host "Checking for existing processes on port $Port..." -ForegroundColor Gray
+$prevProcess = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
+if ($prevProcess) {
+    Write-Host "Cleaning up existing process (PID: $prevProcess) on port $Port..." -ForegroundColor Yellow
+    Stop-Process -Id $prevProcess -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+}
 
 # Ensure storage
 if (-not (Test-Path "storage")) { New-Item -ItemType Directory "storage" }

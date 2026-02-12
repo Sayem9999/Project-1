@@ -38,7 +38,7 @@ ProEdit is an advanced automated video editing platform that uses a multi-agent 
 
 ### Infrastructure
 - **Storage**: Cloudflare R2 / Local Filesystem
-- **Deployment**: Render (Backend/DB), Vercel (Frontend)
+- **Deployment**: **Vercel** (Frontend), **Hybrid Local/Tailscale** (Backend/Worker)
 
 ## ⚡ Quick Start (Local Development)
 
@@ -88,44 +88,24 @@ ProEdit is an advanced automated video editing platform that uses a multi-agent 
     python -m celery -A app.celery_app worker --loglevel=info
     ```
 
-## Production Memory Mode (512MB Render)
+## 🌐 Permanent Hybrid Hosting Setup
 
-Use API-only mode on Render web service, and run the worker separately.
+This project uses a high-performance hybrid setup: the UI is global on **Vercel**, while the API and Worker run on your **Local PC** using **Tailscale Funnel** for a stable connection.
 
-1. Web service (`proedit-api`) must run with:
-   - `RUN_EMBEDDED_CELERY=false`
-2. Keep `REDIS_URL` configured on Render so jobs are queued.
-3. Set a dedicated queue name on API and worker to avoid jobs being picked by the wrong worker:
-   - `CELERY_VIDEO_QUEUE=video_local`
-   - Use the same value in both Render API env and your local worker shell.
-4. Run Celery worker on your PC (Windows PowerShell):
-   ```powershell
-   cd backend
-   .\.venv\Scripts\activate
+### 1. Backend (Local PC)
+1. **Setup Tailscale**: Enable Funnel in your Tailscale dashboard.
+2. **Start Backend**: `cd backend && python -m uvicorn app.main:app --reload`
+3. **Expose Connection**: In a new terminal: `tailscale funnel --bg 8000`
+4. **Start Worker**: `cd backend && .\run_worker.ps1` (or use Pinokio).
 
-   # Set production envs (use your real values from Render)
-   $env:ENVIRONMENT = "production"
-   $env:REDIS_URL = "rediss://<render-redis-url>"
-   $env:CELERY_VIDEO_QUEUE = "video_local"
-   $env:DATABASE_URL = "postgresql+asyncpg://<render-postgres-url>"
-   $env:SECRET_KEY = "<same-secret-key-used-by-api>"
-   $env:GEMINI_API_KEY = "<optional>"
-   $env:GROQ_API_KEY = "<optional>"
-   $env:OPENAI_API_KEY = "<optional>"
-   $env:R2_ACCOUNT_ID = "<r2-account-id>"
-   $env:R2_ACCESS_KEY_ID = "<r2-access-key-id>"
-   $env:R2_SECRET_ACCESS_KEY = "<r2-secret>"
-   $env:R2_BUCKET_NAME = "proedit-uploads"
-   $env:MODAL_TOKEN_ID = "<modal-token-id>"
-   $env:MODAL_TOKEN_SECRET = "<modal-token-secret>"
+### 2. Frontend (Vercel)
+1. Deploy the `frontend/` directory to Vercel.
+2. Set `NEXT_PUBLIC_API_BASE` to your Tailscale Funnel URL (e.g., `https://your-pc.tail-name.ts.net/api`).
 
-   celery -A app.celery_app worker --pool=solo --concurrency=1 --without-gossip --without-mingle --without-heartbeat -Q video_local,celery --loglevel=info
-   ```
-   Or use:
-   ```powershell
-   .\run_worker.ps1
-   ```
-5. Keep this worker terminal running continuously while processing jobs.
+### 3. External Services
+- **Database**: Use Supabase or local SQLite.
+- **Queue**: Use Upstash Redis for global synchronization.
+- **Storage**: Cloudflare R2 for media assets.
 
 ### Frontend Setup
 
