@@ -3,7 +3,7 @@
         {
             "method": "shell.run",
             "params": {
-                "message": ".\\backend\\start_production_local.ps1",
+                "message": "powershell -ExecutionPolicy Bypass -File .\\backend\\start_production_local.ps1",
                 "on": [
                     {
                         "event": "/Uvicorn running on/i",
@@ -15,7 +15,7 @@
         {
             "method": "shell.run",
             "params": {
-                "message": "$env:CELERY_VIDEO_QUEUE='video_local'; .\\backend\\run_worker.ps1",
+                "message": "powershell -ExecutionPolicy Bypass -Command \"$env:CELERY_VIDEO_QUEUE='video_local'; .\\backend\\run_worker.ps1\"",
                 "on": [
                     {
                         "event": "/ready/i",
