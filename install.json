@@ -1,0 +1,24 @@
+{
+  "run": [
+    {
+      "method": "shell.run",
+      "params": {
+        "message": "python -m venv .venv",
+        "path": "backend"
+      }
+    },
+    {
+      "method": "shell.run",
+      "params": {
+        "message": ".venv\\Scripts\\pip install -r requirements.txt",
+        "path": "backend"
+      }
+    },
+    {
+      "method": "notify",
+      "params": {
+        "html": "Dependencies installed successfully!"
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+    "run": [
+        {
+            "method": "shell.run",
+            "params": {
+                "message": ".\\backend\\start_production_local.ps1",
+                "on": [
+                    {
+                        "event": "/Uvicorn running on/i",
+                        "done": true
+                    }
+                ]
+            }
+        },
+        {
+            "method": "notify",
+            "params": {
+                "html": "API is now running locally! 🚀"
+            }
+        }
+    ]
+}
