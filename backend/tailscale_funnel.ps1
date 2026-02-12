@@ -1,3 +1,7 @@
+param(
+    [int]$Port = 10000
+)
+
 $ErrorActionPreference = "Stop"
 
 # Use absolute path to ensure it works even if PATH hasn't updated
@@ -27,8 +31,8 @@ try {
 }
 catch {}
 
-Write-Host "Starting Tailscale Funnel on port 8000 (background mode)..." -ForegroundColor Green
+Write-Host "Starting Tailscale Funnel on port $Port (background mode)..." -ForegroundColor Green
 Write-Host "This will give you a stable public URL for your API." -ForegroundColor Cyan
 
-& $tailscale funnel --yes --bg 8000 | Out-Null
+& $tailscale funnel --yes --bg $Port | Out-Null
 & $tailscale funnel status

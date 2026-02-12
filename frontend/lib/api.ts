@@ -57,7 +57,10 @@ export function clearAuth(): void {
 }
 
 export function getWebSocketUrl(path: string): string {
-  const origin = API_ORIGIN.replace(/^http/, "ws");
+  const baseOrigin =
+    typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const httpOrigin = API_ORIGIN.startsWith("/") ? `${baseOrigin}${API_ORIGIN}` : API_ORIGIN;
+  const origin = httpOrigin.replace(/^http/, "ws");
   if (path.startsWith("ws://") || path.startsWith("wss://")) {
     return path;
   }

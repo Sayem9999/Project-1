@@ -18,6 +18,7 @@ from .services.introspection import introspection_service
 import os
 
 from contextlib import asynccontextmanager
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 # Configure Logging
 configure_logging()
@@ -151,6 +152,58 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+class PrivateNetworkAccessMiddleware:
+    """
+    Support Chrome/Firefox "Private Network Access" (PNA) when a public site (Vercel)
+    calls into a private network endpoint (Tailscale Funnel).
+
+    Browsers send an OPTIONS preflight containing:
+      Access-Control-Request-Private-Network: true
+
+    The server must reply with:
+      Access-Control-Allow-Private-Network: true
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Normalize headers to a dict for checks.
+        raw_headers = scope.get("headers") or []
+        headers: dict[str, str] = {}
+        for k, v in raw_headers:
+            try:
+                headers[k.decode("latin-1").lower()] = v.decode("latin-1")
+            except Exception:
+                continue
+
+        method = (scope.get("method") or "").upper()
+        origin = headers.get("origin")
+        # Always allow PNA on OPTIONS responses. Browsers require this on certain
+        # local/private-network preflights; being permissive here is fine because
+        # we already run with allow_origins=["*"] and token auth.
+        is_preflight = method == "OPTIONS"
+        wants_pna = headers.get("access-control-request-private-network") == "true"
+        should_add_pna = is_preflight or wants_pna
+
+        async def send_wrapper(message):
+            if message.get("type") == "http.response.start":
+                hdrs = list(message.get("headers") or [])
+                # Guarantee ACAO on funnel/proxy responses. If CORSMiddleware already set it,
+                # don't duplicate.
+                if not any(k.lower() == b"access-control-allow-origin" for k, _ in hdrs):
+                    hdrs.append((b"access-control-allow-origin", b"*"))
+                if should_add_pna and not any(k.lower() == b"access-control-allow-private-network" for k, _ in hdrs):
+                    hdrs.append((b"access-control-allow-private-network", b"true"))
+                message["headers"] = hdrs
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
 @app.get("/health")
 async def health() -> dict[str, Any]:
     return {
@@ -171,6 +224,8 @@ async def api_health() -> dict[str, Any]:
 @app.get("/ready")
 async def ready() -> dict[str, str]:
     return {"status": "ready"}
+
+app.add_middleware(PrivateNetworkAccessMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,5 +1,6 @@
 param(
-    [int]$Port = 8000
+    [int]$Port = 10000,
+    [int]$Workers = 1
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,6 +38,6 @@ Write-Host "Connect your Cloudflare Tunnel to this port." -ForegroundColor Blue
 & $pythonExe -m uvicorn app.main:app `
     --host 0.0.0.0 `
     --port $Port `
-    --workers 4 `
+    --workers $Workers `
     --log-level info `
     --timeout-keep-alive 65
