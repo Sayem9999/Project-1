@@ -1,0 +1,12 @@
+{
+    "run": [
+        {
+            "method": "shell.run",
+            "params": {
+                "id": "worker_node",
+                "message": "powershell -ExecutionPolicy Bypass -Command \"$env:CELERY_VIDEO_QUEUE='video_local'; .\\backend\\run_worker.ps1\"",
+                "daemon": true
+            }
+        }
+    ]
+}

@@ -4,12 +4,16 @@ module.exports = {
   icon: "icon.png",
   menu: [
     {
-      html: '<i class="fa-solid fa-play"></i> Start Proedit Hub',
+      html: '<i class="fa-solid fa-play"></i> Start Proedit Hub (All)',
       href: "start.json"
     },
     {
-      html: '<i class="fa-solid fa-rotate"></i> Restart Hub',
-      href: "start.json"
+      html: '<i class="fa-solid fa-server"></i> Start API Only',
+      href: "api.json"
+    },
+    {
+      html: '<i class="fa-solid fa-robot"></i> Start Worker Only',
+      href: "worker.json"
     },
     {
       html: '<i class="fa-solid fa-plug"></i> Install Dependencies',
