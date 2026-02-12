@@ -3,6 +3,7 @@
         {
             "method": "shell.run",
             "params": {
+                "id": "api",
                 "message": "powershell -ExecutionPolicy Bypass -File .\\backend\\start_production_local.ps1",
                 "on": [
                     {
@@ -15,6 +16,7 @@
         {
             "method": "shell.run",
             "params": {
+                "id": "worker",
                 "message": "powershell -ExecutionPolicy Bypass -Command \"$env:CELERY_VIDEO_QUEUE='video_local'; .\\backend\\run_worker.ps1\"",
                 "on": [
                     {
@@ -27,7 +29,7 @@
         {
             "method": "notify",
             "params": {
-                "html": "<h3>Proedit Hub is Live! 🚀</h3><p>API and Worker are running in the background tabs. Do not close Pinokio.</p>"
+                "html": "<h3>Proedit Hub is Live! 🚀</h3><p>API and Worker are running in separate background tabs. Check the tabs on the left.</p>"
             }
         }
     ]
