@@ -13,9 +13,21 @@
             }
         },
         {
+            "method": "shell.run",
+            "params": {
+                "message": "$env:CELERY_VIDEO_QUEUE='video_local'; .\\backend\\run_worker.ps1",
+                "on": [
+                    {
+                        "event": "/ready/i",
+                        "done": true
+                    }
+                ]
+            }
+        },
+        {
             "method": "notify",
             "params": {
-                "html": "API is now running locally! 🚀"
+                "html": "Proedit Hub is fully online! API & Worker are ready. 🚀"
             }
         }
     ]
