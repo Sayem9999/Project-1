@@ -61,15 +61,27 @@ def upload_file(path: Path, token: str):
 
 def main():
     video = OUT_DIR / "real-input.mp4"
-    try:
-        subprocess.run([
-            "ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30",
-            "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
-            "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(video)
-        ], check=True, capture_output=True)
-    except Exception:
-        print("FFmpeg not found/failed, creating dummy video file")
-        video.write_text("dummy video content")
+    if not video.exists():
+        try:
+            subprocess.run([
+                "ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30",
+                "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
+                "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(video)
+            ], check=True, capture_output=True)
+        except Exception:
+            print("FFmpeg not found/failed, checking for existing video...")
+            if not video.exists():
+                 # Try to copy an existing upload if available
+                 uploads = list(Path("backend/storage/uploads").glob("*.mp4"))
+                 if uploads:
+                     import shutil
+                     shutil.copy(uploads[0], video)
+                     print(f"Using existing upload: {uploads[0]}")
+                 else:
+                     print("No video found, creating dummy text file (Warning: may cause pipeline failure)")
+                     video.write_text("dummy video content")
+    else:
+        print(f"Using existing video: {video}")
 
     email = f"smoke-{uuid.uuid4().hex[:8]}@example.com"
     password = "StrongPass123!"

@@ -12,6 +12,9 @@ from google import genai
 from groq import Groq
 from ..config import settings
 
+# Type variable for Pydantic model validation
+T = TypeVar("T", bound=BaseModel)
+
 logger = structlog.get_logger()
 
 # OpenAI Client

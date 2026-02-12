@@ -15,7 +15,7 @@ if (-not (Test-Path "storage")) { New-Item -ItemType Directory "storage" }
 if (-not (Test-Path "storage/uploads")) { New-Item -ItemType Directory "storage/uploads" }
 if (-not (Test-Path "storage/outputs")) { New-Item -ItemType Directory "storage/outputs" }
 
-# Load env variables
+# Load env variables with override
 if (Test-Path ".env") {
     Get-Content .env | ForEach-Object {
         $line = $_.Trim()
@@ -23,7 +23,8 @@ if (Test-Path ".env") {
             $parts = $line.Split("=", 2)
             $name = $parts[0].Trim()
             $value = $parts[1].Trim().Trim('"').Trim("'")
-            [Environment]::SetEnvironmentVariable($name, $value)
+            # Force set in process scope to override system env vars
+            [Environment]::SetEnvironmentVariable($name, $value, [EnvironmentVariableTarget]::Process)
         }
     }
 }
