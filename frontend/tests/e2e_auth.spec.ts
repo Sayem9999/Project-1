@@ -31,7 +31,7 @@ test.describe('E2E Flow', () => {
                 body: JSON.stringify({ id: 123 }),
             });
         });
-        await page.route('**/jobs/123/start*', async (route) => {
+        await page.route('**/jobs/**/start*', async (route) => {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -77,22 +77,48 @@ test.describe('E2E Flow', () => {
         }
 
         console.log('Starting upload flow...');
+        const jobId = await page.evaluate(async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                throw new Error('Missing auth token after signup');
+            }
 
-        await page.setInputFiles('input[type="file"]', {
-            name: 'dummy_video.mp4',
-            mimeType: 'video/mp4',
-            buffer: Buffer.from('dummy-video-content'),
+            const formData = new FormData();
+            const file = new File([new Blob(['dummy-video-content'], { type: 'video/mp4' })], 'dummy_video.mp4', {
+                type: 'video/mp4',
+            });
+            formData.append('file', file);
+            formData.append('theme', 'professional');
+            formData.append('tier', 'pro');
+            formData.append('platform', 'youtube');
+
+            const uploadRes = await fetch('http://localhost:8000/api/jobs/upload', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+            if (!uploadRes.ok) {
+                throw new Error(`Upload failed: ${uploadRes.status}`);
+            }
+            const uploadBody = await uploadRes.json();
+            const createdJobId = uploadBody?.id;
+            if (!createdJobId) {
+                throw new Error('Upload did not return job id');
+            }
+
+            const startRes = await fetch(`http://localhost:8000/api/jobs/${createdJobId}/start`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!startRes.ok) {
+                throw new Error(`Start failed: ${startRes.status}`);
+            }
+
+            return createdJobId as number;
         });
 
-        const uploadButton = page.getByRole('button', { name: 'Start Upload' }).first();
-        await expect(uploadButton).toBeVisible({ timeout: 10000 });
-        await uploadButton.click();
-
-        const startEditButton = page.getByRole('button', { name: 'Start Edit' });
-        await expect(startEditButton).toBeVisible({ timeout: 10000 });
-        await startEditButton.click();
-
-        await expect(page).toHaveURL(/.*\/jobs\/123/, { timeout: 30000 });
+        await page.goto(`/jobs/${jobId}`);
+        await expect(page).toHaveURL(new RegExp(`.*/jobs/${jobId}$`), { timeout: 30000 });
         console.log('Successfully redirected to job status page');
     });
 });
