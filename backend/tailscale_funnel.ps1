@@ -16,6 +16,12 @@ catch {
     exit 1
 }
 
+Write-Host "Cleaning up previous funnel configurations..." -ForegroundColor Gray
+try {
+    & $tailscale funnel reset
+}
+catch {}
+
 Write-Host "Starting Tailscale Funnel on port 8000..." -ForegroundColor Green
 Write-Host "This will give you a PERMANENT URL for your API." -ForegroundColor Cyan
 Write-Host "Press CTRL+C to stop the funnel." -ForegroundColor Gray
