@@ -279,9 +279,10 @@ export default function UploadPage() {
                 >
                   <X className="w-6 h-6 group-hover:rotate-90 transition-transform" />
                 </button>
+                {!preview && <div className="text-white/50 font-black uppercase tracking-widest animate-pulse">Preview Loading...</div>}
               </div>
 
-              <div className="p-10 bg-gradient-to-t from-obsidian-950 via-obsidian-950 to-transparent">
+              <div className="p-10 bg-gradient-to-t from-obsidian-950 via-obsidian-950 to-transparent border-t border-white/5">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-10">
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
@@ -298,8 +299,8 @@ export default function UploadPage() {
                     <Button
                       onClick={handleUpload}
                       disabled={uploading || !!jobId || analyzing}
-                      variant={jobId ? "secondary" : "glow"}
-                      className="w-full md:w-auto h-16 px-12 font-black text-xs uppercase tracking-[0.3em]"
+                      variant={jobId ? "secondary" : "primary"}
+                      className="w-full md:w-auto h-20 px-20 font-black text-base uppercase tracking-[0.5em] shadow-[0_0_60px_rgba(6,182,212,0.6)] animate-in zoom-in-95 duration-500"
                       loading={uploading || analyzing}
                     >
                       {jobId ? (
@@ -329,7 +330,7 @@ export default function UploadPage() {
                       <Activity className="w-5 h-5 text-emerald-400 animate-pulse" />
                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Job Enqueued: Node #{jobId} Verified</span>
                     </div>
-                    <Button onClick={handleStartEdit} variant="primary" className="w-full md:w-auto h-16 px-12 group font-black text-xs uppercase tracking-[0.3em]" loading={starting}>
+                    <Button onClick={handleStartEdit} variant="primary" className="w-full md:w-auto h-20 px-16 group font-black text-sm uppercase tracking-[0.4em] shadow-[0_0_50px_rgba(6,182,212,0.5)]" loading={starting}>
                       START EDITING
                       <ArrowRight className="w-5 h-5 ml-4 group-hover:translate-x-2 transition-transform" />
                     </Button>

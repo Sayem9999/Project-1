@@ -18,6 +18,7 @@ from ..agents import (
 from ..agents.base import parse_json_response
 from .memory.hybrid_memory import hybrid_memory
 from .concurrency import limits
+from .metrics_service import metrics_service
 
 # Redis for progress publishing (optional)
 REDIS_URL = os.getenv("REDIS_URL")
@@ -129,6 +130,8 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
     [v3.0] Standard Parallel Workflow (Free Tier)
     Fast, efficient, but loose synchronization.
     """
+    tracker = metrics_service.get_tracker(job_id)
+    tracker.start_phase("total_workflow")
     print(f"[Workflow v3] Starting Standard job {job_id}")
     user_id = None
     # Detect GPU encoder once at start
@@ -372,7 +375,10 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
         if meta_data.get("title"):
             completion_msg = f"{meta_data['title']} is ready!"
             
-        await update_status(job_id, "complete", completion_msg, final_rel_path, final_thumb_rel_path)
+        tracker.end_phase("total_workflow")
+        performance_metrics = metrics_service.finalize(job_id)
+            
+        await update_status(job_id, "complete", completion_msg, final_rel_path, final_thumb_rel_path, performance_metrics=performance_metrics)
         publish_progress(job_id, "complete", completion_msg, 100, user_id=user_id)
         print(f"[Workflow] Job {job_id} complete!")
 
@@ -389,6 +395,8 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
     [v4.0] Hollywood Pipeline (Pro Tier) - LangGraph + MoviePy
     Hierarchical: Director -> Cutter -> (Visuals/Audio) -> Compiler
     """
+    tracker = metrics_service.get_tracker(job_id)
+    tracker.start_phase("total_workflow")
     print(f"[Workflow v4] Starting Pro job {job_id} (LangGraph)")
     user_id = None
     media_intelligence = None
@@ -473,6 +481,9 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         brand_safety_result = final_state.get("brand_safety_result")
         ab_test_result = final_state.get("ab_test_result")
         
+        tracker.end_phase("total_workflow")
+        performance_metrics = metrics_service.finalize(job_id)
+        
         await update_status(
             job_id, 
             "complete", 
@@ -482,7 +493,8 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
             qc_result=qc_result,
             director_plan=director_plan,
             brand_safety_result=brand_safety_result,
-            ab_test_result=ab_test_result
+            ab_test_result=ab_test_result,
+            performance_metrics=performance_metrics
         )
         publish_progress(job_id, "complete", completion_msg, 100, user_id=user_id)
         print(f"[Workflow v4] Job {job_id} complete!")
@@ -505,7 +517,8 @@ async def update_status(
     qc_result: dict | None = None,
     director_plan: dict | None = None,
     brand_safety_result: dict | None = None,
-    ab_test_result: dict | None = None
+    ab_test_result: dict | None = None,
+    performance_metrics: dict | None = None
 ):
     async with SessionLocal() as session:
         job = await session.get(Job, job_id)
@@ -530,5 +543,7 @@ async def update_status(
                 job.brand_safety_result = brand_safety_result
             if ab_test_result:
                 job.ab_test_result = ab_test_result
+            if performance_metrics:
+                job.performance_metrics = performance_metrics
                 
             await session.commit()
