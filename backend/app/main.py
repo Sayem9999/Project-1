@@ -288,10 +288,10 @@ app.add_middleware(
         "https://project-1-alpha-three.vercel.app",
         "https://desktop-ajdgsgd.tail4e4049.ts.net"
     ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    # For Private Network Access (PNA), we need to tell the browser it's okay.
     expose_headers=["Access-Control-Allow-Private-Network"]
 )
 

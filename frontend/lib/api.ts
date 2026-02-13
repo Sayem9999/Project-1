@@ -196,10 +196,17 @@ export async function apiFetch(path: string, options: ApiOptions = {}): Promise<
 export async function apiRequest<T = any>(path: string, options: ApiOptions = {}): Promise<T> {
   const res = await apiFetch(path, options);
   const contentType = res.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    return (await res.json()) as T;
+
+  const text = await res.text();
+  if (contentType.includes("application/json") && text) {
+    try {
+      return JSON.parse(text) as T;
+    } catch (e) {
+      console.error("[API] JSON Parse Error:", e, "Raw:", text);
+      return {} as T;
+    }
   }
-  return (await res.text()) as T;
+  return text as unknown as T;
 }
 
 type UploadOptions = {

@@ -20,7 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {mounted && <Sidebar />}
 
             {/* Main Content Area - Dynamic Padding */}
-            <div className={`relative z-10 min-h-screen flex flex-col transition-all duration-300 ${mounted ? 'pl-0 md:pl-72 pb-24 md:pb-0' : 'opacity-0'}`}>
+            <div className={`relative z-10 min-h-screen flex flex-col transition-all duration-500 ${mounted ? 'pl-0 md:pl-72 pb-24 md:pb-0' : 'pl-0'}`}>
                 <TopBar />
                 <main className="flex-1 px-4 md:px-8 py-6">
                     {children}

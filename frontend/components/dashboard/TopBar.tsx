@@ -12,6 +12,12 @@ export default function TopBar() {
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [clock, setClock] = useState<string>('');
     const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
+    const [localOnly, setLocalOnly] = useState<boolean>(false);
+
+    useEffect(() => {
+        const stored = localStorage.getItem('local_only_mode');
+        if (stored === 'true') setLocalOnly(true);
+    }, []);
 
     const segments = pathname.split('/').filter(Boolean);
 
@@ -93,6 +99,21 @@ export default function TopBar() {
                         <span className="text-gray-400 uppercase tracking-widest font-bold">API</span>
                     </div>
                     <span className="font-mono text-gray-300">{clock}</span>
+                </div>
+
+                {/* Local Mode Toggle */}
+                <div className="flex items-center gap-3 px-3 py-1.5 rounded-full glass-md border-white/5 h-9">
+                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-tighter">Local Only</span>
+                    <button
+                        onClick={() => {
+                            const newState = !localOnly;
+                            setLocalOnly(newState);
+                            localStorage.setItem('local_only_mode', String(newState));
+                        }}
+                        className={`w-8 h-4 rounded-full relative transition-colors duration-300 ${localOnly ? 'bg-brand-cyan' : 'bg-white/10'}`}
+                    >
+                        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-300 shadow-sm ${localOnly ? 'left-4' : 'left-0.5'}`} />
+                    </button>
                 </div>
 
                 {/* Credits - Visible on most screens */}

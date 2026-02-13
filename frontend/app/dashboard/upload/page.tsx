@@ -21,6 +21,11 @@ export default function UploadPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<MediaIntelligence | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [settings, setSettings] = useState({
     theme: 'cinematic',
@@ -141,6 +146,8 @@ export default function UploadPage() {
       setStarting(false);
     }
   };
+
+  if (!mounted) return null;
 
   return (
     <div className="flex flex-col xl:flex-row gap-8 xl:gap-12 min-h-[calc(100vh-14rem)] pb-20 px-2 md:px-0">
