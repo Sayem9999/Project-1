@@ -140,7 +140,7 @@ async def upload_video(
         brand_safety=brand_safety,
         idempotency_key=idempotency_key,
         media_intelligence=parsed_intel,
-        start_immediately=False,
+        start_immediately=True,
     )
     await session.refresh(job)
     
@@ -382,10 +382,14 @@ async def enqueue_job(
     if USE_CELERY:
         try:
             from ..tasks.video_tasks import process_video_task
-            task = process_video_task.apply_async(
+            
+            # Using asyncio.to_thread to prevent blocking the event loop
+            task = await asyncio.to_thread(
+                process_video_task.apply_async,
                 args=[job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety],
-                queue=queue_name,
+                queue=queue_name
             )
+            
             short_id = task.id[:8] if task and task.id else "unknown"
             job.progress_message = f"Queued for worker pickup (task {short_id})."
             print(f"[Job] Enqueued job_id={job.id} task_id={task.id} queue={queue_name}")
