@@ -31,7 +31,7 @@ class User(Base):
     monthly_credits: Mapped[int] = mapped_column(Integer, default=10)
     last_credit_reset: Mapped[date] = mapped_column(Date, nullable=True)
     is_admin: Mapped[bool] = mapped_column(default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     # Relationships
     # jobs = relationship("Job", back_populates="user")
@@ -45,7 +45,7 @@ class Job(Base):
     source_path: Mapped[str] = mapped_column(Text, nullable=False)
     output_path: Mapped[str] = mapped_column(Text, nullable=True)
     thumbnail_path: Mapped[str] = mapped_column(Text, nullable=True)
-    status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.queued, nullable=False)
+    status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.queued, nullable=False, index=True)
     theme: Mapped[str] = mapped_column(String, default="professional", nullable=False)
     tier: Mapped[str] = mapped_column(String(50), default="standard", nullable=False)
     credits_cost: Mapped[int] = mapped_column(Integer, default=1)
@@ -57,14 +57,6 @@ class Job(Base):
     brand_safety: Mapped[str] = mapped_column(String(50), default="standard", nullable=False)
     cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False)
     progress_message: Mapped[str] = mapped_column(Text, default="Upload complete, waiting for processing.")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Phase 5 Fields
-    media_intelligence: Mapped[dict] = mapped_column(JSON, nullable=True)
-    qc_result: Mapped[dict] = mapped_column(JSON, nullable=True)
-    director_plan: Mapped[dict] = mapped_column(JSON, nullable=True)
-    brand_safety_result: Mapped[dict] = mapped_column(JSON, nullable=True)
     ab_test_result: Mapped[dict] = mapped_column(JSON, nullable=True)
 
     # Relationships (if needed in future)
@@ -82,7 +74,7 @@ class CreditLedger(Base):
     reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     source: Mapped[str] = mapped_column(String(50), default="system", nullable=False)
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
 class ProcessedWebhook(Base):

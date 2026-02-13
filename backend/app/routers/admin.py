@@ -311,74 +311,75 @@ async def admin_force_retry_job(
     )
     return {"status": "ok", "job_id": job.id, "forced": True}
 
+# --- Admin Dashboard Caching ---
+_STATS_CACHE = None
+_STATS_CACHE_TIME = 0.0
+_HEALTH_CACHE = None
+_HEALTH_CACHE_TIME = 0.0
+
 @router.get("/stats")
 async def get_admin_stats(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
     if not current_user.is_admin:
-        from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Admin permissions required")
 
-    # Total Users
-    user_count = (await session.execute(select(func.count(User.id)))).scalar() or 0
-    
-    # Total Jobs
-    job_count = (await session.execute(select(func.count(Job.id)))).scalar() or 0
-    
-    # Jobs in last 24h
-    one_day_ago = datetime.utcnow() - timedelta(days=1)
-    recent_jobs = (await session.execute(
-        select(func.count(Job.id)).where(Job.created_at >= one_day_ago)
-    )).scalar() or 0
+    # 1-minute global cache for stats to prevent rapid-fire DB pressure
+    global _STATS_CACHE, _STATS_CACHE_TIME
+    now = time.time()
+    if _STATS_CACHE and (now - _STATS_CACHE_TIME < 60):
+        return _STATS_CACHE
 
-    # Active users in last 24h
-    active_users = (await session.execute(
-        select(func.count(func.distinct(Job.user_id))).where(Job.created_at >= one_day_ago)
-    )).scalar() or 0
+    try:
+        # Wrap the whole stats collection in a 10s timeout to prevent API hangs
+        async def fetch_stats():
+            # Total counts are fast with indices
+            user_count = (await session.execute(select(func.count(User.id)))).scalar() or 0
+            job_count = (await session.execute(select(func.count(Job.id)))).scalar() or 0
+            
+            one_day_ago = datetime.utcnow() - timedelta(days=1)
+            recent_jobs = (await session.execute(
+                select(func.count(Job.id)).where(Job.created_at >= one_day_ago)
+            )).scalar() or 0
+            active_users = (await session.execute(
+                select(func.count(func.distinct(Job.user_id))).where(Job.created_at >= one_day_ago)
+            )).scalar() or 0
 
-    # Trend data (last 7 days)
-    start_date = datetime.utcnow().date() - timedelta(days=6)
-    
-    # Run aggregation queries sequentially on the same session
-    jobs_by_day = await session.execute(
-        select(func.date(Job.created_at), func.count(Job.id))
-        .where(Job.created_at >= start_date)
-        .group_by(func.date(Job.created_at))
-        .order_by(func.date(Job.created_at))
-    )
-    failures_by_day = await session.execute(
-        select(func.date(Job.created_at), func.count(Job.id))
-        .where(Job.created_at >= start_date, Job.status == "failed")
-        .group_by(func.date(Job.created_at))
-        .order_by(func.date(Job.created_at))
-    )
-    users_by_day = await session.execute(
-        select(func.date(User.created_at), func.count(User.id))
-        .where(User.created_at >= start_date)
-        .group_by(func.date(User.created_at))
-        .order_by(func.date(User.created_at))
-    )
-    
-    # Storage Stats
-    storage_stats = await asyncio.to_thread(storage_service.get_storage_usage)
-    
-    return {
-        "users": {
-            "total": user_count,
-            "active_24h": active_users
-        },
-        "jobs": {
-            "total": job_count,
-            "recent_24h": recent_jobs
-        },
-        "storage": storage_stats,
-        "trends": {
-            "jobs_by_day": [{"date": str(row[0]), "count": row[1]} for row in jobs_by_day.all()],
-            "failures_by_day": [{"date": str(row[0]), "count": row[1]} for row in failures_by_day.all()],
-            "users_by_day": [{"date": str(row[0]), "count": row[1]} for row in users_by_day.all()],
-        }
-    }
+            # Trend data (last 7 days)
+            start_date = datetime.utcnow().date() - timedelta(days=6)
+            
+            jobs_by_day = await session.execute(
+                select(func.date(Job.created_at), func.count(Job.id))
+                .where(Job.created_at >= start_date)
+                .group_by(func.date(Job.created_at))
+                .order_by(func.date(Job.created_at))
+            )
+            
+            # Storage is cached inside storage_service, so this should be fast
+            storage_stats = await asyncio.to_thread(storage_service.get_storage_usage)
+            
+            return {
+                "users": {"total": user_count, "active_24h": active_users},
+                "jobs": {"total": job_count, "recent_24h": recent_jobs},
+                "storage": storage_stats,
+                "trends": {
+                    "jobs_by_day": [{"date": str(row[0]), "count": row[1]} for row in jobs_by_day.all()],
+                }
+            }
+
+        stats = await asyncio.wait_for(fetch_stats(), timeout=10.0)
+        _STATS_CACHE = stats
+        _STATS_CACHE_TIME = now
+        return stats
+        
+    except asyncio.TimeoutError:
+        # If DB is truly locked or slow, return cached or partial data
+        if _STATS_CACHE: return _STATS_CACHE
+        return {"error": "Stats timeout", "status": "degraded"}
+    except Exception as e:
+        print(f"[Admin] Stats Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch stats")
 
 
 @router.get("/health")
@@ -387,50 +388,47 @@ async def get_admin_health(
     current_user: User = Depends(get_current_user)
 ):
     if not current_user.is_admin:
-        from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Admin permissions required")
 
-    health: dict = {}
+    # 30-second global cache for health status
+    global _HEALTH_CACHE, _HEALTH_CACHE_TIME
+    now = time.time()
+    if _HEALTH_CACHE and (now - _HEALTH_CACHE_TIME < 30):
+        return _HEALTH_CACHE
 
-    # DB health
-    try:
-        await session.execute(select(1))
-        health["db"] = {"reachable": True}
-    except Exception as e:
-        health["db"] = {"reachable": False, "error": str(e)}
+    health: dict = {"timestamp": datetime.utcnow().isoformat()}
 
-    # Redis health
-    if settings.redis_url:
+    async def check_health():
+        # DB health (fail fast)
         try:
-            import redis.asyncio as redis  # type: ignore
-            start = time.perf_counter()
-            client = redis.from_url(settings.redis_url, decode_responses=True)
-            pong = await client.ping()
-            await client.close()
-            latency_ms = int((time.perf_counter() - start) * 1000)
-            health["redis"] = {"configured": True, "reachable": bool(pong), "latency_ms": latency_ms}
-        except Exception as e:
-            health["redis"] = {"configured": True, "reachable": False, "error": str(e)}
-    else:
-        health["redis"] = {"configured": False, "reachable": False}
+            await asyncio.wait_for(session.execute(select(1)), timeout=2.0)
+            health["db"] = {"reachable": True}
+        except:
+            health["db"] = {"reachable": False}
 
-    # Run diagnostic checks in parallel
-    celery_task = asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=1.0)
-    storage_task = asyncio.to_thread(storage_service.get_storage_usage)
-    integrations_task = asyncio.to_thread(get_integration_health, run_probe=False)
-    
-    # We await these in parallel to avoid stacking timeouts
-    celery_res, storage_res, integrations_res = await asyncio.gather(
-        celery_task, storage_task, integrations_task
-    )
+        # Parallelize heavy external checks
+        celery_task = asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=1.0)
+        storage_task = asyncio.to_thread(storage_service.get_storage_usage)
+        integrations_task = asyncio.to_thread(get_integration_health, run_probe=False)
+        
+        celery_res, storage_res, integrations_res = await asyncio.gather(
+            celery_task, storage_task, integrations_task, return_exceptions=True
+        )
 
-    health["celery"] = celery_res
-    health["storage"] = storage_res
-    health["integrations"] = integrations_res
-    health["llm"] = get_llm_health_summary()
-    health["cleanup"] = get_cleanup_status()
+        health["celery"] = celery_res if not isinstance(celery_res, Exception) else {"error": "timeout"}
+        health["storage"] = storage_res if not isinstance(storage_res, Exception) else {"error": "lookup failed"}
+        health["integrations"] = integrations_res if not isinstance(integrations_res, Exception) else {"error": "lookup failed"}
+        health["llm"] = get_llm_health_summary()
+        health["cleanup"] = get_cleanup_status()
+        return health
 
-    return health
+    try:
+        results = await asyncio.wait_for(check_health(), timeout=12.0)
+        _HEALTH_CACHE = results
+        _HEALTH_CACHE_TIME = now
+        return results
+    except asyncio.TimeoutError:
+        return {"status": "degraded", "error": "Health check timed out"}
 
 
 @router.get("/integrations/health")
