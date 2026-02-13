@@ -13,8 +13,10 @@ export default function TopBar() {
     const [clock, setClock] = useState<string>('');
     const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
     const [localOnly, setLocalOnly] = useState<boolean>(false);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
         const stored = localStorage.getItem('local_only_mode');
         if (stored === 'true') setLocalOnly(true);
     }, []);
@@ -22,6 +24,7 @@ export default function TopBar() {
     const segments = pathname.split('/').filter(Boolean);
 
     useEffect(() => {
+        if (!mounted) return;
         const fetchCredits = async () => {
             try {
                 const data = await apiRequest<{ credits?: number; full_name?: string; email?: string; avatar_url?: string }>(
@@ -73,6 +76,8 @@ export default function TopBar() {
         const interval = window.setInterval(checkHealth, 30000);
         return () => { cancelled = true; window.clearInterval(interval); };
     }, []);
+
+    if (!mounted) return <header className="h-20" />;
 
     return (
         <header className="h-20 flex items-center justify-between px-4 md:px-8 z-40 relative">

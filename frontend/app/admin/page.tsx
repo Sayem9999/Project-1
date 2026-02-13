@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Activity, HardDrive, LayoutDashboard, Shield, Users, Video, Edit2, RefreshCw, Search, ArrowLeft, Database, Server, HeartPulse, Network, Wrench, CreditCard, ChevronRight, Sparkles } from 'lucide-react';
+import { Activity, HardDrive, LayoutDashboard, Shield, Users, Video, Edit2, RefreshCw, Search, ArrowLeft, Database, Server, HeartPulse, Network, Wrench, CreditCard, ChevronRight, Sparkles, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import * as Sentry from '@sentry/nextjs';
@@ -370,11 +370,11 @@ export default function AdminDashboardPage() {
       {/* Premium Stat Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
         {[
-          { icon: Users, title: "Total Fleet", value: stats?.users.total ?? 0, sub: "Registered Entities", color: "cyan" },
-          { icon: Activity, title: "Active Pulse", value: stats?.users.active_24h ?? 0, sub: "Last 24h Engagement", color: "emerald" },
-          { icon: Video, title: "Pipeline Volume", value: stats?.jobs.total ?? 0, sub: `+${stats?.jobs.recent_24h ?? 0} New Exports`, color: "violet" },
-          { icon: Wrench, title: "Active Threads", value: jobs.filter(j => j.status === 'processing').length, sub: `${jobs.filter(j => j.status === 'failed').length} Error States`, color: "brand" },
-          { icon: HardDrive, title: "Storage Index", value: `${stats?.storage.percent ?? 0}%`, sub: `${stats?.storage.used_gb ?? 0}GB Utilized`, color: "amber", progress: stats?.storage.percent },
+          { icon: Users, title: "Total Fleet", value: stats?.users?.total ?? 0, sub: "Registered Entities", color: "cyan" },
+          { icon: Activity, title: "Active Pulse", value: stats?.users?.active_24h ?? 0, sub: "Last 24h Engagement", color: "emerald" },
+          { icon: Video, title: "Pipeline Volume", value: stats?.jobs?.total ?? 0, sub: `+${stats?.jobs?.recent_24h ?? 0} New Exports`, color: "violet" },
+          { icon: Wrench, title: "Active Threads", value: jobs.filter(j => j.status === 'processing').length, sub: `${jobs.filter(j => j.status === 'failed').length} Error States`, color: "violet" }, // 'brand' mapped to 'violet'
+          { icon: HardDrive, title: "Storage Index", value: `${stats?.storage?.percent ?? 0}%`, sub: `${stats?.storage?.used_gb ?? 0}GB Utilized`, color: "amber", progress: stats?.storage?.percent },
         ].map((s, i) => (
           <StatCard key={i} icon={s.icon} title={s.title} value={s.value} subtext={s.sub} color={s.color as any} progress={s.progress} />
         ))}
@@ -398,10 +398,10 @@ export default function AdminDashboardPage() {
                   <Database className="w-4 h-4 text-brand-cyan" /> Persistence Layer
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className={`text-sm font-black uppercase tracking-widest ${health.db.reachable ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {health.db.reachable ? 'Online_Reachable' : 'Persistent_Fail'}
+                  <span className={`text-sm font-black uppercase tracking-widest ${health?.db?.reachable ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {health?.db?.reachable ? 'Online_Reachable' : 'Persistent_Fail'}
                   </span>
-                  <div className={`w-2 h-2 rounded-full ${health.db.reachable ? 'bg-emerald-400' : 'bg-red-400'} shadow-[0_0_10px_rgba(52,211,153,0.5)]`} />
+                  <div className={`w-2 h-2 rounded-full ${health?.db?.reachable ? 'bg-emerald-400' : 'bg-red-400'} shadow-[0_0_10px_rgba(52,211,153,0.5)]`} />
                 </div>
               </div>
               <div className="p-5 rounded-[24px] bg-white/[0.03] border border-white/5 hover:border-white/10 transition-colors">
@@ -409,10 +409,10 @@ export default function AdminDashboardPage() {
                   <Server className="w-4 h-4 text-brand-violet" /> Cache Orchestrator
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className={`text-sm font-black uppercase tracking-widest ${health.redis.reachable ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {health.redis.configured ? (health.redis.reachable ? 'Redis_Active' : 'Broker_Hang') : 'Void_Config'}
+                  <span className={`text-sm font-black uppercase tracking-widest ${health?.redis?.reachable ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {health?.redis?.configured ? (health?.redis?.reachable ? 'Redis_Active' : 'Broker_Hang') : 'Void_Config'}
                   </span>
-                  <div className={`w-2 h-2 rounded-full ${health.redis.reachable ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                  <div className={`w-2 h-2 rounded-full ${health?.redis?.reachable ? 'bg-emerald-400' : 'bg-red-400'}`} />
                 </div>
               </div>
             </div>
@@ -707,10 +707,4 @@ export default function AdminDashboardPage() {
   );
 }
 
-function AlertCircle({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  )
-}
+// SVG defined above, lucide-react import fixed at top

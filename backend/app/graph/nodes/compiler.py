@@ -31,7 +31,15 @@ async def compiler_node(state: GraphState) -> GraphState:
     cuts = state.get("cuts", [])
     tier = state.get("tier", "standard")
     user_id = state.get("user_id")
+    srt_path = state.get("srt_path")
     
+    # Escape path for FFmpeg subtitles filter
+    # On Windows, 'C:\path\to\file' must become 'C\\:\\/path\\/to\\/file'
+    sub_filter = ""
+    if srt_path:
+        escaped_srt = str(Path(srt_path).absolute()).replace("\\", "/").replace(":", "\\:")
+        sub_filter = f"subtitles='{escaped_srt}'"
+
     # 1. Attempt Modal Offloading (GPU)
     from ...services.modal_service import modal_service
     from ...services.workflow_engine import publish_progress
@@ -44,7 +52,7 @@ async def compiler_node(state: GraphState) -> GraphState:
             cuts=cuts,
             fps=24,
             crf=18 if tier == "pro" else 23,
-            vf_filters=None,
+            vf_filters=sub_filter if sub_filter else None,
             af_filters=None
         )
         if modal_output:
@@ -110,6 +118,11 @@ async def compiler_node(state: GraphState) -> GraphState:
                 print(f"Audio Enhancement Failed: {ae}")
             # -------------------------
 
+            # Build FFmpeg parameters
+            ffmpeg_params = ["-crf", "18" if tier == "pro" else "23"]
+            if sub_filter:
+                ffmpeg_params.extend(["-vf", sub_filter])
+
             # Render
             final_video.write_videofile(
                 str(abs_output), 
@@ -118,7 +131,7 @@ async def compiler_node(state: GraphState) -> GraphState:
                 threads=4,
                 fps=24,
                 preset="medium",
-                ffmpeg_params=["-crf", "18" if tier == "pro" else "23"],
+                ffmpeg_params=ffmpeg_params,
                 logger=None
             )
             

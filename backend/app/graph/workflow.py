@@ -16,6 +16,7 @@ from .nodes.platform import platform_node
 from .nodes.brand_safety import brand_safety_node
 from .nodes.ab_test import ab_test_node
 from .nodes.media_intelligence import media_intelligence_node
+from .nodes.subtitle import subtitle_node
 
 
 from .iteration_controller import create_iteration_node, should_revise
@@ -56,6 +57,7 @@ workflow.add_node("hook", hook_node)
 workflow.add_node("platform", platform_node)
 workflow.add_node("brand_safety", brand_safety_node)
 workflow.add_node("ab_test", ab_test_node)
+workflow.add_node("subtitle", subtitle_node)
 
 # Define Edges
 workflow.set_entry_point("media_intelligence")
@@ -70,9 +72,12 @@ workflow.add_edge("cutter", "visuals")
 # Visuals -> Hook
 workflow.add_edge("visuals", "hook")
 
-# Join: (Audio, Hook) -> Validator
-workflow.add_edge("audio", "validator")
-workflow.add_edge("hook", "validator")
+# Join: (Audio, Hook) -> Subtitle
+workflow.add_edge("audio", "subtitle")
+workflow.add_edge("hook", "subtitle")
+
+# Subtitle -> Validator
+workflow.add_edge("subtitle", "validator")
 
 # Validator -> Brand Safety
 workflow.add_edge("validator", "brand_safety")

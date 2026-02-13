@@ -76,10 +76,13 @@ export default function UploadPage() {
     setAnalyzing(true);
     setAnalysisProgress(0);
     try {
+      await ffmpegAnalyzer.load().catch(e => console.error("FFmpeg load fail:", e));
       const result = await ffmpegAnalyzer.analyze(videoFile, (p) => setAnalysisProgress(p));
       setAnalysisResult(result);
     } catch (err) {
       console.error('Analysis failed:', err);
+      // Fallback: Don't block upload if analysis fails
+      setAnalyzing(false);
     } finally {
       setAnalyzing(false);
     }

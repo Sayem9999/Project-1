@@ -1,0 +1,11 @@
+{
+    "run": [
+        {
+            "method": "shell.run",
+            "params": {
+                "message": "..\\.venv\\Scripts\\python pro_e2e_check.py",
+                "path": "scripts"
+            }
+        }
+    ]
+}

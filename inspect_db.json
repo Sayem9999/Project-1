@@ -1,0 +1,11 @@
+{
+    "run": [
+        {
+            "method": "shell.run",
+            "params": {
+                "message": "..\\.venv\\Scripts\\python inspect_db.py",
+                "path": "scripts"
+            }
+        }
+    ]
+}

@@ -73,7 +73,7 @@ def publish_progress(job_id: int, status: str, message: str, progress: int = 0, 
     try:
         import redis
         # Handle SSL for Upstash (rediss://)
-        r = redis.from_url(REDIS_URL, decode_responses=True)
+        r = redis.from_url(REDIS_URL, decode_responses=True, socket_timeout=2, socket_connect_timeout=2)
         data = json.dumps({
             "job_id": job_id,
             "status": status,
@@ -220,6 +220,20 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             vfx_data = results[4] if not isinstance(results[4], Exception) else None
             script_data = results[5] if not isinstance(results[5], Exception) else None
             
+            # --- PHASE 3.5: Subtitles (New) ---
+            srt_path = None
+            try:
+                sub_resp = await subtitle_agent.run({"source_path": source_path})
+                srt_content = sub_resp.get("raw_response", "") if isinstance(sub_resp, dict) else ""
+                if srt_content:
+                    srt_tmp = Path(settings.storage_root) / "outputs" / f"job-{job_id}.srt"
+                    srt_tmp.parent.mkdir(parents=True, exist_ok=True)
+                    with open(srt_tmp, "w", encoding="utf-8") as f:
+                        f.write(srt_content)
+                    srt_path = srt_tmp
+            except Exception as se:
+                print(f"[Workflow] Subtitle generation failed: {se}")
+
             # Normalize agent outputs (can be Pydantic or raw dict)
             vfx_res = normalize_agent_result(vfx_data)
             transition_res = normalize_agent_result(transition_data)
@@ -242,6 +256,11 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             for effect in vfx_res.get("effects", []):
                 if isinstance(effect, dict) and "filter" in effect:
                     vf_filters.append(effect["filter"])
+            
+            if srt_path:
+                escaped_srt = str(srt_path.absolute()).replace("\\", "/").replace(":", "\\:")
+                vf_filters.append(f"subtitles='{escaped_srt}'")
+            
             watermark_text = "Proedit.ai (Free)"
             vf_filters.append(f"drawtext=text='{watermark_text}':fontsize=24:fontcolor=white@0.5:x=w-tw-20:y=h-th-20")
             
@@ -259,7 +278,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                     cuts=cutter_data.get("cuts", []) if isinstance(cutter_data, dict) else [],
                     fps=24,
                     crf=23,
-                    vf_filters=vf,
+                    vf_filters=",".join(vf_filters),
                     af_filters=af
                 )
                 if modal_output:
@@ -283,7 +302,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                     else:
                         cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "20"]
             
-                    cmd += ["-vf", vf, "-af", af, "-threads", "4", str(output_abs)]
+                    cmd += ["-vf", ",".join(vf_filters), "-af", af, "-threads", "4", str(output_abs)]
                     proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
                     await proc.communicate()
                 
@@ -332,14 +351,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             if thumb_path.exists():
                 final_thumb_rel_path = f"storage/outputs/job-{job_id}-thumb.jpg"
         
-        # Subtitles (Use existing logic)
-        try:
-            sub_resp = await subtitle_agent.run({"source_path": source_path})
-            srt_content = sub_resp.get("raw_response", "") if isinstance(sub_resp, dict) else ""
-            if srt_content:
-                srt_path = Path(settings.storage_root) / "outputs" / f"job-{job_id}.srt"
-                with open(srt_path, "w", encoding="utf-8") as f: f.write(srt_content)
-        except: pass
+        # Post-Production Logic Removed (Subtitles handled in Phase 3.5/4)
 
         # Final output
         final_rel_path = f"storage/outputs/job-{job_id}.mp4"

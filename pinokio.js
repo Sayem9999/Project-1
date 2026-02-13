@@ -38,6 +38,14 @@ module.exports = {
       href: "update.json"
     },
     {
+      html: '<i class="fa-solid fa-vial text-purple-400"></i> <b>Professional E2E Check</b>',
+      href: "pro_e2e.json"
+    },
+    {
+      html: '<i class="fa-solid fa-database text-yellow-500"></i> Database Audit (Live)',
+      href: "inspect_db.json"
+    },
+    {
       html: '<i class="fa-solid fa-gear"></i> System Diagnostics',
       href: "backend/.env"
     }
