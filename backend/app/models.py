@@ -57,6 +57,14 @@ class Job(Base):
     brand_safety: Mapped[str] = mapped_column(String(50), default="standard", nullable=False)
     cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False)
     progress_message: Mapped[str] = mapped_column(Text, default="Upload complete, waiting for processing.")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Phase 5 Fields
+    media_intelligence: Mapped[dict] = mapped_column(JSON, nullable=True)
+    qc_result: Mapped[dict] = mapped_column(JSON, nullable=True)
+    director_plan: Mapped[dict] = mapped_column(JSON, nullable=True)
+    brand_safety_result: Mapped[dict] = mapped_column(JSON, nullable=True)
     ab_test_result: Mapped[dict] = mapped_column(JSON, nullable=True)
 
     # Relationships (if needed in future)

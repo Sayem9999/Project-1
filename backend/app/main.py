@@ -86,10 +86,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("startup_cleanup_failed", error=str(e))
 
-    # Schedule background tasks - DISABLED FOR DEBUGGING HANG
-    # from .tasks.cleanup import run_cleanup_task
-    # asyncio.create_task(periodic_cleanup_wrapper(run_cleanup_task))
-    # asyncio.create_task(periodic_introspection_wrapper())
+    # Ensure DB indices for admin dashboard performance
+    try:
+        from sqlalchemy import text
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_created_at ON jobs (created_at)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_status ON jobs (status)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_created_at ON users (created_at)"))
+        logger.info("startup_indices_verified")
+    except Exception as e:
+        logger.error("startup_indices_failed", error=str(e))
+
+    # Start Admin Cache (zero-wait dashboard)
+    from .services.admin_cache import refresh_admin_data
+    asyncio.create_task(refresh_admin_data())
     
     logger.info("startup_ready")
     yield
