@@ -2,8 +2,20 @@ from ..state import GraphState
 from pathlib import Path
 import os
 # Configure MoviePy to use the correct FFmpeg binary (v2.0+ compatible)
-FFMPEG_BINARY = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe"
-if os.path.exists(FFMPEG_BINARY):
+def _resolve_ffmpeg():
+    ext = ".exe" if os.name == 'nt' else ""
+    paths_to_check = [
+        f"tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg{ext}",
+        f"../tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg{ext}",
+        f"../../tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg{ext}"
+    ]
+    for p in paths_to_check:
+        if os.path.exists(p):
+            return os.path.abspath(p)
+    return "ffmpeg"
+
+FFMPEG_BINARY = _resolve_ffmpeg()
+if FFMPEG_BINARY != "ffmpeg":
     os.environ["IMAGEIO_FFMPEG_EXE"] = FFMPEG_BINARY
 
 from ...services.concurrency import limits

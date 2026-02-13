@@ -15,7 +15,7 @@ async def visuals_node(state: GraphState) -> GraphState:
     if not plan:
         return {"errors": ["Visuals node missing plan"]}
 
-    from ..agents.base import parse_json_response
+    from ...agents.base import parse_json_response
 
     # Run Color and VFX in parallel
     async def run_color():

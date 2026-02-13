@@ -1,11 +1,30 @@
-from pydub import AudioSegment, effects
 import os
+import sys
 
-# Set FFmpeg path for pydub
-FFMPEG_BINARY = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe"
-if os.path.exists(FFMPEG_BINARY):
-    AudioSegment.converter = os.path.abspath(FFMPEG_BINARY)
-    os.environ["PATH"] += os.pathsep + os.path.dirname(os.path.abspath(FFMPEG_BINARY))
+# Standardize tool resolution
+def _resolve_tool_path(tool_name: str):
+    ext = ".exe" if os.name == "nt" else ""
+    paths = [
+        f"tools/ffmpeg-8.0.1-essentials_build/bin/{tool_name}{ext}",
+        f"../tools/ffmpeg-8.0.1-essentials_build/bin/{tool_name}{ext}",
+        f"../../tools/ffmpeg-8.0.1-essentials_build/bin/{tool_name}{ext}"
+    ]
+    for p in paths:
+        if os.path.exists(p):
+            return os.path.abspath(p)
+    return tool_name
+
+FFMPEG_PATH = _resolve_tool_path("ffmpeg")
+FFPROBE_PATH = _resolve_tool_path("ffprobe")
+
+# Inject into environment before importing pydub
+if FFMPEG_PATH != "ffmpeg":
+    os.environ["PATH"] = os.path.dirname(FFMPEG_PATH) + os.pathsep + os.environ.get("PATH", "")
+
+from pydub import AudioSegment, effects
+if FFMPEG_PATH != "ffmpeg":
+    AudioSegment.converter = FFMPEG_PATH
+    AudioSegment.ffprobe = FFPROBE_PATH
 
 class AudioService:
     @staticmethod
