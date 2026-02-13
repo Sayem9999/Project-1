@@ -191,7 +191,7 @@ class MediaAnalyzer:
                 channels=int(audio_stream.get("channels", 0)) if audio_stream else None
             )
             
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, Exception):
             logger.error("ffprobe_timeout")
             return None
         except Exception as e:
@@ -256,7 +256,7 @@ class MediaAnalyzer:
             logger.info("scene_detection_native_complete", scene_count=len(scenes))
             return scenes
             
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, Exception):
             logger.error("scene_detection_timeout", timeout=600)
             return []
         except Exception as e:

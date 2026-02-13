@@ -1,0 +1,11 @@
+{
+    "run": [
+        {
+            "method": "shell.run",
+            "params": {
+                "path": "backend",
+                "message": "powershell -ExecutionPolicy Bypass -File .\\check_ollama.ps1"
+            }
+        }
+    ]
+}

@@ -154,6 +154,7 @@ class AudioIntelligence:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
+            # Use wait_for for Python 3.10 compatibility instead of asyncio.timeout
             _, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
             
             # Parse loudnorm output from stderr
@@ -171,7 +172,7 @@ class AudioIntelligence:
                 }
             return None
             
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, Exception):
             logger.warning("loudness_analysis_timeout")
             return None
         except Exception as e:
@@ -216,6 +217,7 @@ class AudioIntelligence:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
+            # Use wait_for for Python 3.10 compatibility instead of asyncio.timeout
             _, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
             
             regions = []
@@ -244,7 +246,7 @@ class AudioIntelligence:
             
             return regions
             
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, Exception):
             logger.warning("silence_detection_timeout")
             return []
         except Exception as e:

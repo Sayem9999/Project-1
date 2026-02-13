@@ -272,12 +272,19 @@ async def ready() -> dict[str, str]:
 
 app.add_middleware(
     CORSMiddleware,
-    # We use bearer tokens (Authorization header), not cookie auth.
-    # Wildcard origin avoids proxy/funnel origin-matching edge cases.
-    allow_origins=["*"],
-    allow_credentials=False,
+    # Explicitly include the Vercel frontend and Tailscale node to ensure reliable CORS mapping.
+    # While ["*"] is generally permissive, specific origins help with credentialed requests
+    # and certain strict browser contexts (like PNA).
+    allow_origins=[
+        "http://localhost:3000",
+        "https://project-1-alpha-three.vercel.app",
+        "https://desktop-ajdgsgd.tail4e4049.ts.net"
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # For Private Network Access (PNA), we need to tell the browser it's okay.
+    expose_headers=["Access-Control-Allow-Private-Network"]
 )
 
 app.add_middleware(PrivateNetworkAccessMiddleware)

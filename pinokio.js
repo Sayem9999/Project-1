@@ -4,35 +4,41 @@ module.exports = {
   icon: "icon.png",
   menu: [
     {
-      html: '<i class="fa-solid fa-play"></i> Start Proedit Hub (All)',
+      html: '<i class="fa-solid fa-play text-green-400"></i> <b>Start Proedit Hub (Full Stack)</b>',
       href: "start.json"
     },
     {
-      html: '<i class="fa-solid fa-desktop"></i> Start Frontend Only',
+      html: '<i class="fa-solid fa-robot text-cyan-400"></i> Check AI Readiness (Ollama)',
+      href: "ollama.json"
+    },
+    {
+      html: '<hr>'
+    },
+    {
+      html: '<i class="fa-solid fa-desktop"></i> Start Frontend (Dev Mode)',
       href: "frontend.json"
     },
     {
-      html: '<i class="fa-solid fa-server"></i> Start API Only',
+      html: '<i class="fa-solid fa-server"></i> Start API Server',
       href: "api.json"
     },
     {
-      html: '<i class="fa-solid fa-robot"></i> Start Worker Only',
+      html: '<i class="fa-solid fa-microchip"></i> Start Background Worker',
       href: "worker.json"
     },
     {
-      html: '<i class="fa-solid fa-shield-halved"></i> Start Tailscale Funnel (Fixed URL)',
+      html: '<i class="fa-solid fa-shield-halved"></i> Enable Remote Access (Tailscale)',
       href: "tailscale.json"
     },
     {
-      html: '<i class="fa-solid fa-terminal"></i> Local Hosting Guide',
-      href: "LOCAL_HOSTING_GUIDE.md"
+      html: '<hr>'
     },
     {
-      html: '<i class="fa-solid fa-rotate"></i> Update Hub',
+      html: '<i class="fa-solid fa-rotate text-blue-400"></i> Update & Reinstall Dependencies',
       href: "update.json"
     },
     {
-      html: '<i class="fa-solid fa-gear"></i> View Settings',
+      html: '<i class="fa-solid fa-gear"></i> System Diagnostics',
       href: "backend/.env"
     }
   ]
