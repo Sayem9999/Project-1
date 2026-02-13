@@ -279,7 +279,7 @@ export default function UploadPage() {
                 >
                   <X className="w-6 h-6 group-hover:rotate-90 transition-transform" />
                 </button>
-                {!preview && <div className="text-white/50 font-black uppercase tracking-widest animate-pulse">Preview Loading...</div>}
+                {!file && <div className="text-white/50 font-black uppercase tracking-widest animate-pulse">Preview Loading...</div>}
               </div>
 
               <div className="p-10 bg-gradient-to-t from-obsidian-950 via-obsidian-950 to-transparent border-t border-white/5">
@@ -298,10 +298,10 @@ export default function UploadPage() {
                   <div className="flex items-center gap-4">
                     <Button
                       onClick={handleUpload}
-                      disabled={uploading || !!jobId || analyzing}
+                      disabled={uploading || !!jobId}
                       variant={jobId ? "secondary" : "primary"}
                       className="w-full md:w-auto h-20 px-20 font-black text-base uppercase tracking-[0.5em] shadow-[0_0_60px_rgba(6,182,212,0.6)] animate-in zoom-in-95 duration-500"
-                      loading={uploading || analyzing}
+                      loading={uploading}
                     >
                       {jobId ? (
                         <><CheckCircle2 className="w-5 h-5 mr-3" /> UPLOADED</>
