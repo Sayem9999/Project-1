@@ -12,7 +12,8 @@ REDIS_URL = settings.redis_url or "redis://localhost:6379/0"
 celery_app = Celery(
     "proedit",
     broker=REDIS_URL,
-    backend=REDIS_URL
+    backend=REDIS_URL,
+    include=["app.tasks.video_tasks"]
 )
 
 if REDIS_URL.startswith("rediss://"):
