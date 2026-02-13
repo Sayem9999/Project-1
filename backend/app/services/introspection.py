@@ -374,6 +374,8 @@ class IntrospectionService:
             runtime_nodes.append(("external_api:groq", "external_api", "Groq API"))
         if settings.openai_api_key:
             runtime_nodes.append(("external_api:openai", "external_api", "OpenAI API"))
+        if settings.ollama_enabled:
+            runtime_nodes.append(("external_api:ollama", "external_api", "Ollama (Local)"))
 
         for node_id, node_type, label in runtime_nodes:
             self._add_node(node_id, node_type, label)

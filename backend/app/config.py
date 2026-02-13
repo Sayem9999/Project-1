@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     llm_primary_provider: str = "gemini"
     llm_fallback_provider: str = "groq"
+    
+    # Ollama (Local LLM)
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "gemma3:1b"
+    ollama_enabled: bool = True
     password_policy: str = "basic"
     
     # OAuth - Google

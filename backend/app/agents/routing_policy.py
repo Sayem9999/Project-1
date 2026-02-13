@@ -76,6 +76,8 @@ def _provider_configured(name: str) -> bool:
         return bool(settings.gemini_api_key)
     if name == "groq":
         return bool(settings.groq_api_key)
+    if name == "ollama":
+        return settings.ollama_enabled
     return False
 
 
@@ -106,6 +108,14 @@ PROVIDERS: Dict[str, ProviderConfig] = {
         quality_tier="premium",
         avg_latency_ms=3000,
         cost_per_1k_tokens=0.15
+    ),
+    "ollama": ProviderConfig(
+        name="ollama",
+        models=[settings.ollama_model],
+        quality_tier="fast",
+        avg_latency_ms=1000,
+        cost_per_1k_tokens=0.0,  # Local
+        supports_json=True
     ),
 }
 

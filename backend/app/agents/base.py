@@ -184,6 +184,26 @@ async def run_agent_prompt(
             )
             response_text = response.choices[0].message.content
 
+        elif provider_name == "ollama":
+            import httpx
+            # Ollama standard chat endpoint
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(
+                    f"{settings.ollama_base_url}/api/chat",
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": payload_json}
+                        ],
+                        "stream": False,
+                        "format": "json" if PROVIDERS["ollama"].supports_json else None
+                    }
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                response_text = data.get("message", {}).get("content", "")
+
         if response_text:
             latency_ms = (time.time() - attempt_start) * 1000
             provider_router.record_success(provider_name, int(latency_ms))
