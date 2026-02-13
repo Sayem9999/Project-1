@@ -12,6 +12,13 @@
       }
     },
     {
+      "method": "shell.run",
+      "params": {
+        "message": "npm install",
+        "path": "frontend"
+      }
+    },
+    {
       "method": "notify",
       "params": {
         "html": "Dependencies installed successfully! 🚀"

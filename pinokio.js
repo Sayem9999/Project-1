@@ -8,6 +8,10 @@ module.exports = {
       href: "start.json"
     },
     {
+      html: '<i class="fa-solid fa-desktop"></i> Start Frontend Only',
+      href: "frontend.json"
+    },
+    {
       html: '<i class="fa-solid fa-server"></i> Start API Only',
       href: "api.json"
     },

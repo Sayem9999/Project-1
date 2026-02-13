@@ -19,6 +19,15 @@
       }
     },
     {
+      "method": "shell.run",
+      "params": {
+        "id": "frontend_app",
+        "path": "frontend",
+        "message": "npm run dev",
+        "daemon": true
+      }
+    },
+    {
       "method": "notify",
       "params": {
         "html": "<h3>Proedit Hub Initialized</h3><p>API and Worker are starting. Check shell tabs for logs.</p>"

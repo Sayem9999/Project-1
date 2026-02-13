@@ -1,0 +1,19 @@
+{
+    "run": [
+        {
+            "method": "shell.run",
+            "params": {
+                "id": "frontend_app",
+                "path": "frontend",
+                "message": "npm run dev",
+                "daemon": true
+            }
+        },
+        {
+            "method": "notify",
+            "params": {
+                "html": "<h3>Proedit UI Starting</h3><p>Frontend is starting on http://localhost:3000</p>"
+            }
+        }
+    ]
+}
