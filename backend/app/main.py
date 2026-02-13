@@ -270,6 +270,14 @@ async def api_health() -> dict[str, Any]:
 async def ready() -> dict[str, str]:
     return {"status": "ready"}
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    # Standard security headers + CORP to allow cross-origin media loading (ORB prevention)
+    response = await call_next(request)
+    response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     # Explicitly include the Vercel frontend and Tailscale node to ensure reliable CORS mapping.

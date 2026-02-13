@@ -25,9 +25,21 @@ export default function DashboardPage() {
     const [userId, setUserId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [activeView, setActiveView] = useState<'projects' | 'media'>('projects');
-    const activeCount = jobs.filter((job) => job.status === 'processing').length;
+    const [mounted, setMounted] = useState(false);
+
+    // Guard against hydration mismatches and ensure client-only data loading
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const activeCount = useMemo(() => {
+        if (!Array.isArray(jobs)) return 0;
+        return jobs.filter((job) => job?.status === 'processing').length;
+    }, [jobs]);
 
     useEffect(() => {
+        if (!mounted) return;
+
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/login');
@@ -40,51 +52,62 @@ export default function DashboardPage() {
                     apiRequest<{ id: number; full_name?: string; email?: string }>('/auth/me', { auth: true }),
                     apiRequest<Job[]>('/jobs', { auth: true })
                 ]);
-                setUserName(me.full_name || me.email || 'Creator');
-                setUserId(me.id);
-                setJobs(data);
+
+                // Safe state updates
+                setUserName(me?.full_name || me?.email || 'Creator');
+                setUserId(me?.id || null);
+                setJobs(Array.isArray(data) ? data : []);
                 setLoading(false);
-            } catch (err) {
+            } catch (err: any) {
+                console.error('[Dashboard] Load failed', err);
                 if (err instanceof ApiError && err.isAuth) {
                     clearAuth();
                     router.push('/login');
                     return;
                 }
-                setError(err instanceof ApiError ? err.message : 'Failed to load dashboard');
+                setError(err instanceof ApiError ? err.message : 'Server unreachable or offline');
                 setLoading(false);
             }
         };
 
         load();
-    }, [router]);
+    }, [router, mounted]);
 
     useEffect(() => {
-        if (!userId) return;
+        if (!userId || !mounted) return;
 
         const url = getWebSocketUrl(`/ws/user/${userId}`);
-        const ws = new WebSocket(url);
+        let ws: WebSocket | null = null;
 
-        ws.onmessage = (event) => {
-            try {
-                const payload = JSON.parse(event.data);
-                setJobs((prev) =>
-                    prev.map((j) =>
-                        j.id === payload.job_id
-                            ? {
-                                ...j,
-                                status: payload.status ?? j.status,
-                                progress_message: payload.message ?? j.progress_message,
-                            }
-                            : j
-                    )
-                );
-            } catch (e) {
-                console.error('[Dashboard] WebSocket parse error', e);
-            }
-        };
+        try {
+            ws = new WebSocket(url);
+            ws.onmessage = (event) => {
+                try {
+                    const payload = JSON.parse(event.data);
+                    setJobs((prev) => {
+                        if (!Array.isArray(prev)) return [];
+                        return prev.map((j) =>
+                            j.id === payload.job_id
+                                ? {
+                                    ...j,
+                                    status: payload.status ?? j.status,
+                                    progress_message: payload.message ?? j.progress_message,
+                                }
+                                : j
+                        );
+                    });
+                } catch (e) {
+                    console.error('[Dashboard] WebSocket parse error', e);
+                }
+            };
+        } catch (err) {
+            console.error('[Dashboard] WebSocket connection failed', err);
+        }
 
-        return () => ws.close();
-    }, [userId]);
+        return () => ws?.close();
+    }, [userId, mounted]);
+
+    if (!mounted) return null;
 
     const getStatusParams = (status: string) => {
         switch (status) {
@@ -215,26 +238,40 @@ export default function DashboardPage() {
                         </Link>
 
                         {jobs.map((job) => {
+                            if (!job) return null;
                             const status = getStatusParams(job.status);
+                            const mediaUrl = job.thumbnail_path
+                                ? (job.thumbnail_path.startsWith('http') ? job.thumbnail_path : `${API_ORIGIN}/${job.thumbnail_path}`)
+                                : (job.output_path?.startsWith('http') ? job.output_path : `${API_ORIGIN}/${job.output_path}`);
+
+                            const isVideo = mediaUrl?.toLowerCase().endsWith('.mp4');
+
                             return (
                                 <Link
                                     key={job.id}
                                     href={`/jobs/${job.id}`}
                                     className="group relative aspect-video rounded-3xl overflow-hidden bg-white/5 border border-white/5 hover:border-brand-cyan/50 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-brand-cyan/10"
                                 >
-                                    {/* Thumbnail Image */}
+                                    {/* Thumbnail Media */}
                                     <div className="absolute inset-0">
-                                        {job.thumbnail_path || job.output_path ? (
-                                            <Image
-                                                src={job.thumbnail_path
-                                                    ? (job.thumbnail_path.startsWith('http') ? job.thumbnail_path : `${API_ORIGIN}/${job.thumbnail_path}`)
-                                                    : (job.output_path?.startsWith('http') ? job.output_path : `${API_ORIGIN}/${job.output_path}`)}
-                                                alt={`Project ${job.id}`}
-                                                fill
-                                                sizes="(max-width: 1024px) 100vw, 25vw"
-                                                className="object-cover opacity-50 group-hover:opacity-80 group-hover:scale-110 transition-all duration-1000"
-                                                unoptimized
-                                            />
+                                        {mediaUrl ? (
+                                            isVideo ? (
+                                                <video
+                                                    src={mediaUrl}
+                                                    className="w-full h-full object-cover opacity-50 group-hover:opacity-80 group-hover:scale-110 transition-all duration-1000"
+                                                    muted
+                                                    playsInline
+                                                />
+                                            ) : (
+                                                <Image
+                                                    src={mediaUrl}
+                                                    alt={`Project ${job.id}`}
+                                                    fill
+                                                    sizes="(max-width: 1024px) 100vw, 25vw"
+                                                    className="object-cover opacity-50 group-hover:opacity-80 group-hover:scale-110 transition-all duration-1000"
+                                                    unoptimized
+                                                />
+                                            )
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center bg-white/5">
                                                 <Film className="w-12 h-12 text-white/5 group-hover:text-white/10 transition-colors" />
@@ -257,7 +294,7 @@ export default function DashboardPage() {
                                         <div className="flex items-center justify-between text-[10px] text-gray-500 font-extrabold uppercase tracking-[0.15em]">
                                             <span className="flex items-center gap-2">
                                                 <Clock className="w-3 h-3" />
-                                                {new Date(job.created_at).toLocaleDateString()}
+                                                {job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Recent'}
                                             </span>
                                             {job.status === 'processing' && (
                                                 <span className="text-brand-cyan animate-pulse">
