@@ -49,5 +49,3 @@ celery_app.conf.update(
 celery_app.conf.task_routes = {
     "app.tasks.video_tasks.process_video_task": {"queue": settings.celery_video_queue or "video"},
 }
-
-celery_app.autodiscover_tasks(["app"])
