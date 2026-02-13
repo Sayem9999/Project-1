@@ -104,8 +104,13 @@ export default function AdminDashboardPage() {
   const [architectQuery, setArchitectQuery] = useState('');
   const [architectAnswer, setArchitectAnswer] = useState('');
   const [architectLoading, setArchitectLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const STALL_THRESHOLD_MINUTES = 10;
   const STALL_THRESHOLD_MS = STALL_THRESHOLD_MINUTES * 60 * 1000;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchData = useCallback(async () => {
     const token = localStorage.getItem('token');
@@ -115,17 +120,23 @@ export default function AdminDashboardPage() {
     }
 
     try {
-      const [statsData, usersData, jobsData, healthData] = await Promise.all([
+      const results = await Promise.allSettled([
         apiRequest<SystemStats>('/admin/stats', { auth: true }),
         apiRequest<UserData[]>('/admin/users', { auth: true }),
         apiRequest<JobData[]>('/admin/jobs', { auth: true }),
         apiRequest<AdminHealth>('/admin/health', { auth: true }),
       ]);
 
-      setStats(statsData);
-      setUsers(usersData);
-      setJobs(jobsData);
-      setHealth(healthData);
+      const statsData = results[0].status === 'fulfilled' ? results[0].value : null;
+      const usersData = results[1].status === 'fulfilled' ? results[1].value : [];
+      const jobsData = results[2].status === 'fulfilled' ? results[2].value : [];
+      const healthData = results[3].status === 'fulfilled' ? results[3].value : null;
+
+      if (statsData) setStats(statsData);
+      setUsers(Array.isArray(usersData) ? usersData : []);
+      setJobs(Array.isArray(jobsData) ? jobsData : []);
+      if (healthData) setHealth(healthData);
+
       setLoading(false);
       setAccessDenied(false);
     } catch (err: any) {
@@ -278,6 +289,8 @@ export default function AdminDashboardPage() {
     const last = new Date(job.updated_at || job.created_at).getTime();
     return !Number.isNaN(last) && Date.now() - last > STALL_THRESHOLD_MS;
   };
+
+  if (!mounted) return null;
 
   if (loading) {
     return (

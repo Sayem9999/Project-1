@@ -237,7 +237,7 @@ export default function DashboardPage() {
                             <span className="font-black text-gray-500 group-hover:text-white uppercase tracking-[0.2em] text-[10px]">New Project</span>
                         </Link>
 
-                        {jobs.map((job) => {
+                        {Array.isArray(jobs) && jobs.map((job) => {
                             if (!job) return null;
                             const status = getStatusParams(job.status);
 

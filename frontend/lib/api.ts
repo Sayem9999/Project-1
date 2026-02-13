@@ -198,15 +198,18 @@ export async function apiRequest<T = any>(path: string, options: ApiOptions = {}
   const contentType = res.headers.get("content-type") || "";
 
   const text = await res.text();
-  if (contentType.includes("application/json") && text) {
+  if (contentType.includes("application/json")) {
+    if (!text || text.trim() === "") {
+      return ({} as unknown) as T;
+    }
     try {
       return JSON.parse(text) as T;
     } catch (e) {
       console.error("[API] JSON Parse Error:", e, "Raw:", text);
-      return {} as T;
+      return ({} as unknown) as T;
     }
   }
-  return text as unknown as T;
+  return (text as unknown) as T;
 }
 
 type UploadOptions = {

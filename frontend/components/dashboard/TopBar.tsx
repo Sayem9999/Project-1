@@ -47,7 +47,13 @@ export default function TopBar() {
     }, []);
 
     useEffect(() => {
-        const updateClock = () => setClock(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        const updateClock = () => {
+            try {
+                setClock(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+            } catch (e) {
+                setClock(new Date().toTimeString().slice(0, 5));
+            }
+        };
         updateClock();
         const timer = window.setInterval(updateClock, 1000);
         return () => window.clearInterval(timer);
