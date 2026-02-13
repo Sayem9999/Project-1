@@ -1,7 +1,8 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Activity, HardDrive, LayoutDashboard, Shield, Users, Video, Edit2, RefreshCw, Search, ArrowLeft, Database, Server, HeartPulse, Network, Wrench } from 'lucide-react';
+import { Activity, HardDrive, LayoutDashboard, Shield, Users, Video, Edit2, RefreshCw, Search, ArrowLeft, Database, Server, HeartPulse, Network, Wrench, CreditCard, ChevronRight, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import * as Sentry from '@sentry/nextjs';
@@ -12,6 +13,7 @@ import StatusBadge from '@/components/admin/StatusBadge';
 import UserTable from '@/components/admin/UserTable';
 import JobTable from '@/components/admin/JobTable';
 import SystemTrends from '@/components/admin/SystemTrends';
+import { Button } from '@/components/ui/Button';
 
 interface SystemStats {
   users: { total: number; active_24h?: number };
@@ -94,7 +96,6 @@ export default function AdminDashboardPage() {
   const [userSearch, setUserSearch] = useState('');
   const [jobSearch, setJobSearch] = useState('');
   const [jobFilter, setJobFilter] = useState<'all' | 'processing' | 'complete' | 'failed'>('all');
-  const quickCreditAdds = [1, 5, 10];
   const [creditForm, setCreditForm] = useState({ userId: '', delta: 1, reason: '' });
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [userJobs, setUserJobs] = useState<JobData[]>([]);
@@ -130,9 +131,7 @@ export default function AdminDashboardPage() {
     } catch (err: any) {
       Sentry.captureException(err);
       if (err instanceof ApiError) {
-        if (err.status === 403) {
-          setAccessDenied(true);
-        }
+        if (err.status === 403) setAccessDenied(true);
         if (err.isAuth) {
           clearAuth();
           router.push('/login');
@@ -159,18 +158,10 @@ export default function AdminDashboardPage() {
       setLastJobsRefresh(new Date().toISOString());
     } catch (err: any) {
       Sentry.captureException(err);
-      if (err instanceof ApiError) {
-        if (err.status === 403) {
-          setAccessDenied(true);
-        }
-        if (err.isAuth) {
-          clearAuth();
-          router.push('/login');
-          return;
-        }
-        setError(err.message);
-      } else {
-        setError('Failed to fetch admin jobs');
+      if (err instanceof ApiError && err.isAuth) {
+        clearAuth();
+        router.push('/login');
+        return;
       }
     } finally {
       if (!silent) setJobsLoading(false);
@@ -197,9 +188,7 @@ export default function AdminDashboardPage() {
   }, [accessDenied, router]);
 
   useEffect(() => {
-    if (activeTab === 'credits') {
-      fetchLedger();
-    }
+    if (activeTab === 'credits') fetchLedger();
   }, [activeTab, fetchLedger]);
 
   useEffect(() => {
@@ -210,6 +199,7 @@ export default function AdminDashboardPage() {
   }, [activeTab, fetchJobs]);
 
   const handleUpdateCredits = async (userId: number, newCredits: number, reason = 'manual_set') => {
+    const toastId = toast.loading('Syncing credits...');
     try {
       await apiRequest(`/admin/users/${userId}/credits?credits=${newCredits}&reason=${encodeURIComponent(reason)}`, {
         method: 'PATCH',
@@ -218,13 +208,14 @@ export default function AdminDashboardPage() {
       setEditingCredits(null);
       fetchData();
       fetchLedger();
-    } catch (err) {
-      console.error('Failed to update credits', err);
+      toast.success('Credits synchronized', { id: toastId });
+    } catch (err: any) {
+      toast.error('Sync failed', { id: toastId, description: err.message });
     }
   };
 
   const handleAddCredits = async (userId: number, delta: number, reason = 'manual_adjustment') => {
-    const toastId = toast.loading('Updating credits...');
+    const toastId = toast.loading('Updating balance...');
     try {
       await apiRequest(`/admin/users/${userId}/credits/add?delta=${delta}&reason=${encodeURIComponent(reason)}`, {
         method: 'PATCH',
@@ -232,37 +223,20 @@ export default function AdminDashboardPage() {
       });
       fetchData();
       fetchLedger();
-      toast.success('Credits updated successfully', { id: toastId });
+      toast.success('Balance updated', { id: toastId });
     } catch (err: any) {
-      console.error('Failed to add credits', err);
-      toast.error('Failed to update credits', { id: toastId, description: err.message });
+      toast.error('Update failed', { id: toastId, description: err.message });
     }
   };
 
-  const handleAdminCancel = async (jobId: number) => {
+  const handleAdminAction = async (jobId: number, action: 'cancel' | 'retry' | 'force-retry') => {
+    const toastId = toast.loading(`Executing ${action}...`);
     try {
-      await apiRequest(`/admin/jobs/${jobId}/cancel`, { method: 'POST', auth: true });
+      await apiRequest(`/admin/jobs/${jobId}/${action}`, { method: 'POST', auth: true });
       fetchJobs(true);
-    } catch (err) {
-      console.error('Failed to cancel job', err);
-    }
-  };
-
-  const handleAdminRetry = async (jobId: number) => {
-    try {
-      await apiRequest(`/admin/jobs/${jobId}/retry`, { method: 'POST', auth: true });
-      fetchJobs(true);
-    } catch (err) {
-      console.error('Failed to retry job', err);
-    }
-  };
-
-  const handleAdminForceRetry = async (jobId: number) => {
-    try {
-      await apiRequest(`/admin/jobs/${jobId}/force-retry`, { method: 'POST', auth: true });
-      fetchJobs(true);
-    } catch (err) {
-      console.error('Failed to force retry job', err);
+      toast.success(`Action ${action} executed`, { id: toastId });
+    } catch (err: any) {
+      toast.error(`Execution failed`, { id: toastId, description: err.message });
     }
   };
 
@@ -283,195 +257,179 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const closeUserDetails = () => {
-    setSelectedUser(null);
-    setUserJobs([]);
-    setUserLedger([]);
-  };
-
   const filteredUsers = useMemo(() => {
     if (!userSearch) return users;
     const q = userSearch.toLowerCase();
     return users.filter((u) => `${u.email} ${u.full_name ?? ''}`.toLowerCase().includes(q));
   }, [users, userSearch]);
 
+  const processingCount = useMemo(() => jobs.filter(j => j.status === 'processing').length, [jobs]);
+
   const filteredJobs = useMemo(() => {
     let list = jobs;
-    if (jobFilter !== 'all') {
-      list = list.filter((j) => j.status === jobFilter);
-    }
+    if (jobFilter !== 'all') list = list.filter((j) => j.status === jobFilter);
     if (!jobSearch) return list;
     const q = jobSearch.toLowerCase();
     return list.filter((j) => `${j.id} ${j.user_id} ${j.theme} ${j.progress_message}`.toLowerCase().includes(q));
   }, [jobs, jobFilter, jobSearch]);
 
-  const processingCount = jobs.filter((j) => j.status === 'processing').length;
-  const failedCount = jobs.filter((j) => j.status === 'failed').length;
-  const completeCount = jobs.filter((j) => j.status === 'complete').length;
   const isStalledJob = (job: JobData) => {
     if (job.status !== 'processing' && job.status !== 'queued') return false;
-    const stamp = job.updated_at || job.created_at;
-    const last = new Date(stamp).getTime();
-    if (Number.isNaN(last)) return false;
-    return Date.now() - last > STALL_THRESHOLD_MS;
+    const last = new Date(job.updated_at || job.created_at).getTime();
+    return !Number.isNaN(last) && Date.now() - last > STALL_THRESHOLD_MS;
   };
-  const stalledCount = jobs.filter(isStalledJob).length;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="w-12 h-12 border-4 border-brand-cyan/20 border-t-brand-cyan rounded-full animate-spin mb-4" />
+        <p className="text-xs font-black uppercase tracking-[0.3em] text-gray-500 animate-pulse">Syncing Admin Node</p>
       </div>
     );
   }
 
   if (accessDenied) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="max-w-md w-full bg-slate-900/40 border border-white/10 rounded-3xl p-8 text-center">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center">
-            <Shield className="w-6 h-6" />
+      <div className="min-h-[60vh] flex items-center justify-center p-6">
+        <div className="max-w-md w-full glass-panel border-red-500/20 rounded-[32px] p-10 text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-red-500/5 blur-3xl opacity-20" />
+          <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-red-500/10 text-red-400 flex items-center justify-center border border-red-500/20 relative z-10">
+            <Shield className="w-10 h-10" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Admin Access Required</h2>
-          <p className="text-gray-400 mb-6">You can view the Admin Console link, but only approved admins can open it.</p>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="px-6 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-          >
-            Back to Dashboard
-          </button>
+          <h2 className="text-2xl font-black text-white mb-3 tracking-tight relative z-10">Secure Access Only</h2>
+          <p className="text-gray-500 mb-10 text-sm leading-relaxed relative z-10">Administrative oversight requires elevated privileges. Your account is currently restricted.</p>
+          <Link href="/dashboard" className="relative z-10">
+            <Button variant="secondary" size="lg" className="w-full">Return to Dashboard</Button>
+          </Link>
         </div>
       </div>
     );
   }
 
+  const tabs = [
+    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'users', label: 'Users', icon: Users },
+    { id: 'jobs', label: 'Operations', icon: Video },
+    { id: 'credits', label: 'Economics', icon: CreditCard },
+    { id: 'system', label: 'Architecture', icon: Network },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-10">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 text-brand-cyan text-xs uppercase tracking-[0.2em]">
-            <span className="px-2 py-1 rounded-full border border-brand-cyan/30 bg-brand-cyan/10">Secured</span>
-            Admin Command Center
+    <div className="max-w-[1600px] mx-auto space-y-8 md:space-y-12 px-2 md:px-0">
+      {/* Header Area */}
+      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="px-3 py-1 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 text-[10px] font-black uppercase tracking-widest text-brand-cyan">SECURE_NODE</div>
+            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+              <Activity className="w-3 h-3 text-emerald-400" />
+              Live Telemetry Active
+            </div>
           </div>
-          <h1 className="text-4xl font-bold text-white mt-3 mb-2">Operations & Oversight</h1>
-          <p className="text-gray-400 max-w-2xl">
-            Monitor usage, manage credits, and keep the pipeline healthy.
-          </p>
+          <div>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white mb-4">Operations Center</h1>
+            <p className="text-gray-500 max-w-2xl text-base md:text-lg leading-relaxed">Executive oversight and system governance. Orchestrate resources, scale impact, and maintain pipeline health.</p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="px-4 py-2 rounded-xl border border-white/10 text-white text-sm font-semibold flex items-center gap-2 hover:bg-white/10 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-          </button>
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-semibold flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" /> Refresh
-          </button>
-          <div className="px-4 py-2 rounded-xl border border-white/10 text-xs text-gray-400">
-            {new Date().toLocaleTimeString()}
+
+        <div className="flex flex-wrap items-center gap-4">
+          <Button variant="secondary" onClick={fetchData} className="font-black text-[10px] uppercase tracking-widest">
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh State
+          </Button>
+          <div className="px-6 py-3 glass-panel rounded-2xl border-white/5 text-xs font-mono text-gray-400">
+            NODE_TIME: <span className="text-white">{new Date().toLocaleTimeString()}</span>
           </div>
+          <Link href="/dashboard">
+            <button className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 group">
+              <ArrowLeft className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />
+            </button>
+          </Link>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {error}
+        <div className="glass-panel border-red-500/20 bg-red-500/5 p-4 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top-4">
+          <AlertCircle className="w-5 h-5 text-red-500" />
+          <span className="text-sm font-bold text-red-200">{error}</span>
         </div>
       )}
 
+      {/* Premium Stat Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
-        <StatCard icon={Users} title="Total Users" value={stats?.users.total ?? 0} subtext="Registered accounts" color="cyan" />
-        <StatCard icon={Activity} title="Active Users" value={stats?.users.active_24h ?? 0} subtext="Last 24h" color="emerald" />
-        <StatCard icon={Video} title="Total Jobs" value={stats?.jobs.total ?? 0} subtext={`+${stats?.jobs.recent_24h ?? 0} in 24h`} color="violet" />
-        <StatCard icon={Activity} title="Active Jobs" value={processingCount} subtext={`${completeCount} complete, ${failedCount} failed`} color="emerald" />
-        <StatCard
-          icon={HardDrive}
-          title="Cloud Storage"
-          value={`${stats?.storage.used_gb ?? 0} GB`}
-          subtext={`${stats?.storage.percent ?? 0}% of ${stats?.storage.limit_gb ?? 0}GB`}
-          color="amber"
-          progress={stats?.storage.percent ?? 0}
-        />
+        {[
+          { icon: Users, title: "Total Fleet", value: stats?.users.total ?? 0, sub: "Registered Entities", color: "cyan" },
+          { icon: Activity, title: "Active Pulse", value: stats?.users.active_24h ?? 0, sub: "Last 24h Engagement", color: "emerald" },
+          { icon: Video, title: "Pipeline Volume", value: stats?.jobs.total ?? 0, sub: `+${stats?.jobs.recent_24h ?? 0} New Exports`, color: "violet" },
+          { icon: Wrench, title: "Active Threads", value: jobs.filter(j => j.status === 'processing').length, sub: `${jobs.filter(j => j.status === 'failed').length} Error States`, color: "brand" },
+          { icon: HardDrive, title: "Storage Index", value: `${stats?.storage.percent ?? 0}%`, sub: `${stats?.storage.used_gb ?? 0}GB Utilized`, color: "amber", progress: stats?.storage.percent },
+        ].map((s, i) => (
+          <StatCard key={i} icon={s.icon} title={s.title} value={s.value} subtext={s.sub} color={s.color as any} progress={s.progress} />
+        ))}
       </div>
 
+      {/* System Health View */}
       {health && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">System Health</h3>
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <HeartPulse className="w-4 h-4" /> Live
+          <div className="lg:col-span-2 glass-panel p-8 rounded-[32px] border-white/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-cyan/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:bg-brand-cyan/10 transition-colors duration-1000" />
+            <div className="flex items-center justify-between mb-8 relative z-10">
+              <div>
+                <h3 className="text-lg font-black tracking-tight text-white mb-1">Core Infrastructure</h3>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Connectivity & Resource States</p>
               </div>
+              <HeartPulse className="w-6 h-6 text-emerald-400 animate-pulse" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
-                  <Database className="w-4 h-4" /> Database
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 relative z-10">
+              <div className="p-5 rounded-[24px] bg-white/[0.03] border border-white/5 hover:border-white/10 transition-colors">
+                <div className="text-[10px] font-black text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-widest">
+                  <Database className="w-4 h-4 text-brand-cyan" /> Persistence Layer
                 </div>
-                <div className={`text-sm font-semibold ${health.db.reachable ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {health.db.reachable ? 'Connected' : 'Offline'}
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-black uppercase tracking-widest ${health.db.reachable ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {health.db.reachable ? 'Online_Reachable' : 'Persistent_Fail'}
+                  </span>
+                  <div className={`w-2 h-2 rounded-full ${health.db.reachable ? 'bg-emerald-400' : 'bg-red-400'} shadow-[0_0_10px_rgba(52,211,153,0.5)]`} />
                 </div>
               </div>
-              <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
-                  <Server className="w-4 h-4" /> Redis
+              <div className="p-5 rounded-[24px] bg-white/[0.03] border border-white/5 hover:border-white/10 transition-colors">
+                <div className="text-[10px] font-black text-gray-400 mb-3 flex items-center gap-2 uppercase tracking-widest">
+                  <Server className="w-4 h-4 text-brand-violet" /> Cache Orchestrator
                 </div>
-                <div className={`text-sm font-semibold ${health.redis.reachable ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {health.redis.configured ? (health.redis.reachable ? 'Connected' : 'Error') : 'Not Configured'}
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-black uppercase tracking-widest ${health.redis.reachable ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {health.redis.configured ? (health.redis.reachable ? 'Redis_Active' : 'Broker_Hang') : 'Void_Config'}
+                  </span>
+                  <div className={`w-2 h-2 rounded-full ${health.redis.reachable ? 'bg-emerald-400' : 'bg-red-400'}`} />
                 </div>
               </div>
             </div>
           </div>
-          <div className="bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
-            <h3 className="text-sm font-semibold text-gray-400 mb-4">LLM Providers</h3>
-            <div className="space-y-3">
+
+          <div className="glass-panel p-8 rounded-[32px] border-white/5 relative overflow-hidden bg-gradient-to-br from-white/[0.02] to-transparent">
+            <h3 className="text-[10px] font-black font-bold text-gray-500 uppercase tracking-[0.3em] mb-6">Agent LLM Cluster</h3>
+            <div className="space-y-4">
               {Object.entries(health.llm || {}).map(([name, item]) => (
-                <div key={name} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-300 capitalize">{name}</span>
-                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${item.is_healthy ? 'bg-emerald-500/10 text-emerald-300' : 'bg-red-500/10 text-red-300'}`}>
-                    {item.is_healthy ? 'Healthy' : item.configured ? 'Down' : 'Disabled'}
-                  </span>
+                <div key={name} className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/5">
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest">{name}</span>
+                  <div className={`text-[10px] font-black px-3 py-1 rounded-lg ${item.is_healthy ? 'bg-emerald-400/10 text-emerald-400' : 'bg-red-400/10 text-red-300'}`}>
+                    {item.is_healthy ? 'HEALTH_OK' : 'FAIL_STATE'}
+                  </div>
                 </div>
               ))}
             </div>
-            {health.cleanup && (
-              <div className="mt-6 border-t border-white/10 pt-4 text-xs text-gray-500">
-                <div className="flex items-center justify-between">
-                  <span>Last Cleanup</span>
-                  <span>{health.cleanup.last_run ? new Date(health.cleanup.last_run).toLocaleString() : 'Never'}</span>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span>Deleted (Local/R2)</span>
-                  <span>{health.cleanup.deleted_local}/{health.cleanup.deleted_r2}</span>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span>Stalled Jobs</span>
-                  <span>{health.cleanup.stalled_jobs ?? 0}</span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      <div className="flex items-center gap-3 bg-slate-900/50 p-1.5 rounded-2xl border border-white/5 w-fit">
-        {[
-          { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-          { id: 'users', label: 'Users', icon: Users },
-          { id: 'jobs', label: 'Jobs', icon: Video },
-          { id: 'credits', label: 'Credits', icon: Activity },
-          { id: 'system', label: 'System Map', icon: Network },
-        ].map((tab) => (
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-2 md:gap-4 p-2 glass-panel rounded-[24px] border-white/5 overflow-x-auto no-scrollbar scroll-smooth">
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.id
-              ? 'bg-gradient-to-r from-cyan-500 to-violet-500 text-white shadow-lg shadow-cyan-500/20'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
+            className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap min-w-fit ${activeTab === tab.id
+              ? 'bg-gradient-to-r from-brand-cyan to-brand-violet text-white shadow-xl shadow-brand-cyan/20 scale-105'
+              : 'text-gray-500 hover:text-white hover:bg-white/5'
               }`}
           >
             <tab.icon className="w-4 h-4" />
@@ -480,67 +438,67 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
+      {/* Main Content Render */}
       <AnimatePresence mode="wait">
         {activeTab === 'overview' && (
-          <motion.div
-            key="overview"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-          >
-            <div className="lg:col-span-2 bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
-              <h3 className="text-lg font-semibold text-white mb-4">Recent Jobs</h3>
-              <div className="space-y-3">
+          <motion.div key="overview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 glass-panel rounded-[32px] overflow-hidden border-white/5">
+              <div className="p-8 border-b border-white/5">
+                <h3 className="text-lg font-black tracking-tight text-white uppercase tracking-widest">Global Operations Feed</h3>
+              </div>
+              <div className="p-4 space-y-3">
                 {jobs.slice(0, 6).map((job) => (
-                  <div key={job.id} className="flex items-center justify-between p-3 rounded-2xl bg-white/5">
-                    <div>
-                      <div className="text-sm font-semibold text-white">Job #{job.id}</div>
-                      <div className="text-xs text-gray-400">{job.progress_message}</div>
+                  <div key={job.id} className="flex items-center justify-between p-5 rounded-3xl bg-white/[0.02] hover:bg-white/[0.04] transition-all group border border-transparent hover:border-white/5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center font-mono text-[10px] text-brand-cyan group-hover:scale-110 transition-transform">#{job.id}</div>
+                      <div>
+                        <div className="text-sm font-black text-white mb-1 group-hover:text-brand-cyan transition-colors">{job.theme.toUpperCase()} • {job.id}</div>
+                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest line-clamp-1">{job.progress_message}</div>
+                      </div>
                     </div>
                     <StatusBadge status={job.status} />
                   </div>
                 ))}
               </div>
             </div>
-            <div className="bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
-              <h3 className="text-lg font-semibold text-white mb-4">Recent Users</h3>
-              <div className="space-y-3">
+            <div className="glass-panel rounded-[32px] overflow-hidden border-white/5">
+              <div className="p-8 border-b border-white/5">
+                <h3 className="text-lg font-black tracking-tight text-white uppercase tracking-widest">Active Creators</h3>
+              </div>
+              <div className="p-4 space-y-3">
                 {users.slice(0, 6).map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-3 rounded-2xl bg-white/5">
-                    <div>
-                      <div className="text-sm font-semibold text-white">{user.full_name || 'Anonymous'}</div>
-                      <div className="text-xs text-gray-400">{user.email}</div>
+                  <div key={user.id} className="flex items-center justify-between p-5 rounded-3xl bg-white/[0.02] border border-transparent hover:border-white/5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-cyan/20 to-brand-violet/20 flex items-center justify-center font-black text-[10px] text-white overflow-hidden">
+                        {user.email[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-sm font-black text-white truncate max-w-[120px]">{user.full_name || 'Creator'}</div>
+                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{user.email}</div>
+                      </div>
                     </div>
-                    <div className="text-xs text-amber-400 font-semibold">{user.credits} credits</div>
+                    <div className="px-3 py-1 rounded-lg bg-amber-400/10 text-amber-400 text-[10px] font-black">{user.credits} CR</div>
                   </div>
                 ))}
               </div>
             </div>
-            {stats?.trends && <SystemTrends trends={stats.trends} />}
           </motion.div>
         )}
 
         {activeTab === 'users' && (
-          <motion.div
-            key="users"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-slate-900/30 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl"
-          >
-            <div className="p-6 border-b border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <motion.div key="users" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="glass-panel rounded-[32px] overflow-hidden border-white/5">
+            <div className="p-8 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
-                <h3 className="text-lg font-semibold text-white">Users</h3>
-                <p className="text-xs text-gray-500">Manage credits and access.</p>
+                <h3 className="text-lg font-black text-white uppercase tracking-widest mb-1">Creator Registry</h3>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Economic Oversight & Perms</p>
               </div>
-              <div className="relative w-full md:w-72">
-                <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
+              <div className="relative w-full md:w-80">
+                <Search className="w-5 h-5 text-gray-500 absolute left-4 top-1/2 -translate-y-1/2" />
                 <input
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
-                  placeholder="Search by name or email"
-                  className="w-full bg-black/30 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+                  placeholder="SEARCH BY IDENTITY"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-3.5 text-xs text-white focus:outline-none focus:border-brand-cyan/50 font-bold tracking-widest transition-all"
                 />
               </div>
             </div>
@@ -556,46 +514,30 @@ export default function AdminDashboardPage() {
         )}
 
         {activeTab === 'jobs' && (
-          <motion.div
-            key="jobs"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-slate-900/30 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl"
-          >
-            <div className="p-6 border-b border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <motion.div key="jobs" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="glass-panel rounded-[32px] overflow-hidden border-white/5">
+            <div className="p-8 border-b border-white/5 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
               <div>
-                <h3 className="text-lg font-semibold text-white">Jobs</h3>
-                <p className="text-xs text-gray-500">Track pipeline status and errors.</p>
-                <p className="text-[10px] text-gray-600 mt-1">
-                  Auto-refresh every 15s - Stalled: {stalledCount}
-                  {lastJobsRefresh && (
-                    <span className="ml-2">- Last refresh: {new Date(lastJobsRefresh).toLocaleTimeString()}</span>
-                  )}
-                  {jobsLoading && <span className="ml-2">- Refreshing...</span>}
-                </p>
+                <h3 className="text-lg font-black text-white uppercase tracking-widest mb-1">Operation Threads</h3>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">System Load: {processingCount} Parallel Agents</p>
               </div>
-              <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
+              <div className="flex flex-col md:flex-row items-center gap-4">
                 <div className="relative w-full md:w-64">
-                  <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
+                  <Search className="w-5 h-5 text-gray-500 absolute left-4 top-1/2 -translate-y-1/2" />
                   <input
                     value={jobSearch}
                     onChange={(e) => setJobSearch(e.target.value)}
-                    placeholder="Search by id, theme"
-                    className="w-full bg-black/30 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+                    placeholder="FILTER_ID_OR_THEME"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-3.5 text-[10px] text-white focus:outline-none focus:border-brand-cyan/50 font-black tracking-widest transition-all"
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  {['all', 'processing', 'complete', 'failed'].map((status) => (
+                <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/5 overflow-x-auto no-scrollbar">
+                  {['all', 'processing', 'complete', 'failed'].map((val) => (
                     <button
-                      key={status}
-                      onClick={() => setJobFilter(status as any)}
-                      className={`px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${jobFilter === status
-                        ? 'bg-brand-cyan text-black'
-                        : 'bg-white/5 text-gray-400 hover:text-white'
-                        }`}
+                      key={val}
+                      onClick={() => setJobFilter(val as any)}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${jobFilter === val ? 'bg-brand-cyan text-black shadow-lg shadow-brand-cyan/20' : 'text-gray-500 hover:text-white'}`}
                     >
-                      {status}
+                      {val}
                     </button>
                   ))}
                 </div>
@@ -604,88 +546,61 @@ export default function AdminDashboardPage() {
             <JobTable
               jobs={filteredJobs}
               isStalledJob={isStalledJob}
-              handleAdminForceRetry={handleAdminForceRetry}
-              handleAdminCancel={handleAdminCancel}
-              handleAdminRetry={handleAdminRetry}
+              handleAdminForceRetry={(id) => handleAdminAction(id, 'force-retry')}
+              handleAdminCancel={(id) => handleAdminAction(id, 'cancel')}
+              handleAdminRetry={(id) => handleAdminAction(id, 'retry')}
             />
           </motion.div>
         )}
 
         {activeTab === 'system' && (
-          <motion.div
-            key="system"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
-          >
+          <motion.div key="system" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
             <SystemMap />
-
-            <div className="bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 border border-blue-500/20">
-                  <Network className="w-5 h-5" />
+            <div className="glass-panel p-10 rounded-[40px] border-white/5 relative overflow-hidden">
+              <div className="flex items-center gap-6 mb-10 relative z-10">
+                <div className="p-4 bg-brand-cyan/10 rounded-3xl text-brand-cyan border border-brand-cyan/20">
+                  <Network className="w-8 h-8" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">System Architect</h3>
-                  <p className="text-xs text-gray-400"> AI-powered analysis of the live dependency graph.</p>
+                  <h3 className="text-2xl font-black text-white tracking-tight mb-2 uppercase tracking-widest">Architectural Analysis</h3>
+                  <p className="text-sm text-gray-500 max-w-xl">Deep cognitive scan of the structural integrity and logic flow across the Proedit ecosystem.</p>
                 </div>
               </div>
-
-              <div className="flex flex-col gap-4">
+              <div className="space-y-6 relative z-10">
                 {architectAnswer && (
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-2">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                      <span className="text-xs font-bold text-blue-300 uppercase tracking-wider">Architect Plan</span>
+                  <div className="p-8 bg-white/[0.03] rounded-[32px] border border-white/10 animate-in fade-in zoom-in-95">
+                    <div className="flex items-center gap-3 mb-6">
+                      <Sparkles className="w-4 h-4 text-brand-cyan animate-pulse" />
+                      <span className="text-[10px] font-black text-brand-cyan uppercase tracking-[0.4em]">Integrated Intelligence Output</span>
                     </div>
-                    <div className="text-sm text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
+                    <div className="text-sm text-gray-300 whitespace-pre-wrap font-mono leading-loose tracking-tight whitespace-pre-wrap">
                       {architectAnswer}
                     </div>
                   </div>
                 )}
-
                 <form
                   onSubmit={async (e) => {
                     e.preventDefault();
                     if (!architectQuery.trim()) return;
                     setArchitectLoading(true);
                     try {
-                      // Using pure fetch if apiRequest types are strict, or cast if needed
-                      // Assuming apiRequest handles generic response
                       const res: any = await apiRequest('/maintenance/architect', {
-                        method: 'POST',
-                        auth: true,
-                        body: { query: architectQuery }
+                        method: 'POST', auth: true, body: { query: architectQuery }
                       });
                       setArchitectAnswer(res.answer);
-                    } catch (err) {
-                      toast.error("Failed to consult architect");
-                    } finally {
-                      setArchitectLoading(false);
-                    }
+                    } catch { toast.error("Architect node timed out"); } finally { setArchitectLoading(false); }
                   }}
-                  className="flex gap-4 relative"
+                  className="flex flex-col sm:flex-row gap-4"
                 >
                   <input
                     value={architectQuery}
                     onChange={(e) => setArchitectQuery(e.target.value)}
-                    placeholder="Ask a question (e.g., 'How do I add a new payment provider?')..."
-                    className="flex-1 bg-black/30 border border-white/10 rounded-xl px-5 py-3 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                    placeholder="QUERRY_SYSTEM_ARCHITECT_..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded-[24px] px-8 py-4 text-sm text-white focus:outline-none focus:border-brand-cyan/50 font-bold transition-all placeholder:text-gray-600 uppercase tracking-widest font-mono"
                   />
-                  <button
-                    type="submit"
-                    disabled={architectLoading}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-blue-900/20"
-                  >
-                    {architectLoading ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        Ask <ArrowLeft className="w-4 h-4 rotate-180" />
-                      </>
-                    )}
-                  </button>
+                  <Button variant="glow" size="lg" loading={architectLoading} className="px-10 font-black text-xs uppercase tracking-[0.3em]">
+                    CONSULT
+                  </Button>
                 </form>
               </div>
             </div>
@@ -693,197 +608,96 @@ export default function AdminDashboardPage() {
         )}
 
         {activeTab === 'credits' && (
-          <motion.div
-            key="credits"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
-          >
-            <div className="bg-slate-900/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <motion.div key="credits" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+            <div className="glass-panel p-8 rounded-[32px] border-white/5 relative overflow-hidden">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 relative z-10">
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Grant / Revoke Credits</h3>
-                  <p className="text-xs text-gray-500">Add or remove credits with a reason for the ledger.</p>
+                  <h3 className="text-lg font-black text-white uppercase tracking-widest mb-1">Economic Adjustments</h3>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Manual Balance Modulation</p>
                 </div>
-                <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
+                <div className="flex flex-wrap items-center gap-4">
                   <select
                     value={creditForm.userId}
-                    onChange={(e) => setCreditForm((s) => ({ ...s, userId: e.target.value }))}
-                    className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                    onChange={(e) => setCreditForm(s => ({ ...s, userId: e.target.value }))}
+                    className="bg-white/5 border border-white/10 rounded-2xl px-6 py-3.5 text-xs text-white focus:border-brand-cyan/50 font-black uppercase tracking-widest transition-all"
                   >
-                    <option value="">Select user</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.email}
-                      </option>
-                    ))}
+                    <option value="" className="bg-obsidian-900">SELECT IDENTITY</option>
+                    {users.map(u => <option key={u.id} value={u.id} className="bg-obsidian-900">{u.email}</option>)}
                   </select>
                   <input
                     type="number"
                     value={creditForm.delta}
-                    onChange={(e) => setCreditForm((s) => ({ ...s, delta: Number(e.target.value) }))}
-                    className="w-28 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
-                    placeholder="+/- credits"
+                    onChange={(e) => setCreditForm(s => ({ ...s, delta: Number(e.target.value) }))}
+                    className="w-32 bg-white/5 border border-white/10 rounded-2xl px-6 py-3.5 text-xs text-white focus:border-brand-cyan/50 font-black uppercase tracking-widest text-center"
+                    placeholder="UNIT_Δ"
                   />
                   <input
                     type="text"
                     value={creditForm.reason}
-                    onChange={(e) => setCreditForm((s) => ({ ...s, reason: e.target.value }))}
-                    className="min-w-[200px] bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
-                    placeholder="Reason (optional)"
+                    onChange={(e) => setCreditForm(s => ({ ...s, reason: e.target.value }))}
+                    className="min-w-[280px] bg-white/5 border border-white/10 rounded-2xl px-6 py-3.5 text-xs text-white focus:border-brand-cyan/50 font-bold uppercase tracking-widest"
+                    placeholder="AUDIT_LOG_REASON"
                   />
-                  <button
-                    onClick={() => {
-                      if (!creditForm.userId || !creditForm.delta) return;
-                      handleAddCredits(
-                        Number(creditForm.userId),
-                        creditForm.delta,
-                        creditForm.reason || 'manual_adjustment'
-                      );
-                      setCreditForm((s) => ({ ...s, reason: '' }));
-                    }}
-                    className="px-4 py-2 rounded-xl bg-brand-cyan text-black text-sm font-semibold hover:bg-brand-accent transition-colors"
-                  >
-                    Apply
-                  </button>
+                  <Button variant="glow" onClick={() => {
+                    if (!creditForm.userId || !creditForm.delta) return;
+                    handleAddCredits(Number(creditForm.userId), creditForm.delta, creditForm.reason || 'manual_adjustment');
+                    setCreditForm(s => ({ ...s, reason: '' }));
+                  }} className="px-10">MODULATE</Button>
                 </div>
               </div>
             </div>
 
-
-
-            <div className="bg-slate-900/30 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl">
-              <div className="p-6 border-b border-white/10 flex items-center justify-between">
+            <div className="glass-panel rounded-[32px] overflow-hidden border-white/5">
+              <div className="p-8 border-b border-white/5 flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Credit Ledger</h3>
-                  <p className="text-xs text-gray-500">Most recent credit changes.</p>
+                  <h3 className="text-lg font-black text-white uppercase tracking-widest mb-1">Economic Ledger</h3>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Historical Transaction Log</p>
                 </div>
-                <button
-                  onClick={fetchLedger}
-                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" /> Refresh
-                </button>
+                <Button variant="secondary" onClick={fetchLedger} className="font-black text-[10px] uppercase tracking-widest">
+                  <RefreshCw className="w-4 h-4 mr-2" /> Sync Ledger
+                </Button>
               </div>
-              {ledgerError && (
-                <div className="px-6 py-3 text-xs text-red-300 bg-red-500/10 border-b border-red-500/20">
-                  {ledgerError}
-                </div>
-              )}
-              {ledgerLoading ? (
-                <div className="p-8 text-center text-gray-400">Loading ledger...</div>
-              ) : (
-                <>
-                  {ledger.length === 0 ? (
-                    <div className="p-8 text-center text-gray-400">No credit activity yet.</div>
-                  ) : (
-                    <table className="w-full text-left">
-                      <thead className="bg-white/5 text-gray-400 text-xs font-bold uppercase tracking-widest border-b border-white/5">
-                        <tr>
-                          <th className="px-6 py-4">User</th>
-                          <th className="px-6 py-4">Delta</th>
-                          <th className="px-6 py-4">Balance</th>
-                          <th className="px-6 py-4">Reason</th>
-                          <th className="px-6 py-4">Source</th>
-                          <th className="px-6 py-4">When</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {ledger.map((entry) => (
-                          <tr key={entry.id} className="hover:bg-white/5 transition-colors">
-                            <td className="px-6 py-4 text-sm text-white">{entry.user_email}</td>
-                            <td className={`px-6 py-4 text-sm font-mono ${entry.delta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {entry.delta >= 0 ? '+' : ''}
-                              {entry.delta}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-amber-400 font-mono">{entry.balance_after}</td>
-                            <td className="px-6 py-4 text-xs text-gray-400">{entry.reason || '-'}</td>
-                            <td className="px-6 py-4 text-xs text-gray-500">{entry.source}</td>
-                            <td className="px-6 py-4 text-xs text-gray-500">{new Date(entry.created_at).toLocaleString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </>
-              )}
-            </div>
-          </motion.div >
-        )
-        }
-      </AnimatePresence >
-
-      {
-        selectedUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-            <div className="w-full max-w-4xl bg-slate-900 border border-white/10 rounded-3xl p-6 space-y-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-500">User Detail</div>
-                  <h3 className="text-2xl font-bold text-white">{selectedUser.full_name || 'Anonymous'}</h3>
-                  <p className="text-sm text-gray-400">{selectedUser.email}</p>
-                  <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
-                    <span>Credits: <span className="text-amber-300 font-semibold">{selectedUser.credits}</span></span>
-                    {selectedUser.monthly_credits !== undefined && (
-                      <span>Monthly: <span className="text-gray-200 font-semibold">{selectedUser.monthly_credits}</span></span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={closeUserDetails}
-                  className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-xs"
-                >
-                  Close
-                </button>
+              <div className="overflow-x-auto no-scrollbar">
+                <table className="w-full text-left">
+                  <thead className="bg-white/[0.03] text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
+                    <tr>
+                      <th className="px-8 py-5">Identity</th>
+                      <th className="px-8 py-5">Delta_Value</th>
+                      <th className="px-8 py-5">Post_Balance</th>
+                      <th className="px-8 py-5">Event_Reason</th>
+                      <th className="px-8 py-5">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {ledger.map((entry) => (
+                      <tr key={entry.id} className="hover:bg-white/[0.02] transition-colors border-l-2 border-transparent hover:border-brand-cyan">
+                        <td className="px-8 py-6">
+                          <div className="text-xs font-black text-white uppercase tracking-widest">{entry.user_email}</div>
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1 opacity-50">{entry.source}</div>
+                        </td>
+                        <td className={`px-8 py-6 text-sm font-black italic tracking-tighter ${entry.delta >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {entry.delta >= 0 ? '+' : ''}{entry.delta}
+                        </td>
+                        <td className="px-8 py-6 text-sm font-black text-amber-400 font-mono">{entry.balance_after} CR</td>
+                        <td className="px-8 py-6 text-[10px] font-bold text-gray-400 uppercase tracking-widest max-w-xs truncate">{entry.reason || 'SYSTEM_EVENT'}</td>
+                        <td className="px-8 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              {userLoading ? (
-                <div className="text-center text-gray-400">Loading user details...</div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                    <h4 className="text-sm font-semibold text-white mb-3">Recent Jobs</h4>
-                    {userJobs.length === 0 ? (
-                      <p className="text-xs text-gray-500">No jobs found.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {userJobs.map((job) => (
-                          <div key={job.id} className="flex items-center justify-between text-xs text-gray-400">
-                            <span>#{job.id}</span>
-                            <span className="capitalize">{job.status}</span>
-                            <span>{new Date(job.created_at).toLocaleDateString()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                    <h4 className="text-sm font-semibold text-white mb-3">Credit Activity</h4>
-                    {userLedger.length === 0 ? (
-                      <p className="text-xs text-gray-500">No ledger entries yet.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {userLedger.map((entry) => (
-                          <div key={entry.id} className="flex items-center justify-between text-xs text-gray-400">
-                            <span className={entry.delta >= 0 ? 'text-emerald-300' : 'text-red-300'}>
-                              {entry.delta >= 0 ? '+' : ''}
-                              {entry.delta}
-                            </span>
-                            <span>{entry.reason || entry.source}</span>
-                            <span>{new Date(entry.created_at).toLocaleDateString()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
-        )
-      }
-    </div >
-
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
+}
+
+function AlertCircle({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
 }

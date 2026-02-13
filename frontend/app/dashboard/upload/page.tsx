@@ -1,10 +1,10 @@
 'use client';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, X, Film, Zap, Layers, Monitor, Shield, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Upload, X, Film, Zap, Layers, Monitor, Shield, Sparkles, CheckCircle2, Loader2, ArrowRight, Activity, BrainCircuit } from 'lucide-react';
 import { apiUpload, apiRequest, ApiError, clearAuth } from '@/lib/api';
 import { ffmpegAnalyzer, MediaIntelligence } from '@/lib/ffmpeg-analyzer';
-import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 export default function UploadPage() {
   const router = useRouter();
@@ -35,11 +35,7 @@ export default function UploadPage() {
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
+    setDragActive(e.type === 'dragenter' || e.type === 'dragover');
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -49,29 +45,26 @@ export default function UploadPage() {
 
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile && droppedFile.type.startsWith('video/')) {
-      setFile(droppedFile);
-      setPreview(URL.createObjectURL(droppedFile));
-      setIdempotencyKey(typeof crypto !== 'undefined' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
-      setJobId(null);
-      setStarting(false);
-      setUploadProgress(0);
-      setAnalysisResult(null);
-      runAnalysis(droppedFile);
+      processNewFile(droppedFile);
     }
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
-      setFile(selected);
-      setPreview(URL.createObjectURL(selected));
-      setIdempotencyKey(typeof crypto !== 'undefined' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
-      setJobId(null);
-      setStarting(false);
-      setUploadProgress(0);
-      setAnalysisResult(null);
-      runAnalysis(selected);
+      processNewFile(selected);
     }
+  };
+
+  const processNewFile = (newFile: File) => {
+    setFile(newFile);
+    setPreview(URL.createObjectURL(newFile));
+    setIdempotencyKey(typeof crypto !== 'undefined' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+    setJobId(null);
+    setStarting(false);
+    setUploadProgress(0);
+    setAnalysisResult(null);
+    runAnalysis(newFile);
   };
 
   const runAnalysis = async (videoFile: File) => {
@@ -80,10 +73,8 @@ export default function UploadPage() {
     try {
       const result = await ffmpegAnalyzer.analyze(videoFile, (p) => setAnalysisProgress(p));
       setAnalysisResult(result);
-      console.log('Client-side analysis complete:', result);
     } catch (err) {
       console.error('Analysis failed:', err);
-      // We don't block upload if analysis fails, backend can fallback
     } finally {
       setAnalyzing(false);
     }
@@ -91,7 +82,6 @@ export default function UploadPage() {
 
   const handleUpload = async () => {
     if (!file) return;
-
     setUploading(true);
     setUploadProgress(0);
     setError('');
@@ -99,7 +89,6 @@ export default function UploadPage() {
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/login');
-      setUploading(false);
       return;
     }
 
@@ -129,7 +118,6 @@ export default function UploadPage() {
       setJobId(job.id);
       setUploading(false);
       setUploadProgress(100);
-      uploadAbortRef.current = null;
     } catch (err: any) {
       if (err instanceof ApiError && err.isAuth) {
         clearAuth();
@@ -138,7 +126,6 @@ export default function UploadPage() {
       }
       setError(err instanceof ApiError ? err.message : 'Upload failed');
       setUploading(false);
-      uploadAbortRef.current = null;
     }
   };
 
@@ -148,256 +135,197 @@ export default function UploadPage() {
     setError('');
     try {
       await apiRequest(`/jobs/${jobId}/start`, { method: 'POST', auth: true });
-      router.push(`/jobs/${jobId}`);
+      router.push(`/dashboard`);
     } catch (err: any) {
       setError(err instanceof ApiError ? err.message : 'Failed to start pipeline');
       setStarting(false);
     }
   };
 
-  const handleCancelUpload = () => {
-    if (uploadAbortRef.current) {
-      uploadAbortRef.current();
-      uploadAbortRef.current = null;
-    }
-    setUploading(false);
-    setUploadProgress(0);
-    setError('Upload canceled.');
-  };
-
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-8">
-      {/* Left Column: Configuration Wizard */}
-      <div className="w-[450px] flex-shrink-0 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
-
-        <div className="space-y-2">
-          <h1 className="text-3xl font-display font-bold">New Project</h1>
-          <p className="text-gray-400">Configure your creative vision.</p>
+    <div className="flex flex-col xl:flex-row gap-8 xl:gap-12 min-h-[calc(100vh-14rem)] pb-20 px-2 md:px-0">
+      {/* Project Intelligence - Side Panel */}
+      <div className="w-full xl:w-[420px] flex-shrink-0 flex flex-col gap-8">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="px-3 py-1 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 text-[10px] font-black uppercase tracking-widest text-brand-cyan">ENGINE_CFG</div>
+            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Build v4.0.2</span>
+          </div>
+          <h1 className="text-4xl font-black tracking-tighter text-white uppercase">Project Node</h1>
+          <p className="text-gray-500 font-bold text-sm tracking-tight">Configure legislative parameters for the Hollywood Pipeline.</p>
         </div>
 
-        {/* Settings Panel */}
-        <div className="space-y-8 glass-panel p-6 rounded-2xl">
+        <div className="glass-panel p-8 rounded-[40px] border-white/5 space-y-10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-brand-cyan/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
           {/* Pipeline Selector */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-300">Processing Pipeline</label>
-            <div className="bg-obsidian-900 rounded-xl p-1 flex relative">
-              <div className={`absolute inset-y-1 w-1/2 bg-white/10 rounded-lg transition-all duration-300 ${settings.premium ? 'translate-x-full left-[-4px]' : 'left-1'}`} />
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 ml-1">Computation Tier</label>
+            <div className="bg-white/5 rounded-[24px] p-1.5 flex relative border border-white/5">
+              <div className={`absolute inset-y-1.5 w-[calc(50%-6px)] bg-brand-cyan/20 rounded-2xl transition-all duration-500 ${settings.premium ? 'translate-x-full' : 'translate-x-0'}`} />
               <button
                 onClick={() => setSettings(s => ({ ...s, premium: false }))}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg relative z-10 transition-colors ${!settings.premium ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl relative z-10 transition-all ${!settings.premium ? 'text-brand-cyan' : 'text-gray-600 hover:text-gray-400'}`}
               >
                 <Zap className="w-4 h-4" />
-                <span className="font-medium">Standard</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Standard</span>
               </button>
               <button
                 onClick={() => setSettings(s => ({ ...s, premium: true }))}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg relative z-10 transition-colors ${settings.premium ? 'text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl relative z-10 transition-all ${settings.premium ? 'text-brand-cyan' : 'text-gray-600 hover:text-gray-400'}`}
               >
-                <Sparkles className={`w-4 h-4 ${settings.premium ? 'text-brand-cyan' : ''}`} />
-                <span className={`font-medium ${settings.premium ? 'gradient-text bg-gradient-to-r from-brand-cyan to-brand-violet' : ''}`}>Pro Studio</span>
+                <Sparkles className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Pro Studio</span>
               </button>
             </div>
-            <p className="text-xs text-gray-500 px-1">
-              {settings.premium
-                ? "Includes: Multi-Agent Director, Deep Media Intelligence, & Hybrid Memory."
-                : "Basic automated editing sequence."}
-            </p>
+            {settings.premium && (
+              <p className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest text-center animate-pulse mt-2">Extended Sub-Agent Intelligence Active</p>
+            )}
           </div>
 
-          {/* Platform */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-300">Target Platform</label>
+          {/* Target Platform */}
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 ml-1">Deployment Node</label>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { id: 'youtube', label: 'YouTube', icon: <Monitor className="w-4 h-4" /> },
-                { id: 'tiktok', label: 'TikTok', icon: <Film className="w-4 h-4" /> },
-                { id: 'instagram', label: 'Instagram', icon: <Layers className="w-4 h-4" /> },
-                { id: 'linkedin', label: 'LinkedIn', icon: <Shield className="w-4 h-4" /> }
+                { id: 'youtube', label: 'YouTube', icon: Monitor },
+                { id: 'tiktok', label: 'TikTok', icon: Film },
+                { id: 'instagram', label: 'Instagram', icon: Layers },
+                { id: 'linkedin', label: 'LinkedIn', icon: Shield }
               ].map(p => (
                 <button
                   key={p.id}
                   onClick={() => setSettings(s => ({ ...s, platform: p.id }))}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 text-left ${settings.platform === p.id
-                    ? 'bg-brand-cyan/10 border-brand-cyan text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]'
-                    : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10 hover:text-white'
+                  className={`flex items-center gap-3 px-4 py-4 rounded-[20px] border transition-all duration-500 ${settings.platform === p.id
+                    ? 'bg-brand-cyan/10 border-brand-cyan/30 text-white shadow-xl shadow-brand-cyan/5 scale-[1.02]'
+                    : 'bg-white/5 border-transparent text-gray-600 hover:bg-white/10 hover:text-gray-400'
                     }`}
                 >
-                  {p.icon}
-                  <span className="text-sm font-medium">{p.label}</span>
+                  <p.icon className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">{p.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Style & Mood */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-300">Creative Direction</label>
+          {/* Creative Style */}
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 ml-1">Narrative Engine</label>
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { id: 'cinematic', label: 'Cinematic' },
-                { id: 'energetic', label: 'High Energy' },
-                { id: 'minimal', label: 'Minimalist' },
-                { id: 'documentary', label: 'Docu-Style' },
-              ].map(theme => (
+              {['Cinematic', 'Energetic', 'Minimal', 'Modern'].map(style => (
                 <button
-                  key={theme.id}
-                  onClick={() => setSettings(s => ({ ...s, theme: theme.id }))}
-                  className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${settings.theme === theme.id
-                    ? 'bg-white text-black border-white'
-                    : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30'
+                  key={style}
+                  onClick={() => setSettings(s => ({ ...s, theme: style.toLowerCase() }))}
+                  className={`px-4 py-4 rounded-[20px] border text-[10px] font-black uppercase tracking-widest transition-all duration-500 ${settings.theme === style.toLowerCase()
+                    ? 'bg-white text-black border-white shadow-xl scale-[1.02]'
+                    : 'bg-white/5 border-transparent text-gray-600 hover:bg-white/10 hover:text-gray-400'
                     }`}
                 >
-                  {theme.label}
+                  {style}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Error */}
           {error && (
-            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-3">
-              <Shield className="w-5 h-5 flex-shrink-0" />
-              <p>{error}</p>
+            <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest text-center">
+              {error}
             </div>
           )}
         </div>
       </div>
 
-      {/* Right Column: Immersive Drop Zone */}
-      <div className="flex-1 rounded-3xl overflow-hidden relative group">
-        {/* Dynamic Background */}
-        <div className="absolute inset-0 bg-obsidian-900">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-violet/5 rounded-full blur-[120px] animate-pulse-slow" />
-          {dragActive && (
-            <div className="absolute inset-0 bg-brand-cyan/10 backdrop-blur-sm z-20 transition-all duration-300 border-4 border-brand-cyan border-dashed rounded-3xl m-4" />
-          )}
-        </div>
+      {/* Immersive Drop Zone - Main Area */}
+      <div className="flex-1 min-h-[500px] xl:min-h-0 rounded-[48px] overflow-hidden relative glass-panel group border-white/5 bg-obsidian-900/30">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
 
-        <div
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          className="relative z-10 w-full h-full flex flex-col"
-        >
+        {dragActive && (
+          <div className="absolute inset-0 bg-brand-cyan/10 backdrop-blur-md z-20 border-2 border-brand-cyan border-dashed rounded-[48px] m-6 animate-pulse" />
+        )}
+
+        <div className="relative z-10 w-full h-full flex flex-col">
           {preview ? (
-            <div className="relative w-full h-full bg-black flex items-center justify-center">
-              <video src={preview} className="max-w-full max-h-full" controls />
-
-              {/* Overlay Controls */}
-              <div className="absolute top-6 right-6 flex gap-3">
+            <div className="flex-1 flex flex-col h-full">
+              <div className="flex-1 relative flex items-center justify-center p-8 bg-black/40">
+                <video src={preview} className="max-w-full max-h-full rounded-[32px] shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-white/5" controls />
                 <button
-                  onClick={() => { setFile(null); setPreview(null); setIdempotencyKey(null); setJobId(null); setUploadProgress(0); }}
-                  className="p-3 bg-black/60 hover:bg-red-500/20 text-white hover:text-red-400 rounded-full backdrop-blur-md transition-colors"
+                  onClick={() => { setFile(null); setPreview(null); setJobId(null); }}
+                  className="absolute top-8 right-8 p-3 bg-black/60 hover:bg-black text-white rounded-full backdrop-blur-2xl transition-all border border-white/10 group/close"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-6 h-6 group-hover:rotate-90 transition-transform" />
                 </button>
               </div>
 
-              <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold text-white mb-1">{file?.name}</h3>
-                    <p className="text-sm text-gray-400">{(file?.size ? (file.size / 1024 / 1024).toFixed(2) : 0)} MB - Ready for Analysis</p>
+              <div className="p-10 bg-gradient-to-t from-obsidian-950 via-obsidian-950 to-transparent">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-10">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <BrainCircuit className="w-4 h-4 text-brand-cyan" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-cyan">TELEMETRY_SYNC_INITIATED</span>
+                    </div>
+                    <h3 className="text-3xl font-black text-white truncate max-w-2xl tracking-tight">{file?.name}</h3>
+                    <p className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">
+                      {(file?.size ? (file.size / 1024 / 1024).toFixed(2) : 0)} MB • {(analyzing ? "ANALYZING_BEATS..." : "MEDIA_READY")}
+                    </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
+
+                  <div className="flex items-center gap-4">
+                    <Button
                       onClick={handleUpload}
                       disabled={uploading || !!jobId || analyzing}
-                      className="px-8 py-4 bg-brand-cyan hover:bg-brand-accent text-black font-bold rounded-xl transition-all hover:scale-105 disabled:opacity-50 disabled:scale-100 flex items-center gap-3 shadow-[0_0_20px_rgba(6,182,212,0.4)]"
+                      variant={jobId ? "secondary" : "glow"}
+                      className="w-full md:w-auto h-16 px-12 font-black text-xs uppercase tracking-[0.3em]"
+                      loading={uploading || analyzing}
                     >
-                      {analyzing ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          <span>Analyzing {analysisProgress}%</span>
-                        </>
-                      ) : uploading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                          <span>Uploading {uploadProgress}%</span>
-                        </>
-                      ) : jobId ? (
-                        <>
-                          <Sparkles className="w-5 h-5" />
-                          <span>Upload Complete</span>
-                        </>
+                      {jobId ? (
+                        <><CheckCircle2 className="w-5 h-5 mr-3" /> UPLOAD_OK</>
                       ) : (
-                        <>
-                          <Sparkles className="w-5 h-5" />
-                          <span>Start Upload</span>
-                        </>
+                        <><Sparkles className="w-5 h-5 mr-3" /> {analyzing ? `ANALYZING ${analysisProgress}%` : `DEPLOY TO PIPELINE`}</>
                       )}
-                    </button>
-                    {uploading && (
-                      <button
-                        onClick={handleCancelUpload}
-                        className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    )}
+                    </Button>
                   </div>
                 </div>
-                {uploading && (
-                  <div className="mt-4">
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-brand-cyan transition-all duration-300"
-                        style={{ width: `${uploadProgress}%` }}
-                      />
+
+                {(uploading || uploadProgress > 0) && (
+                  <div className="space-y-3 animate-in fade-in duration-700">
+                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-brand-cyan to-brand-violet shadow-[0_0_15px_rgba(6,182,212,0.8)] transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">Uploading your video. Don&apos;t close this tab.</p>
+                    <div className="flex justify-between text-[10px] font-black text-gray-600 uppercase tracking-[0.4em]">
+                      <span>Transferring Assets</span>
+                      <span className="text-brand-cyan">{uploadProgress}%</span>
+                    </div>
                   </div>
                 )}
-                {!uploading && !jobId && (
-                  <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-white">Ready to upload</p>
-                      <p className="text-xs text-gray-400">Click Start Upload to send your video.</p>
+
+                {jobId && (
+                  <div className="mt-8 flex flex-col md:flex-row items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <div className="flex-1 flex items-center gap-4 px-6 py-4 bg-emerald-400/5 border border-emerald-400/20 rounded-[24px]">
+                      <Activity className="w-5 h-5 text-emerald-400 animate-pulse" />
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Job Enqueued: Node #{jobId} Verified</span>
                     </div>
-                    <button
-                      onClick={handleUpload}
-                      className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-colors"
-                    >
-                      Start Upload
-                    </button>
-                  </div>
-                )}
-                {jobId && !uploading && (
-                  <div className="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-400/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-3 text-emerald-200">
-                      <CheckCircle2 className="w-5 h-5" />
-                      <div>
-                        <p className="text-sm font-semibold">Upload complete</p>
-                        <p className="text-xs text-emerald-200/70">Ready to start editing.</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleStartEdit}
-                      disabled={starting}
-                      className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-colors disabled:opacity-60"
-                    >
-                      {starting ? 'Starting...' : 'Start Edit'}
-                    </button>
+                    <Button onClick={handleStartEdit} variant="primary" className="w-full md:w-auto h-16 px-12 group font-black text-xs uppercase tracking-[0.3em]" loading={starting}>
+                      Execute Pipeline
+                      <ArrowRight className="w-5 h-5 ml-4 group-hover:translate-x-2 transition-transform" />
+                    </Button>
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <label className="flex-1 flex flex-col items-center justify-center cursor-pointer p-12 hover:bg-white/5 transition-colors duration-300 group/drop">
-              <div className="w-32 h-32 rounded-full bg-white/5 flex items-center justify-center mb-8 relative group-hover/drop:scale-110 transition-transform duration-500">
-                <div className="absolute inset-0 bg-gradient-to-tr from-brand-cyan/20 to-brand-violet/20 rounded-full animate-spin-slow opacity-50" />
-                <Upload className="w-12 h-12 text-gray-400 group-hover/drop:text-white transition-colors" />
+            <label className="flex-1 flex flex-col items-center justify-center cursor-pointer p-12 hover:bg-white/[0.01] transition-all duration-700 group/drop">
+              <div className="w-32 h-32 md:w-48 md:h-48 rounded-[64px] bg-white/[0.02] border border-white/5 flex items-center justify-center mb-10 relative transition-all duration-700 group-hover/drop:scale-110 group-hover/drop:rotate-6 group-hover/drop:border-brand-cyan/30">
+                <div className="absolute inset-0 bg-gradient-to-tr from-brand-cyan/20 to-brand-violet/20 rounded-[64px] blur-3xl opacity-0 group-hover/drop:opacity-100 transition-opacity duration-1000" />
+                <Upload className="w-12 h-12 md:w-16 md:h-16 text-gray-700 transition-all duration-700 group-hover/drop:text-brand-cyan group-hover/drop:scale-110" />
               </div>
-              <h2 className="text-3xl font-bold text-white mb-2 text-center">Drag & Drop Footage</h2>
-              <p className="text-gray-400 text-center max-w-sm mb-8">
-                Support for MP4, MOV, and AVI up to 100MB. <br />
-                <span className="text-brand-cyan">Pro Tip:</span> Upload raw footage for best results.
+              <h2 className="text-3xl md:text-5xl font-black text-white mb-4 text-center tracking-tighter uppercase">Deploy Footage</h2>
+              <p className="text-gray-500 text-center text-xs md:text-sm font-bold uppercase tracking-[0.3em] max-w-sm mb-12 leading-relaxed">
+                RAW_ASSETS: MP4, MOV, AVI <br />
+                <span className="text-brand-cyan">BANDWIDTH_LIMIT: 100MB</span>
               </p>
-              <span className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-colors">
-                Browse Files
-              </span>
+              <div className="px-10 py-5 rounded-[24px] bg-white text-black font-black text-xs uppercase tracking-[0.3em] shadow-2xl hover:scale-105 active:scale-95 transition-all">
+                Open Filesystem
+              </div>
               <input type="file" accept="video/*" onChange={handleFileChange} className="hidden" />
             </label>
           )}

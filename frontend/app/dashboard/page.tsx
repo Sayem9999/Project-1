@@ -2,10 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Clock, MoreVertical, Play, Film, HardDrive, LayoutGrid, Search } from 'lucide-react';
+import { Plus, Clock, Play, Film, HardDrive, LayoutGrid, Search, ArrowRight, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { apiRequest, ApiError, clearAuth, API_ORIGIN, getWebSocketUrl } from '@/lib/api';
 import MediaLibrary from '@/components/dashboard/MediaLibrary';
+import { Button } from '@/components/ui/Button';
 
 interface Job {
     id: number;
@@ -24,13 +25,7 @@ export default function DashboardPage() {
     const [userId, setUserId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [activeView, setActiveView] = useState<'projects' | 'media'>('projects');
-    const socketsRef = useRef<Record<number, WebSocket>>({});
     const activeCount = jobs.filter((job) => job.status === 'processing').length;
-
-    const processingJobs = useMemo(
-        () => jobs.filter((job) => job.status === 'processing' || job.status === 'queued'),
-        [jobs]
-    );
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -69,15 +64,9 @@ export default function DashboardPage() {
         const url = getWebSocketUrl(`/ws/user/${userId}`);
         const ws = new WebSocket(url);
 
-        ws.onopen = () => {
-            console.log('[Dashboard] Connected to user updates channel');
-        };
-
         ws.onmessage = (event) => {
             try {
                 const payload = JSON.parse(event.data);
-                // payload: { job_id, status, message, progress }
-
                 setJobs((prev) =>
                     prev.map((j) =>
                         j.id === payload.job_id
@@ -94,13 +83,7 @@ export default function DashboardPage() {
             }
         };
 
-        ws.onerror = (e) => {
-            console.error('[Dashboard] WebSocket error', e);
-        };
-
-        return () => {
-            ws.close();
-        };
+        return () => ws.close();
     }, [userId]);
 
     const getStatusParams = (status: string) => {
@@ -117,42 +100,47 @@ export default function DashboardPage() {
     };
 
     return (
-        <div className="max-w-[1600px] mx-auto space-y-8">
+        <div className="max-w-[1600px] mx-auto space-y-6 md:space-y-8">
             {/* Hero Stats Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 glass-panel rounded-3xl p-8 relative overflow-hidden group">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 glass-panel rounded-3xl p-6 md:p-8 relative overflow-hidden group border-white/5">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-brand-cyan/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-brand-cyan/20 transition-colors duration-700" />
 
                     <div className="relative z-10">
-                        <h2 className="text-3xl font-display font-bold mb-2">Welcome back, {userName || 'Creator'}</h2>
-                        <p className="text-gray-400 mb-8 max-w-lg">
-                            Your studio is ready. You have <span className="text-white font-semibold">{activeCount}</span> active projects and <span className="text-white font-semibold">{jobs.length}</span> total exports.
+                        <div className="flex items-center gap-2 mb-2">
+                            <Sparkles className="w-4 h-4 text-brand-cyan" />
+                            <span className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Studio Workspace</span>
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-black tracking-tight mb-2">Welcome back, {userName || 'Creator'}</h2>
+                        <p className="text-gray-400 mb-8 max-w-lg text-sm md:text-base leading-relaxed">
+                            Your studio is ready. You have <span className="text-white font-bold">{activeCount}</span> active projects and <span className="text-white font-bold">{jobs.length}</span> total exports.
                         </p>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                             <Link href="/dashboard/upload">
-                                <button className="px-6 py-3 bg-white text-black rounded-xl font-semibold hover:bg-gray-200 transition-colors flex items-center gap-2 shadow-lg shadow-white/10">
-                                    <Plus className="w-5 h-5" />
+                                <Button variant="glow" size="lg" className="w-full sm:w-auto">
+                                    <Plus className="w-5 h-5 mr-2" />
                                     <span>New Project</span>
-                                </button>
+                                </Button>
                             </Link>
-                            <button className="px-6 py-3 glass-card rounded-xl font-semibold text-white hover:bg-white/5 transition-colors">
+                            <Button variant="secondary" size="lg" className="w-full sm:w-auto">
                                 View Tutorials
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
 
-                <div className="glass-panel rounded-3xl p-8 flex flex-col justify-between relative overflow-hidden">
-                    <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-brand-violet/20 to-transparent" />
+                <div className="glass-panel rounded-3xl p-6 md:p-8 flex flex-col justify-between relative overflow-hidden border-white/5 bg-gradient-to-br from-white/[0.03] to-transparent">
+                    <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-brand-violet/10 to-transparent" />
                     <div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1">Total Impact</div>
                         <h3 className="text-gray-400 font-medium mb-1">Total Exports</h3>
-                        <p className="text-4xl font-display font-bold">{jobs.length}</p>
+                        <p className="text-4xl md:text-5xl font-black tracking-tighter text-white">{jobs.length}</p>
                     </div>
-                    <div className="relative z-10 mt-4">
-                        <div className="flex items-center gap-2 text-sm text-brand-violet">
+                    <div className="relative z-10 mt-6 md:mt-0">
+                        <div className="flex items-center gap-2 text-xs font-bold text-brand-violet uppercase tracking-widest">
                             <Film className="w-4 h-4" />
-                            <span>12 hrs saved this month</span>
+                            <span>Efficiency Boosted</span>
                         </div>
                     </div>
                 </div>
@@ -160,18 +148,18 @@ export default function DashboardPage() {
 
             {/* Content Section */}
             <div>
-                <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
-                    <div className="flex items-center gap-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-white/5 gap-4">
+                    <div className="flex items-center gap-6 md:gap-8">
                         <button
                             onClick={() => setActiveView('projects')}
-                            className={`flex items-center gap-2 pb-4 -mb-4.5 border-b-2 transition-all ${activeView === 'projects' ? 'border-brand-cyan text-white font-bold' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                            className={`flex items-center gap-2 pb-4 -mb-px border-b-2 transition-all ${activeView === 'projects' ? 'border-brand-cyan text-white font-black uppercase tracking-widest text-xs' : 'border-transparent text-gray-500 hover:text-gray-300 font-bold text-xs uppercase tracking-widest'}`}
                         >
                             <LayoutGrid className="w-4 h-4" />
                             <span>Recent Projects</span>
                         </button>
                         <button
                             onClick={() => setActiveView('media')}
-                            className={`flex items-center gap-2 pb-4 -mb-4.5 border-b-2 transition-all ${activeView === 'media' ? 'border-brand-cyan text-white font-bold' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                            className={`flex items-center gap-2 pb-4 -mb-px border-b-2 transition-all ${activeView === 'media' ? 'border-brand-cyan text-white font-black uppercase tracking-widest text-xs' : 'border-transparent text-gray-500 hover:text-gray-300 font-bold text-xs uppercase tracking-widest'}`}
                         >
                             <HardDrive className="w-4 h-4" />
                             <span>Media Library</span>
@@ -179,10 +167,12 @@ export default function DashboardPage() {
                     </div>
 
                     {activeView === 'projects' && (
-                        <div className="flex items-center gap-2">
-                            <button className="px-3 py-1.5 text-sm rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">All</button>
-                            <button className="px-3 py-1.5 text-sm rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">Processing</button>
-                            <button className="px-3 py-1.5 text-sm rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">Completed</button>
+                        <div className="flex items-center gap-2 pb-4 md:pb-0">
+                            {['All', 'Processing', 'Completed'].map(filter => (
+                                <button key={filter} className="px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-white/5 text-gray-500 hover:text-white transition-all">
+                                    {filter}
+                                </button>
+                            ))}
                         </div>
                     )}
                 </div>
@@ -190,43 +180,38 @@ export default function DashboardPage() {
                 {activeView === 'media' ? (
                     <MediaLibrary />
                 ) : loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="aspect-[16/9] rounded-2xl bg-white/5 animate-pulse" />
+                            <div key={i} className="aspect-video rounded-3xl bg-white/5 animate-pulse" />
                         ))}
                     </div>
                 ) : error ? (
                     <div className="glass-panel border border-red-500/20 rounded-3xl p-10 text-center">
-                        <div className="text-sm text-red-400 mb-2">Dashboard Error</div>
-                        <p className="text-gray-400 mb-6">{error}</p>
-                        <button
-                            onClick={() => router.refresh()}
-                            className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium transition-colors"
-                        >
-                            Retry
-                        </button>
+                        <div className="text-xs font-black uppercase tracking-widest text-red-500 mb-2">Sync Error</div>
+                        <p className="text-gray-400 mb-6 text-sm">{error}</p>
+                        <Button variant="secondary" onClick={() => window.location.reload()}>Retry Connection</Button>
                     </div>
                 ) : jobs.length === 0 ? (
-                    <div className="glass-panel border-dashed border-2 border-white/10 rounded-3xl p-12 text-center">
-                        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-brand-cyan/20 to-brand-violet/20 flex items-center justify-center text-4xl">
+                    <div className="glass-panel border-dashed border-2 border-white/5 rounded-3xl p-12 text-center flex flex-col items-center">
+                        <div className="w-20 h-20 mb-6 rounded-3xl bg-gradient-to-br from-brand-cyan/20 to-brand-violet/20 flex items-center justify-center">
                             <Film className="w-10 h-10 text-brand-cyan" />
                         </div>
                         <h3 className="text-xl font-bold mb-2">Start your first masterpiece</h3>
-                        <p className="text-gray-400 mb-8">Upload clips and let our AI agents handle the rest.</p>
+                        <p className="text-gray-400 mb-8 text-sm max-w-xs">Upload clips and let our AI agents orchestrate your creative vision.</p>
                         <Link href="/dashboard/upload">
-                            <button className="px-8 py-3 bg-brand-cyan text-black font-bold rounded-xl hover:bg-brand-accent transition-colors shadow-lg shadow-brand-cyan/20">
+                            <Button variant="glow" size="lg" className="px-10">
                                 Create Project
-                            </button>
+                            </Button>
                         </Link>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {/* New Project Ghost Card */}
-                        <Link href="/dashboard/upload" className="aspect-[16/9] rounded-2xl border-2 border-dashed border-white/5 hover:border-brand-cyan/50 bg-white/[0.02] hover:bg-white/5 transition-all group flex flex-col items-center justify-center gap-3">
-                            <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-cyan/20 transition-colors">
-                                <Plus className="w-6 h-6 text-gray-400 group-hover:text-brand-cyan" />
+                        <Link href="/dashboard/upload" className="aspect-video rounded-3xl border-2 border-dashed border-white/5 hover:border-brand-cyan/50 bg-white/[0.02] hover:bg-white/[0.04] transition-all group flex flex-col items-center justify-center gap-3">
+                            <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-brand-cyan/20 group-hover:scale-110 transition-all duration-500">
+                                <Plus className="w-6 h-6 text-gray-500 group-hover:text-brand-cyan" />
                             </div>
-                            <span className="font-semibold text-gray-400 group-hover:text-white uppercase tracking-widest text-[10px]">New Project</span>
+                            <span className="font-black text-gray-500 group-hover:text-white uppercase tracking-[0.2em] text-[10px]">New Project</span>
                         </Link>
 
                         {jobs.map((job) => {
@@ -235,7 +220,7 @@ export default function DashboardPage() {
                                 <Link
                                     key={job.id}
                                     href={`/jobs/${job.id}`}
-                                    className="group relative aspect-[16/9] rounded-2xl overflow-hidden bg-white/5 border border-white/5 hover:border-brand-cyan/50 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-brand-cyan/10"
+                                    className="group relative aspect-video rounded-3xl overflow-hidden bg-white/5 border border-white/5 hover:border-brand-cyan/50 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-brand-cyan/10"
                                 >
                                     {/* Thumbnail Image */}
                                     <div className="absolute inset-0">
@@ -247,7 +232,7 @@ export default function DashboardPage() {
                                                 alt={`Project ${job.id}`}
                                                 fill
                                                 sizes="(max-width: 1024px) 100vw, 25vw"
-                                                className="object-cover opacity-50 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
+                                                className="object-cover opacity-50 group-hover:opacity-80 group-hover:scale-110 transition-all duration-1000"
                                                 unoptimized
                                             />
                                         ) : (
@@ -255,22 +240,22 @@ export default function DashboardPage() {
                                                 <Film className="w-12 h-12 text-white/5 group-hover:text-white/10 transition-colors" />
                                             </div>
                                         )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-80" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
                                     </div>
 
                                     {/* Status Badge */}
-                                    <div className="absolute top-3 left-3">
-                                        <div className={`flex items-center gap-2 px-2.5 py-1 rounded-lg backdrop-blur-md ${status.bg} border border-white/5 shadow-xl`}>
+                                    <div className="absolute top-4 left-4">
+                                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl glass-heavy ${status.bg} border-white/5 shadow-2xl`}>
                                             <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${status.color}`}>{status.label}</span>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest ${status.color}`}>{status.label}</span>
                                         </div>
                                     </div>
 
                                     {/* Content */}
-                                    <div className="absolute bottom-0 left-0 right-0 p-5 transform translate-y-1 group-hover:translate-y-0 transition-transform">
-                                        <h3 className="text-lg font-bold text-white mb-1 leading-tight group-hover:text-brand-cyan transition-colors truncate">Project #{job.id}</h3>
-                                        <div className="flex items-center justify-between text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-                                            <span className="flex items-center gap-1.5">
+                                    <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-1 group-hover:translate-y-0 transition-transform">
+                                        <h3 className="text-lg font-black text-white mb-2 leading-tight group-hover:text-brand-cyan transition-colors truncate tracking-tight">Project #{job.id}</h3>
+                                        <div className="flex items-center justify-between text-[10px] text-gray-500 font-extrabold uppercase tracking-[0.15em]">
+                                            <span className="flex items-center gap-2">
                                                 <Clock className="w-3 h-3" />
                                                 {new Date(job.created_at).toLocaleDateString()}
                                             </span>
@@ -284,9 +269,9 @@ export default function DashboardPage() {
 
                                     {/* Hover Overlay Play Icon */}
                                     {job.status === 'complete' && (
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                                            <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-                                                <Play className="w-5 h-5 text-white ml-0.5" fill="currentColor" />
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+                                            <div className="w-14 h-14 rounded-full bg-brand-cyan/90 flex items-center justify-center shadow-2xl shadow-brand-cyan/40 scale-90 group-hover:scale-100 transition-transform duration-500">
+                                                <Play className="w-6 h-6 text-black ml-1" fill="currentColor" />
                                             </div>
                                         </div>
                                     )}
