@@ -25,52 +25,69 @@ async def refresh_admin_data():
         try:
             start_time = time.perf_counter()
             
-            # 1. DB Stats
-            async with SessionLocal() as session:
-                user_count = (await session.execute(select(func.count(User.id)))).scalar() or 0
-                job_count = (await session.execute(select(func.count(Job.id)))).scalar() or 0
-                
-                one_day_ago = datetime.utcnow() - timedelta(days=1)
-                recent_jobs = (await session.execute(
-                    select(func.count(Job.id)).where(Job.created_at >= one_day_ago)
-                )).scalar() or 0
-                active_users = (await session.execute(
-                    select(func.count(func.distinct(Job.user_id))).where(Job.created_at >= one_day_ago)
-                )).scalar() or 0
+            # 1. DB Stats (Strict timeout to prevent deadlock)
+            try:
+                # Use wait_for on a local async function to avoid compatibility issues with asyncio.timeout
+                async def fetch_db_stats():
+                    async with SessionLocal() as session:
+                        u_count = (await session.execute(select(func.count(User.id)))).scalar() or 0
+                        j_count = (await session.execute(select(func.count(Job.id)))).scalar() or 0
+                        
+                        one_day_ago = datetime.utcnow() - timedelta(days=1)
+                        recent = (await session.execute(
+                            select(func.count(Job.id)).where(Job.created_at >= one_day_ago)
+                        )).scalar() or 0
+                        active = (await session.execute(
+                            select(func.count(func.distinct(Job.user_id))).where(Job.created_at >= one_day_ago)
+                        )).scalar() or 0
 
-                start_date = datetime.utcnow().date() - timedelta(days=6)
-                jobs_by_day = await session.execute(
-                    select(func.date(Job.created_at), func.count(Job.id))
-                    .where(Job.created_at >= start_date)
-                    .group_by(func.date(Job.created_at))
-                    .order_by(func.date(Job.created_at))
+                        start_date = datetime.utcnow().date() - timedelta(days=6)
+                        by_day = await session.execute(
+                            select(func.date(Job.created_at), func.count(Job.id))
+                            .where(Job.created_at >= start_date)
+                            .group_by(func.date(Job.created_at))
+                            .order_by(func.date(Job.created_at))
+                        )
+                        return {
+                            "users": {"total": u_count, "active_24h": active},
+                            "jobs": {"total": j_count, "recent_24h": recent},
+                            "trends": {
+                                "jobs_by_day": [{"date": str(row[0]), "count": row[1]} for row in by_day.all()],
+                            }
+                        }
+
+                _ADMIN_STATS.update(await asyncio.wait_for(fetch_db_stats(), timeout=5.0))
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.warning("admin_cache_db_refresh_slow", error=str(e))
+
+            # 2. Storage Stats (Timeout for sync boto3 call)
+            try:
+                _ADMIN_STATS["storage"] = await asyncio.wait_for(
+                    asyncio.to_thread(storage_service.get_storage_usage),
+                    timeout=5.0
                 )
-                
-                _ADMIN_STATS = {
-                    "users": {"total": user_count, "active_24h": active_users},
-                    "jobs": {"total": job_count, "recent_24h": recent_jobs},
-                    "trends": {
-                        "jobs_by_day": [{"date": str(row[0]), "count": row[1]} for row in jobs_by_day.all()],
-                    }
-                }
-
-            # 2. Storage Stats (Async to thread as it's sync Boto3)
-            _ADMIN_STATS["storage"] = await asyncio.to_thread(storage_service.get_storage_usage)
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.warning("admin_cache_storage_refresh_slow", error=str(e))
 
             # 3. Health Diagnostics
             health = {"timestamp": datetime.utcnow().isoformat()}
             
-            # External checks (Parallel)
-            celery_task = asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=1.5)
-            integrations_task = asyncio.to_thread(get_integration_health, run_probe=False)
-            
-            celery_res, integrations_res = await asyncio.gather(
-                celery_task, integrations_task, return_exceptions=True
-            )
-            
-            health["celery"] = celery_res if not isinstance(celery_res, Exception) else {"error": "timeout"}
-            health["integrations"] = integrations_res if not isinstance(integrations_res, Exception) else {"error": "timeout"}
-            health["db"] = {"reachable": True} # If we reached here, DB worked
+            # External checks (Parallel with strict timeout)
+            try:
+                celery_task = asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=2.0)
+                integrations_task = asyncio.to_thread(get_integration_health, run_probe=False)
+                
+                celery_res, integrations_res = await asyncio.wait_for(
+                    asyncio.gather(celery_task, integrations_task, return_exceptions=True),
+                    timeout=4.0
+                )
+                
+                health["celery"] = celery_res if not isinstance(celery_res, Exception) else {"error": "timeout"}
+                health["integrations"] = integrations_res if not isinstance(integrations_res, Exception) else {"error": "timeout"}
+                health["db"] = {"reachable": True}
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.warning("admin_cache_health_refresh_slow", error=str(e))
+                health["error"] = "diagnostic_timeout"
             
             _ADMIN_HEALTH = health
             _LAST_REFRESH = time.time()

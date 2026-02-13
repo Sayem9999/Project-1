@@ -1,5 +1,6 @@
 import Sidebar from '@/components/dashboard/Sidebar';
 import TopBar from '@/components/dashboard/TopBar';
+import BottomNav from '@/components/ui/BottomNav';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -13,13 +14,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <Sidebar />
 
-            {/* Main Content Area */}
-            <div className="pl-72 relative z-10 min-h-screen flex flex-col">
+            {/* Main Content Area - Dynamic Padding */}
+            <div className="pl-0 md:pl-72 relative z-10 min-h-screen flex flex-col pb-24 md:pb-0">
                 <TopBar />
-                <main className="flex-1 px-8 pb-8">
+                <main className="flex-1 px-4 md:px-8 pb-8">
                     {children}
                 </main>
             </div>
+
+            <BottomNav />
         </div>
     );
 }

@@ -90,6 +90,9 @@ async def lifespan(app: FastAPI):
     try:
         from sqlalchemy import text
         async with engine.begin() as conn:
+            # Enable WAL mode for better concurrency on SQLite
+            await conn.execute(text("PRAGMA journal_mode=WAL"))
+            await conn.execute(text("PRAGMA synchronous=NORMAL"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_created_at ON jobs (created_at)"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_status ON jobs (status)"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_created_at ON users (created_at)"))

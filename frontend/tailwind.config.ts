@@ -10,15 +10,16 @@ export default {
       },
       colors: {
         obsidian: {
-          950: '#020408', // Deep Space
-          900: '#050a14', // Void
-          800: '#0f172a', // Slate
+          950: 'var(--obsidian-950)',
+          900: 'var(--obsidian-900)',
+          800: 'var(--obsidian-800)',
+          700: 'var(--obsidian-700)',
         },
         brand: {
-          cyan: '#06b6d4',     // Cyan 500
-          violet: '#8b5cf6',   // Violet 500
-          fuchsia: '#d946ef',  // Fuchsia 500
-          accent: '#22d3ee',   // Cyan 400
+          cyan: 'var(--brand-cyan)',
+          violet: 'var(--brand-violet)',
+          fuchsia: 'var(--brand-fuchsia)',
+          accent: 'var(--brand-accent)',
         },
         sidebar: {
           DEFAULT: 'rgba(2, 4, 8, 0.85)',
@@ -32,6 +33,7 @@ export default {
         'scan': 'scan 4s linear infinite',
         'slide-up': 'slideUp 0.5s ease-out forwards',
         'glow': 'glow 3s ease-in-out infinite',
+        'drift-orb': 'drift-orb 18s ease-in-out infinite',
       },
       keyframes: {
         float: {

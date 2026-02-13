@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends HTMLMotionProps<"button"> {
-    variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+    variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'glow';
     size?: 'sm' | 'md' | 'lg';
     loading?: boolean;
     children: React.ReactNode;
@@ -14,6 +14,7 @@ export function Button({ className, variant = 'primary', size = 'md', loading, c
         primary: "bg-gradient-to-r from-brand-cyan to-brand-violet text-white hover:opacity-90 shadow-lg shadow-brand-cyan/20",
         secondary: "bg-white/10 text-white hover:bg-white/20 border border-white/5",
         ghost: "bg-transparent text-gray-400 hover:text-white hover:bg-white/5",
+        glow: "bg-gradient-to-r from-brand-cyan/20 to-brand-violet/20 text-white border border-brand-cyan/30 hover:shadow-[0_0_30px_rgba(6,182,212,0.3)] transition-all",
         danger: "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20"
     };
 

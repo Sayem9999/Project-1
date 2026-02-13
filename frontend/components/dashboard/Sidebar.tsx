@@ -14,7 +14,7 @@ export default function Sidebar() {
     const pathname = usePathname();
 
     return (
-        <aside className="fixed left-4 top-4 bottom-4 w-64 glass-panel rounded-2xl flex flex-col z-50 transition-transform duration-300">
+        <aside className="fixed left-4 top-4 bottom-4 w-64 glass-panel rounded-2xl hidden md:flex flex-col z-50 transition-all duration-300">
             {/* Brand */}
             <div className="p-8 pb-4">
                 <Link href="/" className="flex items-center gap-3 group">
@@ -30,7 +30,26 @@ export default function Sidebar() {
 
             {/* Navigation */}
             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
-                {displayNavigation(navigation, pathname)}
+                {navigation.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                        <Link
+                            key={item.name}
+                            href={item.href}
+                            className={`flex items-center gap-3 px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 group relative overflow-hidden ${isActive
+                                ? "text-white bg-gradient-to-r from-brand-cyan/10 to-transparent border border-brand-cyan/20"
+                                : "text-gray-400 hover:text-white hover:bg-white/5"
+                                }`}
+                        >
+                            {isActive && (
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-cyan shadow-[0_0_10px_2px_rgba(6,182,212,0.5)]" />
+                            )}
+                            <item.icon className={`w-5 h-5 transition-colors ${isActive ? "text-brand-cyan" : "group-hover:text-white"
+                                }`} />
+                            <span>{item.name}</span>
+                        </Link>
+                    );
+                })}
             </nav>
 
             {/* User / Logout */}
@@ -48,27 +67,4 @@ export default function Sidebar() {
             </div>
         </aside>
     );
-}
-
-function displayNavigation(navItems: typeof navigation, currentPath: string) {
-    return navItems.map((item) => {
-        const isActive = currentPath === item.href;
-        return (
-            <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 group relative overflow-hidden ${isActive
-                        ? "text-white bg-gradient-to-r from-brand-cyan/10 to-transparent border border-brand-cyan/20"
-                        : "text-gray-400 hover:text-white hover:bg-white/5"
-                    }`}
-            >
-                {isActive && (
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-cyan shadow-[0_0_10px_2px_rgba(6,182,212,0.5)]" />
-                )}
-                <item.icon className={`w-5 h-5 transition-colors ${isActive ? "text-brand-cyan" : "group-hover:text-white"
-                    }`} />
-                <span>{item.name}</span>
-            </Link>
-        );
-    });
 }

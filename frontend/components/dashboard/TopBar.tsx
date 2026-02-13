@@ -3,6 +3,7 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { apiRequest, ApiError, API_ORIGIN, clearAuth, setStoredUser } from '@/lib/api';
+import { Search, Bell, Clock, Activity } from 'lucide-react';
 
 export default function TopBar() {
     const pathname = usePathname();
@@ -12,7 +13,6 @@ export default function TopBar() {
     const [clock, setClock] = useState<string>('');
     const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
 
-    // Format pathname for breadcrumbs (e.g. /dashboard/upload -> Dashboard / Upload)
     const segments = pathname.split('/').filter(Boolean);
 
     useEffect(() => {
@@ -31,20 +31,17 @@ export default function TopBar() {
                     clearAuth();
                     return;
                 }
-                console.error("Failed to fetch credits", err);
             }
         };
 
         fetchCredits();
-
-        // Listen for credit updates (simple event bus for now)
         const handleCreditUpdate = () => fetchCredits();
         window.addEventListener('credit-update', handleCreditUpdate);
         return () => window.removeEventListener('credit-update', handleCreditUpdate);
     }, []);
 
     useEffect(() => {
-        const updateClock = () => setClock(new Date().toLocaleTimeString());
+        const updateClock = () => setClock(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         updateClock();
         const timer = window.setInterval(updateClock, 1000);
         return () => window.clearInterval(timer);
@@ -52,7 +49,6 @@ export default function TopBar() {
 
     useEffect(() => {
         let cancelled = false;
-
         const checkHealth = async () => {
             try {
                 const res = await fetch(`${API_ORIGIN}/health`, { method: 'GET' });
@@ -61,88 +57,70 @@ export default function TopBar() {
                 if (!cancelled) setApiHealthy(false);
             }
         };
-
         checkHealth();
         const interval = window.setInterval(checkHealth, 30000);
-        return () => {
-            cancelled = true;
-            window.clearInterval(interval);
-        };
+        return () => { cancelled = true; window.clearInterval(interval); };
     }, []);
 
     return (
-        <header className="h-20 flex items-center justify-between px-8 z-40">
-            {/* Breadcrumbs */}
-            <div className="flex items-center gap-2 text-sm">
+        <header className="h-20 flex items-center justify-between px-4 md:px-8 z-40 relative">
+            {/* Breadcrumbs - Hidden on Mobile */}
+            <div className="hidden md:flex items-center gap-2 text-sm">
                 {segments.map((segment, i) => (
                     <div key={segment} className="flex items-center gap-2">
                         {i > 0 && <span className="text-gray-600">/</span>}
-                        <span className={`capitalize font-display tracking-wide ${i === segments.length - 1 ? 'text-white font-medium' : 'text-gray-500'}`}>
+                        <span className={`capitalize font-display tracking-tight ${i === segments.length - 1 ? 'text-white font-bold' : 'text-gray-500'}`}>
                             {segment}
                         </span>
                     </div>
                 ))}
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-6">
-                <div className="hidden lg:flex items-center gap-3 px-3 py-2 rounded-xl bg-obsidian-800/40 border border-white/10 text-xs">
-                    <span
-                        className={`inline-block w-2.5 h-2.5 rounded-full shadow-[0_0_12px] ${
-                            apiHealthy === null
-                                ? 'bg-gray-400 shadow-gray-400/40'
-                                : apiHealthy
-                                  ? 'bg-emerald-400 shadow-emerald-400/50'
-                                  : 'bg-red-400 shadow-red-400/50'
-                        }`}
-                    />
-                    <span className="text-gray-300 font-medium">
-                        {apiHealthy === null ? 'API Checking...' : apiHealthy ? 'API Live' : 'API Offline'}
-                    </span>
-                    <span className="text-gray-500">|</span>
-                    <span className="font-mono text-gray-400">{clock || '--:--:--'}</span>
+            {/* Mobile Brand Placeholder (since sidebar is hidden) */}
+            <div className="md:hidden flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-cyan to-brand-violet flex items-center justify-center text-white font-bold text-xs ring-2 ring-white/10">
+                    P
+                </div>
+                <span className="text-sm font-bold tracking-tight text-white uppercase">Proedit</span>
+            </div>
+
+            {/* Actions Area */}
+            <div className="flex items-center gap-3 md:gap-6">
+                {/* System Status - Hidden on extra small phones */}
+                <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-full glass-sm text-[10px] h-9">
+                    <div className="flex items-center gap-1.5 border-r border-white/5 pr-3">
+                        <div className={`w-1.5 h-1.5 rounded-full ${apiHealthy ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-red-400'}`} />
+                        <span className="text-gray-400 uppercase tracking-widest font-bold">API</span>
+                    </div>
+                    <span className="font-mono text-gray-300">{clock}</span>
                 </div>
 
-                {/* Credits Badge */}
-                <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-obsidian-800/50 border border-white/5 text-xs font-semibold text-slate-300 shadow-sm backdrop-blur-sm">
-                    <span className="text-amber-400 text-base">CR</span>
-                    <span className="font-mono tracking-wider">{credits !== null ? credits : '...'} CR</span>
-                    <div className="w-px h-3 bg-white/10 mx-2" />
-                    <button className="text-brand-cyan hover:text-white transition-colors" title="Buy Credits">
-                        GET MORE
-                    </button>
+                {/* Credits - Visible on most screens */}
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-md border-brand-cyan/20 text-[10px] font-bold text-slate-300 h-9">
+                    <span className="text-brand-cyan">CR</span>
+                    <span className="font-mono">{credits !== null ? credits : '...'}</span>
+                    <button className="ml-1 text-white/50 hover:text-brand-cyan transition-colors" title="Add Credits">+</button>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <button className="w-10 h-10 rounded-xl glass-card flex items-center justify-center text-gray-400 hover:text-white transition-colors">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                {/* Icon Actions */}
+                <div className="flex items-center gap-1 md:gap-2">
+                    <button className="w-9 h-9 rounded-full hover:bg-white/5 flex items-center justify-center text-gray-400 hidden lg:flex">
+                        <Search className="w-4 h-4" />
                     </button>
-                    <button className="w-10 h-10 rounded-xl glass-card flex items-center justify-center text-gray-400 hover:text-white transition-colors relative">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                        </svg>
-                        <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-brand-cyan rounded-full shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
+                    <button className="w-9 h-9 rounded-full hover:bg-white/5 flex items-center justify-center text-gray-400 relative">
+                        <Bell className="w-4 h-4" />
+                        <span className="absolute top-2 right-2 w-2 h-2 bg-brand-cyan rounded-full shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
                     </button>
 
-                    <div className="w-px h-6 bg-white/10 mx-2" />
+                    <div className="w-0.5 h-4 bg-white/5 mx-1 hidden sm:block" />
 
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-cyan to-brand-violet p-[1px]">
-                        <div className="w-full h-full rounded-xl bg-obsidian-900 overflow-hidden">
+                    {/* Profile */}
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-brand-cyan to-brand-violet p-[1.5px] cursor-pointer hover:rotate-6 transition-transform">
+                        <div className="w-full h-full rounded-full bg-obsidian-900 overflow-hidden flex items-center justify-center">
                             {avatarUrl ? (
-                                <Image
-                                    src={avatarUrl}
-                                    alt="User"
-                                    width={40}
-                                    height={40}
-                                    className="w-full h-full object-cover"
-                                    unoptimized
-                                />
+                                <Image src={avatarUrl} alt="U" width={36} height={36} className="w-full h-full object-cover" unoptimized />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white">
-                                    {displayName.charAt(0).toUpperCase()}
-                                </div>
+                                <span className="text-xs font-bold text-white uppercase">{displayName.charAt(0)}</span>
                             )}
                         </div>
                     </div>
