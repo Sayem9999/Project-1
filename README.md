@@ -131,4 +131,5 @@ This project uses a high-performance hybrid setup: the UI is global on **Vercel*
 ## 📚 Documentation
 
 - **API Documentation**: `http://localhost:8000/docs`
-- **Architecture**: See `docs/architecture` for detailed system design.
+- **Architecture**: See [docs/ARCHITECTURE.md](file:///C:/pinokio/api/editstudio/docs/ARCHITECTURE.md) for detailed system design.
+- **AI Models**: See [docs/AI_MODELS.md](file:///C:/pinokio/api/editstudio/docs/AI_MODELS.md) for model-specific info.

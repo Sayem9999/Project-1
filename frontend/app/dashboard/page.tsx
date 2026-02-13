@@ -240,9 +240,12 @@ export default function DashboardPage() {
                         {jobs.map((job) => {
                             if (!job) return null;
                             const status = getStatusParams(job.status);
-                            const mediaUrl = job.thumbnail_path
-                                ? (job.thumbnail_path.startsWith('http') ? job.thumbnail_path : `${API_ORIGIN}/${job.thumbnail_path}`)
-                                : (job.output_path?.startsWith('http') ? job.output_path : `${API_ORIGIN}/${job.output_path}`);
+
+                            // Safely build media URL, ensuring we don't fetch if no path exists
+                            const mediaPath = job.thumbnail_path || job.output_path;
+                            const mediaUrl = mediaPath
+                                ? (mediaPath.startsWith('http') ? mediaPath : `${API_ORIGIN}/${mediaPath}`)
+                                : null;
 
                             const isVideo = mediaUrl?.toLowerCase().endsWith('.mp4');
 
@@ -297,9 +300,27 @@ export default function DashboardPage() {
                                                 {job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Recent'}
                                             </span>
                                             {job.status === 'processing' && (
-                                                <span className="text-brand-cyan animate-pulse">
-                                                    {job.progress_message || 'Processing...'}
-                                                </span>
+                                                <div className="flex flex-col gap-1 w-full mt-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-brand-cyan animate-pulse">
+                                                            {job.progress_message?.split(']')[1]?.trim() || job.progress_message || 'Processing...'}
+                                                        </span>
+                                                        <span className="text-[9px] text-gray-600 font-black">
+                                                            {job.progress_message?.includes('[AI]') ? 'HOLLYWOOD PIPELINE' : 'AGENTIC WORKFLOW'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-gradient-to-r from-brand-cyan to-brand-violet transition-all duration-1000 ease-out"
+                                                            style={{
+                                                                width: job.progress_message?.includes('10%') ? '10%' :
+                                                                    job.progress_message?.includes('20%') ? '20%' :
+                                                                        job.progress_message?.includes('50%') ? '50%' :
+                                                                            job.progress_message?.includes('80%') ? '80%' : '15%'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
