@@ -326,7 +326,12 @@ export default function UploadPage() {
               <div className="px-10 py-5 rounded-[24px] bg-white text-black font-black text-xs uppercase tracking-[0.3em] shadow-2xl hover:scale-105 active:scale-95 transition-all">
                 Open Filesystem
               </div>
-              <input type="file" accept="video/*" onChange={handleFileChange} className="hidden" />
+              <input
+                type="file"
+                accept="video/*"
+                onChange={handleFileChange}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
             </label>
           )}
         </div>

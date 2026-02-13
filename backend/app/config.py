@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     
     # Ollama (Local LLM)
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "gemma3:1b"
+    ollama_model: str = "llama3.2:3b"
     ollama_enabled: bool = True
     password_policy: str = "basic"
     
