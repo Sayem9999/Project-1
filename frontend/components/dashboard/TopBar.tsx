@@ -2,7 +2,7 @@
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { apiRequest, ApiError, API_ORIGIN, clearAuth, setStoredUser } from '@/lib/api';
+import { apiRequest, ApiError, API_ORIGIN, clearAuth, setStoredUser, SafeStorage } from '@/lib/api';
 import { Search, Bell, Clock, Activity } from 'lucide-react';
 
 export default function TopBar() {
@@ -17,7 +17,7 @@ export default function TopBar() {
 
     useEffect(() => {
         setMounted(true);
-        const stored = localStorage.getItem('local_only_mode');
+        const stored = SafeStorage.getItem('local_only_mode');
         if (stored === 'true') setLocalOnly(true);
     }, []);
 

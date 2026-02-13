@@ -24,7 +24,9 @@ export default function UploadPage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    console.log('[UploadPage] Mounting...');
     setMounted(true);
+    return () => console.log('[UploadPage] Unmounting...');
   }, []);
 
   const [settings, setSettings] = useState({
@@ -64,7 +66,11 @@ export default function UploadPage() {
   const processNewFile = (newFile: File) => {
     setFile(newFile);
     setPreview(URL.createObjectURL(newFile));
-    setIdempotencyKey(typeof crypto !== 'undefined' ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+    // Safe UUID generation for non-secure contexts
+    const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `job_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    setIdempotencyKey(uuid);
     setJobId(null);
     setStarting(false);
     setUploadProgress(0);
@@ -76,6 +82,7 @@ export default function UploadPage() {
     setAnalyzing(true);
     setAnalysisProgress(0);
     try {
+      // Lazy load FFmpeg only when needed
       await ffmpegAnalyzer.load().catch(e => console.error("FFmpeg load fail:", e));
       const result = await ffmpegAnalyzer.analyze(videoFile, (p) => setAnalysisProgress(p));
       setAnalysisResult(result);
@@ -150,7 +157,15 @@ export default function UploadPage() {
     }
   };
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 animate-pulse">
+        <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10" />
+        <div className="h-4 w-32 bg-white/5 rounded-full" />
+        <div className="h-2 w-48 bg-white/5 rounded-full opacity-50" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col xl:flex-row gap-8 xl:gap-12 min-h-[calc(100vh-14rem)] pb-20 px-2 md:px-0">

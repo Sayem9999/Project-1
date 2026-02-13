@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import GlobalVisualFX from '@/components/ui/GlobalVisualFX';
 import CommandPalette from '@/components/ui/CommandPalette';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
 export default function AppEnhancer({ children }: { children: ReactNode }) {

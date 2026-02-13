@@ -77,17 +77,15 @@ async def refresh_admin_data():
                 celery_task = asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=2.0)
                 integrations_task = asyncio.to_thread(get_integration_health, run_probe=False)
                 
-                celery_res, integrations_res = await asyncio.wait_for(
-                    asyncio.gather(celery_task, integrations_task, return_exceptions=True),
-                    timeout=4.0
-                )
-                
-                health["celery"] = celery_res if not isinstance(celery_res, Exception) else {"error": "timeout"}
+                # integrations_res might be a dict or a timeout error
+                health["redis"] = celery_res if not isinstance(celery_res, Exception) else {"configured": True, "reachable": False, "error": "timeout"}
                 health["integrations"] = integrations_res if not isinstance(integrations_res, Exception) else {"error": "timeout"}
-                health["db"] = {"reachable": True}
             except (asyncio.TimeoutError, Exception) as e:
                 logger.warning("admin_cache_health_refresh_slow", error=str(e))
                 health["error"] = "diagnostic_timeout"
+            
+            # DB health is internal and should be reported even if external checks time out
+            health["db"] = {"reachable": True}
             
             _ADMIN_HEALTH = health
             _LAST_REFRESH = time.time()

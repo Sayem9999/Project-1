@@ -43,6 +43,8 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
     target_queue = (settings.celery_video_queue or "video").strip() or "video"
     diagnostics: dict[str, Any] = {
         "use_celery": USE_CELERY,
+        "configured": USE_CELERY,
+        "reachable": False,
         "broker": _broker_fingerprint(_REDIS_URL),
         "expected_queue": target_queue,
         "worker_count": 0,
@@ -63,6 +65,7 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
         worker_names = sorted(set(list(ping.keys()) + list(active_queues.keys())))
         diagnostics["workers"] = worker_names
         diagnostics["worker_count"] = len(worker_names)
+        diagnostics["reachable"] = len(worker_names) > 0
         diagnostics["queues"] = {
             worker: [q.get("name") for q in active_queues.get(worker, [])]
             for worker in worker_names

@@ -35,25 +35,49 @@ type ApiOptions = Omit<RequestInit, "body"> & {
   timeoutMs?: number;
 };
 
+export const SafeStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      if (typeof window === "undefined") return null;
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.warn(`[Storage] Failed to get ${key}:`, e);
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      if (typeof window === "undefined") return;
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn(`[Storage] Failed to set ${key}:`, e);
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      if (typeof window === "undefined") return;
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn(`[Storage] Failed to remove ${key}:`, e);
+    }
+  }
+};
+
 export function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
+  return SafeStorage.getItem("token");
 }
 
 export function setAuthToken(token: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("token", token);
+  SafeStorage.setItem("token", token);
 }
 
 export function setStoredUser(user: unknown): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("user", JSON.stringify(user));
+  SafeStorage.setItem("user", JSON.stringify(user));
 }
 
 export function clearAuth(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
+  SafeStorage.removeItem("token");
+  SafeStorage.removeItem("user");
 }
 
 export function getWebSocketUrl(path: string): string {
