@@ -51,7 +51,7 @@ function LoginForm() {
         return;
       }
 
-      router.push(adminMode ? '/admin' : '/dashboard');
+      router.push(adminMode ? '/admin' : '/dashboard/upload');
     } catch (err: any) {
       setError(err instanceof ApiError ? err.message : 'Login failed');
       setLoading(false);

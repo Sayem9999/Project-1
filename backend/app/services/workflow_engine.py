@@ -289,27 +289,34 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                     print(f"[Workflow] Modal Rendering Failed for job {job_id}, falling back...")
 
             if not modal_output:
-                # 2. Local Fallback Render (CPU)
-                publish_progress(job_id, "processing", f"Local rendering fallback with {video_encoder}...", 65, user_id=user_id)
-                ffmpeg_path = "./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe" if os.path.exists("./tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg.exe") else "ffmpeg"
-                cmd = [ffmpeg_path, "-y", "-i", str(src)]
+                # 2. Local Parallel Render
+                from .rendering_orchestrator import rendering_orchestrator
                 
-                async with limits.render_semaphore:
-                    if video_encoder == "h264_nvenc":
-                        cmd += ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "23"]
-                    elif video_encoder == "h264_vaapi":
-                        cmd += ["-vaapi_device", "/dev/dri/renderD128", "-c:v", "h264_vaapi", "-qp", "23"]
-                    else:
-                        cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "20"]
-            
-                    cmd += ["-vf", ",".join(vf_filters), "-af", af, "-threads", "4", str(output_abs)]
-                    proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-                    await proc.communicate()
+                publish_progress(job_id, "processing", f"Rendering scenes in parallel...", 65, user_id=user_id)
                 
-                publish_progress(job_id, "processing", "Local render complete!", 80, user_id=user_id)
-                if proc.returncode != 0 or not output_abs.exists():
+                # Standard workflow often has 'cuts' in cutter_data
+                cuts = cutter_data.get("cuts", []) if isinstance(cutter_data, dict) else []
+                if not cuts:
+                    # Fallback to single cut if no EDL
+                    duration = keyframe_data.get("duration", 30.0)
+                    cuts = [{"start": 0, "end": duration}]
+
+                success = await rendering_orchestrator.render_parallel(
+                    job_id=job_id,
+                    source_path=source_path,
+                    cuts=cuts,
+                    output_path=str(output_abs),
+                    vf_filters=",".join(vf_filters) if vf_filters else None,
+                    af_filters=af,
+                    user_id=user_id
+                )
+                
+                if success:
+                    final_output_path = f"storage/outputs/{output_filename}"
+                else:
+                    print(f"[Workflow] Parallel Render Failed for job {job_id}, falling back to raw copy")
                     shutil.copy(src, output_abs)
-                final_output_path = f"storage/outputs/{output_filename}"
+                    final_output_path = f"storage/outputs/{output_filename}"
 
             # === PHASE 5: QC Review (85%) ===
             if attempt <= max_retries:

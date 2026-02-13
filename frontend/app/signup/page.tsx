@@ -29,7 +29,7 @@ export default function SignupPage() {
       setAuthToken(data.access_token);
       const me = await apiRequest('/auth/me', { auth: true });
       setStoredUser(me);
-      router.push('/dashboard');
+      router.push('/dashboard/upload');
     } catch (err: any) {
       if (err instanceof ApiError && err.code === 'email_already_exists') {
         router.push(`/login?email=${encodeURIComponent(email)}&message=exists`);

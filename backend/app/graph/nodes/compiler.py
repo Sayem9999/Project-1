@@ -72,76 +72,45 @@ async def compiler_node(state: GraphState) -> GraphState:
             ]
         }
 
-    # 2. Local Fallback Rendering (CPU)
+    # 2. Local Parallel Rendering
     async with limits.render_semaphore:
-        print("--- [Graph] Compiler Rendering (Local) ---")
-        publish_progress(job_id, "processing", "Rendering video on local CPU...", 85, user_id=user_id)
+        print("--- [Graph] Compiler Rendering (Local Parallel) ---")
+        publish_progress(job_id, "processing", "Rendering scenes in parallel (Pro)...", 85, user_id=user_id)
         
         output_path = f"job-{job_id}-pro.mp4"
         abs_output = Path(os.getcwd()) / "storage" / "outputs" / output_path
         abs_output.parent.mkdir(parents=True, exist_ok=True)
         
+        from ...services.rendering_orchestrator import rendering_orchestrator
+        
         try:
-            # Import MoviePy lazily so non-render processes don't pay memory cost.
-            from moviepy import VideoFileClip, concatenate_videoclips, AudioFileClip
-
-            # Load Source
-            original_clip = VideoFileClip(source_path)
-            
-            # Create Subclips based on Cuts
-            clips = []
-            for cut in cuts:
-                start = float(cut.get("start", 0))
-                end = float(cut.get("end", original_clip.duration))
-                if start >= original_clip.duration: continue
-                if end > original_clip.duration: end = original_clip.duration
-                if start >= end: continue
-                
-                sub = original_clip.subclipped(start, end)
-                clips.append(sub)
-                
-            if not clips:
-                final_video = original_clip
-            else:
-                final_video = concatenate_videoclips(clips, method="compose")
-
-            # --- Audio Enhancement ---
-            try:
-                from ...services.audio_service import audio_service
-                if final_video.audio:
-                    temp_audio_path = f"storage/outputs/temp_audio_{job_id}.mp3"
-                    final_video.audio.write_audiofile(temp_audio_path, logger=None)
-                    norm_audio_path = audio_service.normalize_audio(temp_audio_path)
-                    new_audio = AudioFileClip(norm_audio_path)
-                    final_video = final_video.with_audio(new_audio)
-            except Exception as ae:
-                print(f"Audio Enhancement Failed: {ae}")
-            # -------------------------
-
-            # Build FFmpeg parameters
-            ffmpeg_params = ["-crf", "18" if tier == "pro" else "23"]
-            if sub_filter:
-                ffmpeg_params.extend(["-vf", sub_filter])
-
-            # Render
-            final_video.write_videofile(
-                str(abs_output), 
-                codec="libx264", 
-                audio_codec="aac", 
-                threads=4,
-                fps=24,
+            success = await rendering_orchestrator.render_parallel(
+                job_id=job_id,
+                source_path=source_path,
+                cuts=cuts,
+                output_path=str(abs_output),
+                vf_filters=sub_filter if sub_filter else None,
+                crf=18 if tier == "pro" else 23,
                 preset="medium",
-                ffmpeg_params=ffmpeg_params,
-                logger=None
+                user_id=user_id
             )
             
-            original_clip.close()
-            
-            return {
-                "output_path": f"storage/outputs/{output_path}",
-                "visual_effects": [] 
-            }
-            
+            if success:
+                return {
+                    "output_path": f"storage/outputs/{output_path}",
+                    "visual_effects": [] 
+                }
+            else:
+                raise Exception("Parallel rendering failed.")
+                
         except Exception as e:
             print(f"Compiler Error: {e}")
+            # Fallback to copy if all else fails (safety)
+            if os.path.exists(source_path):
+                import shutil
+                shutil.copy(source_path, abs_output)
+                return {
+                    "output_path": f"storage/outputs/{output_path}",
+                    "errors": [f"Rendering crashed: {str(e)}. Fallback to raw copy."]
+                }
             return {"errors": [str(e)]}

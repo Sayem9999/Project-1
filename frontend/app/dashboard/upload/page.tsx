@@ -303,9 +303,9 @@ export default function UploadPage() {
                       loading={uploading || analyzing}
                     >
                       {jobId ? (
-                        <><CheckCircle2 className="w-5 h-5 mr-3" /> UPLOAD_OK</>
+                        <><CheckCircle2 className="w-5 h-5 mr-3" /> UPLOADED</>
                       ) : (
-                        <><Sparkles className="w-5 h-5 mr-3" /> {analyzing ? `ANALYZING ${analysisProgress}%` : `DEPLOY TO PIPELINE`}</>
+                        <><Sparkles className="w-5 h-5 mr-3" /> {analyzing ? `ANALYZING ${analysisProgress}%` : `START UPLOAD`}</>
                       )}
                     </Button>
                   </div>
@@ -330,7 +330,7 @@ export default function UploadPage() {
                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Job Enqueued: Node #{jobId} Verified</span>
                     </div>
                     <Button onClick={handleStartEdit} variant="primary" className="w-full md:w-auto h-16 px-12 group font-black text-xs uppercase tracking-[0.3em]" loading={starting}>
-                      Execute Pipeline
+                      START EDITING
                       <ArrowRight className="w-5 h-5 ml-4 group-hover:translate-x-2 transition-transform" />
                     </Button>
                   </div>
@@ -348,8 +348,8 @@ export default function UploadPage() {
                 RAW_ASSETS: MP4, MOV, AVI <br />
                 <span className="text-brand-cyan">BANDWIDTH_LIMIT: 100MB</span>
               </p>
-              <div className="px-10 py-5 rounded-[24px] bg-white text-black font-black text-xs uppercase tracking-[0.3em] shadow-2xl hover:scale-105 active:scale-95 transition-all">
-                Open Filesystem
+              <div className="px-12 py-6 rounded-[24px] bg-white text-black font-black text-sm uppercase tracking-[0.3em] shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:scale-105 active:scale-95 transition-all">
+                SELECT VIDEO FILE
               </div>
               <input
                 type="file"
