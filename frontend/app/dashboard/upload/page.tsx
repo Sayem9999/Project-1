@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X, Film, Zap, Layers, Monitor, Shield, Sparkles, CheckCircle2, Loader2, ArrowRight, Activity, BrainCircuit } from 'lucide-react';
+import { toast } from 'sonner';
 import { apiUpload, apiRequest, ApiError, clearAuth } from '@/lib/api';
 import { ffmpegAnalyzer, MediaIntelligence } from '@/lib/ffmpeg-analyzer';
 import { Button } from '@/components/ui/Button';
@@ -133,6 +134,7 @@ export default function UploadPage() {
       setJobId(job.id);
       setUploading(false);
       setUploadProgress(100);
+      toast.success("Ready for edit!");
     } catch (err: any) {
       if (err instanceof ApiError && err.isAuth) {
         clearAuth();
@@ -339,26 +341,28 @@ export default function UploadPage() {
               </div>
             </div>
           ) : (
-            <label className="flex-1 flex flex-col items-center justify-center cursor-pointer p-12 hover:bg-white/[0.01] transition-all duration-700 group/drop">
-              <div className="w-32 h-32 md:w-48 md:h-48 rounded-[64px] bg-white/[0.02] border border-white/5 flex items-center justify-center mb-10 relative transition-all duration-700 group-hover/drop:scale-110 group-hover/drop:rotate-6 group-hover/drop:border-brand-cyan/30">
-                <div className="absolute inset-0 bg-gradient-to-tr from-brand-cyan/20 to-brand-violet/20 rounded-[64px] blur-3xl opacity-0 group-hover/drop:opacity-100 transition-opacity duration-1000" />
-                <Upload className="w-12 h-12 md:w-16 md:h-16 text-gray-700 transition-all duration-700 group-hover/drop:text-brand-cyan group-hover/drop:scale-110" />
-              </div>
-              <h2 className="text-3xl md:text-5xl font-black text-white mb-4 text-center tracking-tighter uppercase">Deploy Footage</h2>
-              <p className="text-gray-500 text-center text-xs md:text-sm font-bold uppercase tracking-[0.3em] max-w-sm mb-12 leading-relaxed">
-                RAW_ASSETS: MP4, MOV, AVI <br />
-                <span className="text-brand-cyan">BANDWIDTH_LIMIT: 100MB</span>
-              </p>
-              <div className="px-12 py-6 rounded-[24px] bg-white text-black font-black text-sm uppercase tracking-[0.3em] shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:scale-105 active:scale-95 transition-all">
-                SELECT VIDEO FILE
-              </div>
+            <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 relative group/drop">
               <input
                 type="file"
                 accept="video/*"
                 onChange={handleFileChange}
-                className="absolute inset-0 opacity-0 cursor-pointer"
+                className="absolute inset-0 opacity-0 cursor-pointer z-20"
               />
-            </label>
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-32 h-32 md:w-48 md:h-48 rounded-[64px] bg-white/[0.02] border border-white/5 flex items-center justify-center mb-10 relative transition-all duration-700 group-hover/drop:scale-110 group-hover/drop:rotate-6 group-hover/drop:border-brand-cyan/30">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-brand-cyan/20 to-brand-violet/20 rounded-[64px] blur-3xl opacity-0 group-hover/drop:opacity-100 transition-opacity duration-1000" />
+                  <Upload className="w-12 h-12 md:w-16 md:h-16 text-gray-700 items-center justify-center transition-all duration-700 group-hover/drop:text-brand-cyan group-hover/drop:scale-110" />
+                </div>
+                <h2 className="text-3xl md:text-5xl font-black text-white mb-4 text-center tracking-tighter uppercase">Deploy Footage</h2>
+                <p className="text-gray-500 text-center text-[10px] md:text-xs font-bold uppercase tracking-[0.3em] max-w-sm mb-12 leading-relaxed">
+                  RAW_ASSETS: MP4, MOV, AVI <br />
+                  <span className="text-brand-cyan">BANDWIDTH_LIMIT: 100MB</span>
+                </p>
+                <div className="px-16 py-8 rounded-[32px] bg-white text-black font-black text-base uppercase tracking-[0.4em] shadow-[0_0_50px_rgba(255,255,255,0.4)] transition-all pointer-events-none group-hover/drop:scale-105 group-hover/drop:shadow-[0_0_80px_rgba(255,255,255,0.6)]">
+                  SELECT VIDEO FILE
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
