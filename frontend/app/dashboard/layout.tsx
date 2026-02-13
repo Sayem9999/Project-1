@@ -17,10 +17,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="absolute inset-0 bg-grid-pattern opacity-10" />
             </div>
 
-            {mounted && <Sidebar />}
+            {mounted ? <Sidebar /> : <div className="fixed left-4 top-4 bottom-4 w-64 glass-panel rounded-2xl hidden md:block opacity-20" />}
 
             {/* Main Content Area - Dynamic Padding */}
-            <div className={`relative z-10 min-h-screen flex flex-col transition-all duration-500 ${mounted ? 'pl-0 md:pl-72 pb-24 md:pb-0' : 'pl-0'}`}>
+            <div className={`relative z-10 min-h-screen flex flex-col transition-all duration-500 ${mounted ? 'pl-0 md:pl-72 pb-24 md:pb-0' : 'pl-0 md:pl-72'}`}>
                 <TopBar />
                 <main className="flex-1 px-4 md:px-8 py-6">
                     {children}
