@@ -48,9 +48,22 @@ async def refresh_admin_data():
                             .group_by(func.date(Job.created_at))
                             .order_by(func.date(Job.created_at))
                         )
+                        
+                        # Performance aggregation (last 50 jobs)
+                        perf_stmt = select(Job.performance_metrics).where(Job.performance_metrics != None).order_by(Job.created_at.desc()).limit(50)
+                        perf_rows = (await session.execute(perf_stmt)).scalars().all()
+                        
+                        avg_lat = 0
+                        if perf_rows:
+                            avg_lat = sum(m.get("total_duration_ms", 0) for m in perf_rows) / len(perf_rows)
+                        
                         return {
                             "users": {"total": u_count, "active_24h": active},
                             "jobs": {"total": j_count, "recent_24h": recent},
+                            "performance": {
+                                "avg_latency_ms": round(avg_lat, 2),
+                                "tracked_count": len(perf_rows)
+                            },
                             "trends": {
                                 "jobs_by_day": [{"date": str(row[0]), "count": row[1]} for row in by_day.all()],
                             }

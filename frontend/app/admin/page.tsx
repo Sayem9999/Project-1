@@ -24,6 +24,10 @@ interface SystemStats {
     failures_by_day: { date: string; count: number }[];
     users_by_day: { date: string; count: number }[];
   };
+  performance?: {
+    avg_latency_ms: number;
+    tracked_count: number;
+  };
 }
 
 interface UserData {
@@ -251,6 +255,17 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleCleanup = async () => {
+    const toastId = toast.loading('Running storage cleanup...');
+    try {
+      const res: any = await apiRequest('/admin/cleanup', { method: 'POST', auth: true });
+      fetchData();
+      toast.success('Cleanup complete', { id: toastId, description: `Freed ${res.mb_freed} MB` });
+    } catch (err: any) {
+      toast.error('Cleanup failed', { id: toastId, description: err.message });
+    }
+  };
+
   const openUserDetails = async (user: UserData) => {
     setSelectedUser(user);
     setUserLoading(true);
@@ -346,6 +361,9 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
+          <Button variant="secondary" onClick={handleCleanup} className="font-black text-[10px] uppercase tracking-widest border-brand-cyan/20 text-brand-cyan">
+            <Wrench className="w-4 h-4 mr-2" /> Storage Cleanup
+          </Button>
           <Button variant="secondary" onClick={fetchData} className="font-black text-[10px] uppercase tracking-widest">
             <RefreshCw className="w-4 h-4 mr-2" /> Refresh State
           </Button>
@@ -371,9 +389,9 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
         {[
           { icon: Users, title: "Total Fleet", value: stats?.users?.total ?? 0, sub: "Registered Entities", color: "cyan" },
-          { icon: Activity, title: "Active Pulse", value: stats?.users?.active_24h ?? 0, sub: "Last 24h Engagement", color: "emerald" },
+          { icon: Activity, title: "Avg Latency", value: stats?.performance?.avg_latency_ms ? `${(stats.performance.avg_latency_ms / 1000).toFixed(1)}s` : '0s', sub: `Last ${stats?.performance?.tracked_count ?? 0} jobs`, color: "emerald" },
           { icon: Video, title: "Pipeline Volume", value: stats?.jobs?.total ?? 0, sub: `+${stats?.jobs?.recent_24h ?? 0} New Exports`, color: "violet" },
-          { icon: Wrench, title: "Active Threads", value: jobs.filter(j => j.status === 'processing').length, sub: `${jobs.filter(j => j.status === 'failed').length} Error States`, color: "violet" }, // 'brand' mapped to 'violet'
+          { icon: Wrench, title: "Active Threads", value: jobs.filter(j => j.status === 'processing').length, sub: `${jobs.filter(j => j.status === 'failed').length} Error States`, color: "violet" },
           { icon: HardDrive, title: "Storage Index", value: `${stats?.storage?.percent ?? 0}%`, sub: `${stats?.storage?.used_gb ?? 0}GB Utilized`, color: "amber", progress: stats?.storage?.percent },
         ].map((s, i) => (
           <StatCard key={i} icon={s.icon} title={s.title} value={s.value} subtext={s.sub} color={s.color as any} progress={s.progress} />

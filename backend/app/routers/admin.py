@@ -15,7 +15,7 @@ from ..services.llm_health import get_llm_health_summary
 from ..services.integration_health import get_integration_health
 from ..config import settings
 from .jobs import enqueue_job, get_celery_dispatch_diagnostics
-from ..tasks.cleanup import get_cleanup_status
+from ..services.cleanup_service import cleanup_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -346,3 +346,56 @@ async def get_admin_integrations_health(
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin permissions required")
     return get_integration_health(run_probe=True)
+
+
+@router.get("/performance")
+async def get_performance_analytics(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+    
+    # Simple aggregation of the last 100 jobs with performance_metrics
+    stmt = (
+        select(Job.performance_metrics)
+        .where(Job.performance_metrics != None)
+        .order_by(Job.created_at.desc())
+        .limit(100)
+    )
+    result = await session.execute(stmt)
+    metrics_list = result.scalars().all()
+    
+    if not metrics_list:
+        return {"avg_latency_ms": 0, "total_jobs": 0, "phase_averages": {}}
+
+    total_latency = 0
+    phase_totals = {}
+    phase_counts = {}
+
+    for m in metrics_list:
+        total_latency += m.get("total_duration_ms", 0)
+        phases = m.get("phase_durations", {})
+        for phase, dur in phases.items():
+            phase_totals[phase] = phase_totals.get(phase, 0) + dur
+            phase_counts[phase] = phase_counts.get(phase, 0) + 1
+
+    avg_phases = {p: round(phase_totals[p] / phase_counts[p], 2) for p in phase_totals}
+    
+    return {
+        "avg_latency_ms": round(total_latency / len(metrics_list), 2),
+        "total_jobs_tracked": len(metrics_list),
+        "phase_averages_ms": avg_phases
+    }
+
+
+@router.post("/cleanup")
+async def trigger_storage_cleanup(
+    max_age_hours: int = 6,
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+    
+    freed = await cleanup_service.run_cleanup(max_age_hours=max_age_hours)
+    return {"status": "ok", "bytes_freed": freed, "mb_freed": round(freed / (1024*1024), 2)}
