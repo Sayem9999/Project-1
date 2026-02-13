@@ -3,7 +3,7 @@
         {
             "method": "shell.run",
             "params": {
-                "id": "frontend_app",
+                "id": "frontend_only",
                 "path": "frontend",
                 "message": "npm run dev",
                 "daemon": true
@@ -12,7 +12,7 @@
         {
             "method": "notify",
             "params": {
-                "html": "<h3>Proedit UI Starting</h3><p>Frontend is starting on http://localhost:3000</p>"
+                "html": "<h3>Frontend Operational</h3><p>The Proedit UI is starting on port 3000. View logs for telemetry.</p>"
             }
         }
     ]
