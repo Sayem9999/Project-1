@@ -60,10 +60,24 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
 
     try:
         from ..celery_app import celery_app
+        
+        # Stricter timeout for control inspection to avoid blocking threads.
+        # inspect().ping() and active_queues() are network-bound calls to other workers.
+        inspect = celery_app.control.inspect(timeout=0.5)
+        
+        # Ping check
+        try:
+            ping = inspect.ping() or {}
+        except Exception as e:
+            logger.warning("celery_inspect_ping_failed", error=str(e))
+            ping = {}
 
-        inspect = celery_app.control.inspect(timeout=timeout)
-        ping = inspect.ping() or {}
-        active_queues = inspect.active_queues() or {}
+        # Queue check
+        try:
+            active_queues = inspect.active_queues() or {}
+        except Exception as e:
+            logger.warning("celery_inspect_queues_failed", error=str(e))
+            active_queues = {}
 
         worker_names = sorted(set(list(ping.keys()) + list(active_queues.keys())))
         diagnostics["workers"] = worker_names
