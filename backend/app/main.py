@@ -104,6 +104,18 @@ async def lifespan(app: FastAPI):
     from .services.admin_cache import refresh_admin_data
     asyncio.create_task(refresh_admin_data())
     
+    # Start Periodic Cleanup (disk hygiene)
+    from .services.cleanup_service import cleanup_service
+    async def periodic_cleanup():
+        while True:
+            try:
+                # Cleanup temp files older than 12 hours every 6 hours
+                await cleanup_service.run_cleanup(max_age_hours=12)
+            except Exception as e:
+                logger.error("periodic_cleanup_failed", error=str(e))
+            await asyncio.sleep(6 * 3600)
+    asyncio.create_task(periodic_cleanup())
+    
     logger.info("startup_ready")
     yield
 
