@@ -31,14 +31,29 @@ async def compiler_node(state: GraphState) -> GraphState:
     cuts = state.get("cuts", [])
     tier = state.get("tier", "standard")
     user_id = state.get("user_id")
-    srt_path = state.get("srt_path")
+    visual_effects = state.get("visual_effects", [])
     
-    # Escape path for FFmpeg subtitles filter
-    # On Windows, 'C:\path\to\file' must become 'C\\:\\/path\\/to\\/file'
-    sub_filter = ""
+    # 0. Build FFmpeg filter chain
+    vf_list = []
+    
+    # Scale and Pad (Pro Default)
+    vf_list.append("scale=1280:720:force_original_aspect_ratio=decrease")
+    vf_list.append("pad=1280:720:(ow-iw)/2:(oh-ih)/2")
+
+    # Add AI-generated effects
+    for effect in visual_effects:
+        if isinstance(effect, dict) and effect.get("type") == "ffmpeg_filter":
+            val = effect.get("value", "").strip()
+            if val:
+                vf_list.append(val)
+
+    # Subtitles (highest priority, added last)
     if srt_path:
         escaped_srt = str(Path(srt_path).absolute()).replace("\\", "/").replace(":", "\\:")
-        sub_filter = f"subtitles='{escaped_srt}'"
+        vf_list.append(f"subtitles='{escaped_srt}'")
+
+    compiled_vf = ",".join(vf_list) if vf_list else None
+    print(f"--- [Graph] Compiler: Filter Chain -> {compiled_vf} ---")
 
     # 1. Attempt Modal Offloading (GPU)
     from ...services.modal_service import modal_service
@@ -52,7 +67,7 @@ async def compiler_node(state: GraphState) -> GraphState:
             cuts=cuts,
             fps=24,
             crf=18 if tier == "pro" else 23,
-            vf_filters=sub_filter if sub_filter else None,
+            vf_filters=compiled_vf,
             af_filters=None
         )
         if modal_output:
@@ -89,7 +104,7 @@ async def compiler_node(state: GraphState) -> GraphState:
                 source_path=source_path,
                 cuts=cuts,
                 output_path=str(abs_output),
-                vf_filters=sub_filter if sub_filter else None,
+                vf_filters=compiled_vf,
                 crf=18 if tier == "pro" else 23,
                 preset="medium",
                 user_id=user_id

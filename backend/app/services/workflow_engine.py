@@ -240,9 +240,11 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             # Normalize agent outputs (can be Pydantic or raw dict)
             vfx_res = normalize_agent_result(vfx_data)
             transition_res = normalize_agent_result(transition_data)
+            color_res = normalize_agent_result(color_data)
             
             print(f"[Workflow] Transitions: {transition_res.get('style_note', 'None')}")
             print(f"[Workflow] VFX: {vfx_res.get('style_note', 'None')}")
+            print(f"[Workflow] Color: {color_res.get('color_mood', 'None')}")
 
             # === PHASE 4: Render (60-80%) ===
             await update_status(job_id, "processing", f"{status_prefix} Rendering video...")
@@ -256,9 +258,17 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             
             # Build FFmpeg filter chain
             vf_filters = ["scale=1280:720:force_original_aspect_ratio=decrease", "pad=1280:720:(ow-iw)/2:(oh-ih)/2"]
+            
+            # Color Filters
+            if color_res.get("ffmpeg_color_filter"):
+                vf_filters.append(color_res["ffmpeg_color_filter"])
+            
+            # VFX Filters
             for effect in vfx_res.get("effects", []):
                 if isinstance(effect, dict) and "filter" in effect:
                     vf_filters.append(effect["filter"])
+            elif vfx_res.get("ffmpeg_filter"):
+                 vf_filters.append(vfx_res["ffmpeg_filter"].replace('-vf "', '').replace('"', '').strip())
             
             if srt_path:
                 escaped_srt = str(srt_path.absolute()).replace("\\", "/").replace(":", "\\:")
@@ -320,6 +330,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                     print(f"[Workflow] Parallel Render Failed for job {job_id}, falling back to raw copy")
                     shutil.copy(src, output_abs)
                     final_output_path = f"storage/outputs/{output_filename}"
+                    await update_status(job_id, "complete", "Edit finished with degraded quality (fallback applied due to render failure).", final_output_path)
 
             # === PHASE 5: QC Review (85%) ===
             if attempt <= max_retries:
