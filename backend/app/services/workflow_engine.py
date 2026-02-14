@@ -21,7 +21,7 @@ from .memory.hybrid_memory import hybrid_memory
 from .concurrency import limits
 from .metrics_service import metrics_service
 from .n8n_service import n8n_service
-from .post_production_depth import build_audio_post_filter
+from .post_production_depth import build_audio_post_filter, build_subtitle_filter
 
 # Redis for progress publishing (optional)
 REDIS_URL = os.getenv("REDIS_URL")
@@ -151,6 +151,14 @@ def _coerce_duration(value: object, fallback: float = 30.0) -> float:
     return fallback
 
 
+def _coerce_float_bounded(value: object, fallback: float, minimum: float, maximum: float) -> float:
+    try:
+        parsed = float(value)  # type: ignore[arg-type]
+    except Exception:
+        parsed = fallback
+    return min(max(parsed, minimum), maximum)
+
+
 def _build_highlight_cuts(duration: float, pacing: str) -> list[dict]:
     """Create deterministic highlight windows so output is not pass-through."""
     pace = (pacing or "medium").lower()
@@ -225,6 +233,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
     video_encoder = detect_gpu_encoder()
     
     media_intelligence = None
+    post_settings = {}
     async with SessionLocal() as session:
         job = await session.get(Job, job_id)
         if not job: return
@@ -232,6 +241,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
         job.progress_message = "Initializing Standard Workflow..."
         user_id = job.user_id
         media_intelligence = copy.deepcopy(job.media_intelligence) if job.media_intelligence else None
+        post_settings = copy.deepcopy(job.post_settings) if job.post_settings else {}
         await session.commit()
 
     publish_progress(job_id, "processing", "Initializing Standard Workflow...", 5, user_id=user_id)
@@ -366,8 +376,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                 vf_filters.append(vfx_res["ffmpeg_filter"].replace('-vf "', '').replace('"', '').strip())
             
             if srt_path:
-                escaped_srt = str(srt_path.absolute()).replace("\\", "/").replace(":", "\\:")
-                vf_filters.append(f"subtitles='{escaped_srt}'")
+                vf_filters.append(build_subtitle_filter(str(srt_path), platform))
             
             watermark_text = "Proedit.ai (Free)"
             vf_filters.append(f"drawtext=text='{watermark_text}':fontsize=24:fontcolor=white@0.5:x=w-tw-20:y=h-th-20")
@@ -406,9 +415,21 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                 raw_cuts = cutter_data.get("cuts", []) if isinstance(cutter_data, dict) else []
                 duration = _coerce_duration(keyframe_data.get("duration", 30.0), fallback=30.0)
                 cuts = ensure_editing_cuts(raw_cuts, duration=duration, pacing=pacing)
-                speed = 1.0 if pacing == "slow" else (1.04 if pacing == "medium" else 1.08)
-                transition_style = director_plan.get("transition_style", "cut" if pacing == "fast" else "dissolve")
-                transition_duration = float(director_plan.get("transition_duration", 0.2 if pacing == "fast" else 0.3))
+                speed_profile = str(post_settings.get("speed_profile", "balanced")).lower()
+                speed = {"slow": 0.94, "balanced": 1.04, "fast": 1.10}.get(speed_profile, 1.04)
+                transition_style = post_settings.get(
+                    "transition_style",
+                    director_plan.get("transition_style", "cut" if pacing == "fast" else "dissolve"),
+                )
+                transition_duration = _coerce_float_bounded(
+                    post_settings.get(
+                        "transition_duration",
+                        director_plan.get("transition_duration", 0.2 if pacing == "fast" else 0.3),
+                    ),
+                    fallback=0.25,
+                    minimum=0.1,
+                    maximum=1.5,
+                )
                 cuts = [{**c, "speed": speed} for c in cuts]
 
                 success = await rendering_orchestrator.render_parallel(
@@ -515,6 +536,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
     print(f"[Workflow v4] Starting Pro job {job_id} (LangGraph)")
     user_id = None
     media_intelligence = None
+    post_settings = {}
     async with SessionLocal() as session:
         job = await session.get(Job, job_id)
         if not job: return
@@ -522,6 +544,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         job.progress_message = "Initializing Hollywood Pipeline..."
         user_id = job.user_id
         media_intelligence = copy.deepcopy(job.media_intelligence) if job.media_intelligence else None
+        post_settings = copy.deepcopy(job.post_settings) if job.post_settings else {}
         await session.commit()
 
     publish_progress(job_id, "processing", "Initializing Hollywood Pipeline (LangGraph)...", 5, user_id=user_id)
@@ -533,7 +556,29 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         initial_state = {
             "job_id": job_id,
             "source_path": source_path,
-            "user_request": {"pacing": pacing, "mood": mood, "ratio": ratio, "platform": platform, "brand_safety": brand_safety},
+            "user_request": {
+                "pacing": pacing,
+                "mood": mood,
+                "ratio": ratio,
+                "platform": platform,
+                "brand_safety": brand_safety,
+                "transition_style": post_settings.get("transition_style", "dissolve"),
+                "transition_duration": _coerce_float_bounded(
+                    post_settings.get("transition_duration", 0.25),
+                    fallback=0.25,
+                    minimum=0.1,
+                    maximum=1.5,
+                ),
+                "speed_profile": post_settings.get("speed_profile", "balanced"),
+                "subtitle_preset": post_settings.get("subtitle_preset", "platform_default"),
+                "color_profile": post_settings.get("color_profile", "natural"),
+                "skin_protect_strength": _coerce_float_bounded(
+                    post_settings.get("skin_protect_strength", 0.5),
+                    fallback=0.5,
+                    minimum=0.0,
+                    maximum=1.0,
+                ),
+            },
             "media_intelligence": media_intelligence,
             "tier": "pro",
             "user_id": user_id,
@@ -597,6 +642,9 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         director_plan = final_state.get("director_plan")
         brand_safety_result = final_state.get("brand_safety_result")
         ab_test_result = final_state.get("ab_test_result")
+        audio_qa = final_state.get("audio_qa")
+        color_qa = final_state.get("color_qa")
+        subtitle_qa = final_state.get("subtitle_qa")
         
         tracker.end_phase("total_workflow")
         performance_metrics = metrics_service.finalize(job_id)
@@ -611,6 +659,9 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
             director_plan=director_plan,
             brand_safety_result=brand_safety_result,
             ab_test_result=ab_test_result,
+            audio_qa=audio_qa,
+            color_qa=color_qa,
+            subtitle_qa=subtitle_qa,
             performance_metrics=performance_metrics
         )
         publish_progress(job_id, "complete", completion_msg, 100, user_id=user_id)
@@ -635,6 +686,9 @@ async def update_status(
     director_plan: dict | None = None,
     brand_safety_result: dict | None = None,
     ab_test_result: dict | None = None,
+    audio_qa: dict | None = None,
+    color_qa: dict | None = None,
+    subtitle_qa: dict | None = None,
     performance_metrics: dict | None = None
 ):
     async with SessionLocal() as session:
@@ -650,17 +704,23 @@ async def update_status(
                 job.thumbnail_path = thumbnail_path
                 
             # Update Phase 5 fields if provided
-            if media_intelligence:
+            if media_intelligence is not None:
                 job.media_intelligence = media_intelligence
-            if qc_result:
+            if qc_result is not None:
                 job.qc_result = qc_result
-            if director_plan:
+            if director_plan is not None:
                 job.director_plan = director_plan
-            if brand_safety_result:
+            if brand_safety_result is not None:
                 job.brand_safety_result = brand_safety_result
-            if ab_test_result:
+            if ab_test_result is not None:
                 job.ab_test_result = ab_test_result
-            if performance_metrics:
+            if audio_qa is not None:
+                job.audio_qa = audio_qa
+            if color_qa is not None:
+                job.color_qa = color_qa
+            if subtitle_qa is not None:
+                job.subtitle_qa = subtitle_qa
+            if performance_metrics is not None:
                 job.performance_metrics = performance_metrics
                 
             await session.commit()

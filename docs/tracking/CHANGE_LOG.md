@@ -17,6 +17,151 @@ Newest entries go first.
 
 ---
 
+## CHG-20260215-014
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer + Frontend Developer
+- `Summary:` Added autonomy workload profiles (`aggressive`/`conservative`) and an admin dashboard panel for live autonomy metrics/actions.
+- `Why this change was needed:` You asked for tuning by hardware/workload and real-time admin control of autonomous behavior.
+- `Files changed:`
+  - `backend/app/services/autonomy_service.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/app/config.py`
+  - `backend/.env.example`
+  - `backend/tests/test_autonomy_service.py`
+  - `frontend/components/admin/AutonomyPanel.tsx`
+  - `frontend/app/admin/page.tsx`
+  - `docs/ARCHITECTURE.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` BUG-20260215-011
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` passed (`49 passed`); `npm run lint` passed with pre-existing non-blocking warnings.
+- `Rollback plan:` Set profile to conservative and stop using new panel/actions, or revert this commit.
+
+## CHG-20260215-013
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Enabled OpenAI-first routing for self-improvement flows and fixed fallback provider model execution path.
+- `Why this change was needed:` You requested Codex/OpenAI usage for self-improving behavior; fallback reliability issue had to be fixed to keep provider resilience.
+- `Files changed:`
+  - `backend/app/config.py`
+  - `backend/app/agents/routing_policy.py`
+  - `backend/app/agents/base.py`
+  - `backend/.env`
+  - `backend/.env.example`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260215-010
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` passed (`45 passed`).
+- `Rollback plan:` Set `LLM_PRIMARY_PROVIDER` back to previous value or revert this commit.
+
+## CHG-20260215-012
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Secured orchestration callback ingestion with HMAC signature checks, timestamp window validation, and replay protection.
+- `Why this change was needed:` You requested secure callbacks and E2E-style orchestration tests; previous callback model relied on user auth and was replay-prone.
+- `Files changed:`
+  - `backend/app/routers/orchestration.py`
+  - `backend/app/config.py`
+  - `backend/.env.example`
+  - `backend/tests/test_orchestration_callback_security.py`
+  - `docs/ARCHITECTURE.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` BUG-20260215-009
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` passed (`45 passed`).
+- `Rollback plan:` Revert this commit to restore prior auth-based callback behavior.
+
+## CHG-20260215-011
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Hardened pending post-settings schema/router/workflow changes and validated migration path.
+- `Why this change was needed:` You asked to finish pending backend schema/model/workflow/migration work from earlier phase with production-safe behavior.
+- `Files changed:`
+  - `backend/app/schemas.py`
+  - `backend/app/routers/jobs.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/tests/test_jobs.py`
+  - `backend/alembic/versions/e4f7b7ad4f62_add_post_depth_settings_and_qa_fields.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260215-008
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` passed (`42 passed`); `.\.venv\Scripts\python.exe -m alembic upgrade head` applied migration to head.
+- `Rollback plan:` Revert this commit or disable strict validation paths if temporary compatibility rollback is needed.
+
+## CHG-20260215-010
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Added idle autonomy loop for self-healing and self-improvement, with admin control endpoints and lifecycle management.
+- `Why this change was needed:` You requested the webapp to self-improve/self-heal automatically when idle using available APIs.
+- `Files changed:`
+  - `backend/app/services/autonomy_service.py`
+  - `backend/app/main.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/app/config.py`
+  - `backend/.env.example`
+  - `backend/tests/test_autonomy_service.py`
+  - `docs/ARCHITECTURE.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` BUG-20260215-007
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` passed (`40 passed`).
+- `Rollback plan:` Disable via `AUTONOMY_ENABLED=false` or revert this commit to remove idle automation behavior.
+
+## CHG-20260215-009
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Hardened OpenClaw orchestration, n8n event delivery contract, workflow QA persistence semantics, and render orchestrator edge-case handling.
+- `Why this change was needed:` You requested focused improvements across clawbot/n8n/workflow/architecture/orchestrator reliability.
+- `Files changed:`
+  - `backend/app/services/openclaw_service.py`
+  - `backend/app/services/n8n_service.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/tests/test_openclaw_service.py`
+  - `backend/tests/test_n8n_service.py`
+  - `docs/ARCHITECTURE.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260215-006
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` passed (`37 passed`).
+- `Rollback plan:` Revert this commit to restore previous OpenClaw/n8n/workflow/orchestrator behavior.
+
+## CHG-20260215-008
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer + Frontend Developer
+- `Summary:` Completed post-depth settings flow from frontend controls to backend persistence with integration coverage.
+- `Why this change was needed:` Post-production depth options existed in backend API but were not fully controllable from UI or validated by persistence tests.
+- `Files changed:`
+  - `frontend/app/dashboard/upload/page.tsx`
+  - `frontend/app/jobs/[id]/JobPageClient.tsx`
+  - `backend/tests/test_jobs.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260215-005
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` passed (`35 passed`), `npm run lint` passed with non-blocking warnings.
+- `Rollback plan:` Revert this commit to restore prior UI forms and remove post-settings persistence tests.
+
 ## CHG-20260215-007
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer

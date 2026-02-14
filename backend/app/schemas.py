@@ -1,8 +1,9 @@
 from datetime import datetime, date
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, Field
 from .config import settings
 from .models import JobStatus
 import re
+from typing import Literal
 
 
 class RegisterRequest(BaseModel):
@@ -50,6 +51,12 @@ class EditJobRequest(BaseModel):
     platform: str = "youtube"
     tier: str = "pro"
     brand_safety: str = "standard"
+    transition_style: Literal["cut", "dissolve", "wipe", "crossfade", "wipe_left", "wipe_right", "slide_left", "slide_right"] = "dissolve"
+    transition_duration: float = Field(default=0.25, ge=0.1, le=1.5)
+    speed_profile: Literal["slow", "balanced", "fast"] = "balanced"
+    subtitle_preset: Literal["platform_default", "broadcast", "social"] = "platform_default"
+    color_profile: Literal["natural", "cinematic", "punchy"] = "natural"
+    skin_protect_strength: float = Field(default=0.5, ge=0.0, le=1.0)
 
 
 class UserResponse(BaseModel):
@@ -98,6 +105,11 @@ class JobResponse(BaseModel):
     director_plan: dict | None = None
     brand_safety_result: dict | None = None
     ab_test_result: dict | None = None
+    performance_metrics: dict | None = None
+    post_settings: dict | None = None
+    audio_qa: dict | None = None
+    color_qa: dict | None = None
+    subtitle_qa: dict | None = None
 
 
 class N8NCallbackRequest(BaseModel):

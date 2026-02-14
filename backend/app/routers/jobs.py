@@ -26,6 +26,10 @@ logger = structlog.get_logger()
 # Check if Celery/Redis is available
 _REDIS_URL = settings.redis_url or ""
 USE_CELERY = _REDIS_URL.startswith("redis://") or _REDIS_URL.startswith("rediss://")
+ALLOWED_TRANSITION_STYLES = {"cut", "dissolve", "wipe", "crossfade", "wipe_left", "wipe_right", "slide_left", "slide_right"}
+ALLOWED_SPEED_PROFILES = {"slow", "balanced", "fast"}
+ALLOWED_SUBTITLE_PRESETS = {"platform_default", "broadcast", "social"}
+ALLOWED_COLOR_PROFILES = {"natural", "cinematic", "punchy"}
 
 
 def _broker_fingerprint(redis_url: str) -> str:
@@ -102,6 +106,48 @@ def _has_queue_consumer(diagnostics: dict[str, Any], queue_name: str) -> bool:
     return False
 
 
+def _parse_bounded_float(value: Any, default: float, minimum: float, maximum: float) -> float:
+    try:
+        parsed = float(value)
+    except Exception:
+        parsed = default
+    return min(max(parsed, minimum), maximum)
+
+
+def _normalize_post_settings(
+    transition_style: Any,
+    transition_duration: Any,
+    speed_profile: Any,
+    subtitle_preset: Any,
+    color_profile: Any,
+    skin_protect_strength: Any,
+) -> dict[str, Any]:
+    transition_style_norm = str(transition_style or "dissolve").lower()
+    if transition_style_norm not in ALLOWED_TRANSITION_STYLES:
+        transition_style_norm = "dissolve"
+
+    speed_profile_norm = str(speed_profile or "balanced").lower()
+    if speed_profile_norm not in ALLOWED_SPEED_PROFILES:
+        speed_profile_norm = "balanced"
+
+    subtitle_preset_norm = str(subtitle_preset or "platform_default").lower()
+    if subtitle_preset_norm not in ALLOWED_SUBTITLE_PRESETS:
+        subtitle_preset_norm = "platform_default"
+
+    color_profile_norm = str(color_profile or "natural").lower()
+    if color_profile_norm not in ALLOWED_COLOR_PROFILES:
+        color_profile_norm = "natural"
+
+    return {
+        "transition_style": transition_style_norm,
+        "transition_duration": _parse_bounded_float(transition_duration, 0.25, 0.1, 1.5),
+        "speed_profile": speed_profile_norm,
+        "subtitle_preset": subtitle_preset_norm,
+        "color_profile": color_profile_norm,
+        "skin_protect_strength": _parse_bounded_float(skin_protect_strength, 0.5, 0.0, 1.0),
+    }
+
+
 @router.post("/upload", response_model=JobResponse)
 async def upload_video(
     request: Request,
@@ -113,6 +159,12 @@ async def upload_video(
     platform: str = Form("youtube"),
     tier: str = Form("pro"),
     brand_safety: str = Form("standard"),
+    transition_style: str = Form("dissolve"),
+    transition_duration: float = Form(0.25),
+    speed_profile: str = Form("balanced"),
+    subtitle_preset: str = Form("platform_default"),
+    color_profile: str = Form("natural"),
+    skin_protect_strength: float = Form(0.5),
     media_intelligence: str = Form(None),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
@@ -159,6 +211,14 @@ async def upload_video(
         ratio=ratio,
         platform=platform,
         brand_safety=brand_safety,
+        post_settings=_normalize_post_settings(
+            transition_style=transition_style,
+            transition_duration=transition_duration,
+            speed_profile=speed_profile,
+            subtitle_preset=subtitle_preset,
+            color_profile=color_profile,
+            skin_protect_strength=skin_protect_strength,
+        ),
         idempotency_key=idempotency_key,
         media_intelligence=parsed_intel,
         start_immediately=True,
@@ -361,6 +421,14 @@ async def edit_job(
         ratio=payload.ratio,
         platform=payload.platform,
         brand_safety=payload.brand_safety,
+        post_settings=_normalize_post_settings(
+            transition_style=payload.transition_style,
+            transition_duration=payload.transition_duration,
+            speed_profile=payload.speed_profile,
+            subtitle_preset=payload.subtitle_preset,
+            color_profile=payload.color_profile,
+            skin_protect_strength=payload.skin_protect_strength,
+        ),
         idempotency_key=idempotency_key,
         start_immediately=False,
     )
@@ -456,6 +524,7 @@ async def create_job(
     ratio: str,
     platform: str,
     brand_safety: str,
+    post_settings: dict | None = None,
     idempotency_key: str | None = None,
     media_intelligence: dict | None = None,
     start_immediately: bool = True,
@@ -473,6 +542,7 @@ async def create_job(
         ratio=ratio,
         platform=platform,
         brand_safety=brand_safety,
+        post_settings=post_settings or {},
         media_intelligence=media_intelligence,
         cancel_requested=False,
         progress_message="Starting pipeline..." if start_immediately else "Awaiting manual start.",

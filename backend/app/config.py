@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     
     # AI API Keys
     openai_api_key: str | None = None
+    openai_models_csv: str = "gpt-4o-mini,gpt-4o"
     gemini_api_key: str | None = None
     groq_api_key: str | None = None
     openrouter_api_key: str | None = None
@@ -71,9 +72,21 @@ class Settings(BaseSettings):
     n8n_retry_attempts: int = 2
     n8n_retry_backoff_seconds: float = 0.25
 
+    # Inbound Orchestration Callback Security
+    orchestration_webhook_secret: str | None = None
+    orchestration_webhook_tolerance_seconds: int = 300
+
     # Modal (GPU Offloading)
     modal_token_id: str | None = None
     modal_token_secret: str | None = None
+
+    # Idle Autonomy (Self-Heal + Self-Improve)
+    autonomy_enabled: bool = True
+    autonomy_profile_mode: str = "conservative"
+    autonomy_poll_seconds: int = 30
+    autonomy_idle_heal_interval_seconds: int = 300
+    autonomy_idle_improve_interval_seconds: int = 1800
+    autonomy_stuck_job_minutes: int = 180
 
     model_config = SettingsConfigDict(
         env_file=(".env", f".env.{os.getenv('ENVIRONMENT', 'development')}"),

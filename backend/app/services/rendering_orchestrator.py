@@ -95,6 +95,10 @@ class RenderingOrchestrator:
                     keyframes=cut.get("keyframes") if isinstance(cut.get("keyframes"), list) else None,
                 ))
 
+            if not tasks:
+                logger.warning("render_no_valid_cuts", job_id=job_id)
+                return False
+
             # 2. Execute parallel renders
             publish_progress(job_id, "processing", f"Rendering {len(tasks)} scenes in parallel...", 70, user_id=user_id)
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -104,6 +108,11 @@ class RenderingOrchestrator:
                 if isinstance(res, Exception):
                     logger.error("scene_render_failed", job_id=job_id, error=str(res))
                     return False
+
+            scene_files = [f for f in scene_files if f.exists()]
+            if not scene_files:
+                logger.warning("render_no_scene_outputs", job_id=job_id)
+                return False
 
             # 3. Concatenate scenes
             publish_progress(job_id, "processing", "Merging scenes...", 85, user_id=user_id)

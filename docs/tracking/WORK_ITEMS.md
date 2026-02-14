@@ -21,6 +21,144 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ---
 
+## WRK-20260215-014
+- `Title:` Tune autonomy policy profiles (aggressive/conservative) and add admin UI control panel
+- `Status:` Done
+- `Owner/Role:` Backend Developer + Frontend Developer
+- `Priority:` P1
+- `Why this matters:` You requested hardware/workload tuning and live operator control for autonomous self-heal/self-improve behavior.
+- `Scope / files:`
+  - `backend/app/services/autonomy_service.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/app/config.py`
+  - `backend/.env.example`
+  - `backend/tests/test_autonomy_service.py`
+  - `frontend/components/admin/AutonomyPanel.tsx`
+  - `frontend/app/admin/page.tsx`
+  - `docs/ARCHITECTURE.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing autonomy loop + maintenance admin APIs
+- `Exit criteria:` Profile mode can be switched live, load-aware skip behavior is visible, and admin panel exposes status + force actions.
+
+## WRK-20260215-013
+- `Title:` Route self-improvement/autonomy tasks to OpenAI by default and fix provider fallback execution bug
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` You requested Codex/OpenAI for self-improving behavior; provider fallback reliability was also degraded by unreachable fallback model loop.
+- `Scope / files:`
+  - `backend/app/config.py`
+  - `backend/app/agents/routing_policy.py`
+  - `backend/app/agents/base.py`
+  - `backend/.env`
+  - `backend/.env.example`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing `ProviderRouter` + `run_agent_prompt` fallback chain
+- `Exit criteria:` OpenAI can be selected/configured for autonomy workloads and fallback model iteration is executed correctly.
+
+## WRK-20260215-012
+- `Title:` Secure orchestration callbacks with signature verification and replay protection, plus E2E API tests
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` External orchestration callback path must be tamper-resistant and idempotent under retries/replays.
+- `Scope / files:`
+  - `backend/app/routers/orchestration.py`
+  - `backend/app/config.py`
+  - `backend/.env.example`
+  - `backend/tests/test_orchestration_callback_security.py`
+  - `docs/ARCHITECTURE.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing `processed_webhooks` table and shared webhook secret config
+- `Exit criteria:` Callback accepts only valid signed requests, blocks replayed event IDs, and tests pass.
+
+## WRK-20260215-011
+- `Title:` Finalize pending post-settings schema/model/workflow/migration changes with input hardening
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` Pending fields were functional but not hardened against invalid post-setting values from forms or legacy rows.
+- `Scope / files:`
+  - `backend/app/schemas.py`
+  - `backend/app/routers/jobs.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/tests/test_jobs.py`
+  - `backend/alembic/versions/e4f7b7ad4f62_add_post_depth_settings_and_qa_fields.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing post-settings model + migration fields on `jobs`
+- `Exit criteria:` Invalid settings are normalized/rejected predictably, workflow handles bad persisted values safely, tests pass, migration upgrades cleanly.
+
+## WRK-20260215-010
+- `Title:` Add idle self-healing/self-improving autonomy loop using existing backend APIs
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` You requested autonomous behavior while idle so the webapp self-heals and improves continuously.
+- `Scope / files:`
+  - `backend/app/services/autonomy_service.py`
+  - `backend/app/main.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/app/config.py`
+  - `backend/.env.example`
+  - `backend/tests/test_autonomy_service.py`
+  - `docs/ARCHITECTURE.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing maintenance, introspection, cleanup, integration-health, and routing policy services
+- `Exit criteria:` Idle loop runs on startup, exposes admin status/trigger endpoints, and test suite remains green.
+
+## WRK-20260215-009
+- `Title:` Harden OpenClaw+n8n+workflow+render orchestrator integration paths
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` External orchestration must stay stable even with variable agent output quality and webhook failures.
+- `Scope / files:`
+  - `backend/app/services/openclaw_service.py`
+  - `backend/app/services/n8n_service.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/tests/test_openclaw_service.py`
+  - `backend/tests/test_n8n_service.py`
+  - `docs/ARCHITECTURE.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing OpenClaw/n8n/orchestrator implementations
+- `Exit criteria:` Robust strategy generation and webhook payload delivery behavior validated by tests and documented architecture contract.
+
+## WRK-20260215-008
+- `Title:` Complete post-depth payload flow across frontend upload/edit and backend persistence tests
+- `Status:` Done
+- `Owner/Role:` Backend Developer + Frontend Developer
+- `Priority:` P1
+- `Why this matters:` True post-production controls must be configurable in UI and reliably persisted to backend jobs.
+- `Scope / files:`
+  - `frontend/app/dashboard/upload/page.tsx`
+  - `frontend/app/jobs/[id]/JobPageClient.tsx`
+  - `backend/tests/test_jobs.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing post settings schema/router support in backend
+- `Exit criteria:` Upload/edit forms include post-depth controls, payload values persist as `post_settings`, and tests pass.
+
 ## WRK-20260215-007
 - `Title:` Implement Phase-A True Post-Production Depth foundations across timeline/audio/color/graphics pipelines
 - `Status:` Done

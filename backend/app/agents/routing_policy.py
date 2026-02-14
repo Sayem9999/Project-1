@@ -69,6 +69,11 @@ class ProviderHealth:
         self.circuit_open_until = datetime.utcnow() + timedelta(seconds=max(5, int(seconds)))
 
 
+def _parse_models_csv(raw: str, default: list[str]) -> list[str]:
+    models = [m.strip() for m in (raw or "").split(",") if m.strip()]
+    return models or default
+
+
 def _provider_configured(name: str) -> bool:
     if name == "openai":
         return bool(settings.openai_api_key)
@@ -106,7 +111,7 @@ PROVIDERS: Dict[str, ProviderConfig] = {
     ),
     "openai": ProviderConfig(
         name="openai",
-        models=["gpt-4o-mini", "gpt-4o"],
+        models=_parse_models_csv(settings.openai_models_csv, ["gpt-4o-mini", "gpt-4o"]),
         quality_tier="premium",
         avg_latency_ms=3000,
         cost_per_1k_tokens=0.15

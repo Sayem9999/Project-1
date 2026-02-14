@@ -37,6 +37,161 @@ Newest entries go first.
 
 ---
 
+## BUG-20260215-011
+- `Title:` Autonomy loop lacked workload profile controls and live operational visibility in admin UI
+- `Date reported:` 2026-02-15
+- `Reported by:` User request + Codex review
+- `Owner:` Backend Developer + Frontend Developer
+- `Severity:` S3
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Autonomy cadence was static, not tunable for hardware/workload; admin users could not see runtime load/metrics or trigger targeted autonomy actions from UI.
+- `Expected behavior:` Operators can switch between conservative/aggressive modes and inspect live autonomy metrics/actions in the dashboard.
+- `Root cause:` Initial autonomy implementation had fixed policy parameters and API-only visibility with no dedicated UI.
+- `Fix summary:` Added profile presets, config-backed default mode, load guard metrics/counters, profile-switch API, and new admin autonomy panel with live polling and action controls.
+- `Files changed:`
+  - `backend/app/services/autonomy_service.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/app/config.py`
+  - `backend/.env.example`
+  - `backend/tests/test_autonomy_service.py`
+  - `frontend/components/admin/AutonomyPanel.tsx`
+  - `frontend/app/admin/page.tsx`
+- `Validation evidence:` TST-20260215-014
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-014
+
+## BUG-20260215-010
+- `Title:` Agent fallback provider path skipped fallback model attempts due to unreachable loop block
+- `Date reported:` 2026-02-15
+- `Reported by:` Codex review
+- `Owner:` Backend Developer
+- `Severity:` S2
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` If primary provider failed, fallback providers could be selected but their model attempts were never executed, causing premature "all attempts failed" errors.
+- `Expected behavior:` Fallback provider loop should iterate through each fallback provider model and attempt calls.
+- `Root cause:` Incorrect indentation placed fallback `try` block under `if not fallback_config: continue`.
+- `Fix summary:` Rebuilt fallback loop to explicitly iterate `for model in fallback_config.models` with proper error handling and retry sleep.
+- `Files changed:`
+  - `backend/app/agents/base.py`
+  - `backend/app/agents/routing_policy.py`
+  - `backend/app/config.py`
+  - `backend/.env`
+  - `backend/.env.example`
+- `Validation evidence:` TST-20260215-013
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-013
+
+## BUG-20260215-009
+- `Title:` Orchestration callback endpoint lacked cryptographic verification and replay defenses
+- `Date reported:` 2026-02-15
+- `Reported by:` User request + Codex security review
+- `Owner:` Backend Developer
+- `Severity:` S2
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Callback accepted authenticated user payloads without webhook signature verification and had no replay-id dedupe for repeated event submissions.
+- `Expected behavior:` Callback should accept only signed webhook requests and reject replays of the same event id.
+- `Root cause:` Endpoint was designed as user-auth API action rather than service-to-service webhook contract.
+- `Fix summary:` Added HMAC signature verification, timestamp tolerance checks, event-id replay protection using `processed_webhooks`, and callback security integration tests.
+- `Files changed:`
+  - `backend/app/routers/orchestration.py`
+  - `backend/app/config.py`
+  - `backend/.env.example`
+  - `backend/tests/test_orchestration_callback_security.py`
+- `Validation evidence:` TST-20260215-012
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-012
+
+## BUG-20260215-008
+- `Title:` Post-depth settings accepted invalid values that could degrade workflow behavior
+- `Date reported:` 2026-02-15
+- `Reported by:` Codex pending-change hardening pass
+- `Owner:` Backend Developer
+- `Severity:` S3
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Upload/edit payloads could carry unsupported transition/speed/subtitle/color values or out-of-range numeric values.
+- `Expected behavior:` Settings should be validated/normalized at API boundary and safely bounded in workflow runtime.
+- `Root cause:` Form-driven upload path had no explicit normalization, and workflow converted numeric settings without bounds.
+- `Fix summary:` Added schema-level edit validation, upload/edit normalization helper in jobs router, bounded float coercion in workflow, and regression tests.
+- `Files changed:`
+  - `backend/app/schemas.py`
+  - `backend/app/routers/jobs.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/tests/test_jobs.py`
+- `Validation evidence:` TST-20260215-011
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-011
+
+## BUG-20260215-007
+- `Title:` System lacked idle-time autonomous self-heal/self-improve execution path
+- `Date reported:` 2026-02-15
+- `Reported by:` User request + Codex review
+- `Owner:` Backend Developer
+- `Severity:` S3
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Maintenance and health APIs existed but no always-on idle orchestrator invoked them automatically.
+- `Expected behavior:` While idle, system should continuously execute safe healing and improvement tasks without disrupting active jobs.
+- `Root cause:` No lifecycle-managed background controller connected maintenance/integration/cleanup/routing APIs under idle gating.
+- `Fix summary:` Added `AutonomyService` idle loop, startup/shutdown wiring, admin endpoints for status/manual run, env/config knobs, and tests.
+- `Files changed:`
+  - `backend/app/services/autonomy_service.py`
+  - `backend/app/main.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/app/config.py`
+  - `backend/.env.example`
+  - `backend/tests/test_autonomy_service.py`
+  - `docs/ARCHITECTURE.md`
+- `Validation evidence:` TST-20260215-010
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-010
+
+## BUG-20260215-006
+- `Title:` OpenClaw and orchestration paths were brittle against variable agent outputs and missing renderable cuts
+- `Date reported:` 2026-02-15
+- `Reported by:` Codex reliability review
+- `Owner:` Backend Developer
+- `Severity:` S2
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Strategy generation could fail on schema drift (`dict` vs model), color filter extraction used wrong key, and orchestrator could proceed with empty valid cuts/output parts.
+- `Expected behavior:` Strategy generation should degrade gracefully and renderer should fail fast on invalid/no-output batches.
+- `Root cause:` Strict attribute assumptions in `openclaw_service` and missing guard checks in `rendering_orchestrator`; n8n events lacked idempotency metadata and QA payload propagation.
+- `Fix summary:` Normalized OpenClaw outputs + parallel specialist execution with fallback handling, enriched/signed n8n payload headers/body, persisted empty QA payloads in status updates, and added no-valid-cut/no-output safeguards.
+- `Files changed:`
+  - `backend/app/services/openclaw_service.py`
+  - `backend/app/services/n8n_service.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/tests/test_openclaw_service.py`
+  - `backend/tests/test_n8n_service.py`
+- `Validation evidence:` TST-20260215-009
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-009
+
+## BUG-20260215-005
+- `Title:` Frontend did not expose new post-depth controls, causing backend post settings to remain defaulted
+- `Date reported:` 2026-02-15
+- `Reported by:` Codex implementation review
+- `Owner:` Backend Developer + Frontend Developer
+- `Severity:` S3
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Users could not set transition/speed/subtitle/color/skin options from upload/edit UI, so jobs used defaults despite backend support.
+- `Expected behavior:` Upload and re-edit UI should collect post-depth fields and include them in API payloads.
+- `Root cause:` Backend schema/router support was added before corresponding frontend controls and payload wiring.
+- `Fix summary:` Added post-depth controls in upload/edit pages and backend integration tests that assert `post_settings` persistence.
+- `Files changed:`
+  - `frontend/app/dashboard/upload/page.tsx`
+  - `frontend/app/jobs/[id]/JobPageClient.tsx`
+  - `backend/tests/test_jobs.py`
+- `Validation evidence:` TST-20260215-008
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-008
+
 ## BUG-20260215-004
 - `Title:` AI pipeline could return source-identical outputs when cut plans were empty or pass-through
 - `Date reported:` 2026-02-15

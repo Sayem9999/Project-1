@@ -14,6 +14,7 @@ import UserTable from '@/components/admin/UserTable';
 import JobTable from '@/components/admin/JobTable';
 import SystemTrends from '@/components/admin/SystemTrends';
 import UsageLeaderboard from '@/components/admin/UsageLeaderboard';
+import AutonomyPanel from '@/components/admin/AutonomyPanel';
 import { Button } from '@/components/ui/Button';
 
 interface SystemStats {
@@ -74,6 +75,30 @@ interface AdminHealth {
   >;
 }
 
+interface AutonomyStatus {
+  enabled: boolean;
+  running: boolean;
+  profile_mode: string;
+  profile: Record<string, number>;
+  available_profiles: string[];
+  metrics: {
+    run_count: number;
+    heal_count: number;
+    improve_count: number;
+    skip_high_load_count: number;
+  };
+  last_heal_at?: string | null;
+  last_improve_at?: string | null;
+  last_result?: {
+    idle?: boolean;
+    high_load?: boolean;
+    load?: {
+      cpu_percent?: number;
+      memory_percent?: number;
+    };
+  };
+}
+
 interface CreditLedgerEntry {
   id: number;
   user_id: number;
@@ -93,6 +118,9 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs' | 'credits' | 'system'>('overview');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [health, setHealth] = useState<AdminHealth | null>(null);
+  const [autonomy, setAutonomy] = useState<AutonomyStatus | null>(null);
+  const [autonomyLoading, setAutonomyLoading] = useState(false);
+  const [autonomyActionLoading, setAutonomyActionLoading] = useState(false);
   const [users, setUsers] = useState<UserData[]>([]);
   const [jobs, setJobs] = useState<JobData[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
@@ -136,17 +164,20 @@ export default function AdminDashboardPage() {
         apiRequest<UserData[]>('/admin/users', { auth: true }),
         apiRequest<JobData[]>('/admin/jobs', { auth: true }),
         apiRequest<AdminHealth>('/admin/health', { auth: true }),
+        apiRequest<AutonomyStatus>('/maintenance/autonomy/status', { auth: true }),
       ]);
 
       const statsData = results[0].status === 'fulfilled' ? results[0].value : null;
       const usersData = results[1].status === 'fulfilled' ? results[1].value : [];
       const jobsData = results[2].status === 'fulfilled' ? results[2].value : [];
       const healthData = results[3].status === 'fulfilled' ? results[3].value : null;
+      const autonomyData = results[4].status === 'fulfilled' ? results[4].value : null;
 
       if (statsData) setStats(statsData);
       setUsers(Array.isArray(usersData) ? usersData : []);
       setJobs(Array.isArray(jobsData) ? jobsData : []);
       if (healthData) setHealth(healthData);
+      if (autonomyData) setAutonomy(autonomyData);
 
       setLoading(false);
       setAccessDenied(false);
@@ -166,6 +197,53 @@ export default function AdminDashboardPage() {
       setLoading(false);
     }
   }, [router]);
+
+  const fetchAutonomyStatus = useCallback(async () => {
+    setAutonomyLoading(true);
+    try {
+      const data = await apiRequest<AutonomyStatus>('/maintenance/autonomy/status', { auth: true });
+      setAutonomy(data);
+    } catch (err: any) {
+      if (err instanceof ApiError && err.isAuth) {
+        clearAuth();
+        router.push('/login');
+        return;
+      }
+      toast.error('Autonomy status failed');
+    } finally {
+      setAutonomyLoading(false);
+    }
+  }, [router]);
+
+  const runAutonomy = useCallback(async (opts: { force_heal?: boolean; force_improve?: boolean }) => {
+    setAutonomyActionLoading(true);
+    try {
+      const query = new URLSearchParams();
+      if (opts.force_heal) query.set('force_heal', 'true');
+      if (opts.force_improve) query.set('force_improve', 'true');
+      await apiRequest(`/maintenance/autonomy/run?${query.toString()}`, { method: 'POST', auth: true });
+      await fetchAutonomyStatus();
+      toast.success('Autonomy cycle completed');
+    } catch (err: any) {
+      toast.error(err instanceof ApiError ? err.message : 'Autonomy run failed');
+    } finally {
+      setAutonomyActionLoading(false);
+    }
+  }, [fetchAutonomyStatus]);
+
+  const setAutonomyProfile = useCallback(async (mode: string) => {
+    setAutonomyActionLoading(true);
+    try {
+      const query = new URLSearchParams({ mode });
+      const data = await apiRequest<AutonomyStatus>(`/maintenance/autonomy/profile?${query.toString()}`, { method: 'POST', auth: true });
+      setAutonomy(data);
+      toast.success(`Autonomy mode switched to ${mode}`);
+    } catch (err: any) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to switch autonomy mode');
+    } finally {
+      setAutonomyActionLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -219,6 +297,13 @@ export default function AdminDashboardPage() {
     const interval = setInterval(() => fetchJobs(true), 15000);
     return () => clearInterval(interval);
   }, [activeTab, fetchJobs]);
+
+  useEffect(() => {
+    if (activeTab !== 'system') return;
+    fetchAutonomyStatus();
+    const interval = setInterval(fetchAutonomyStatus, 15000);
+    return () => clearInterval(interval);
+  }, [activeTab, fetchAutonomyStatus]);
 
   const handleUpdateCredits = async (userId: number, newCredits: number, reason = 'manual_set') => {
     const toastId = toast.loading('Syncing credits...');
@@ -596,6 +681,14 @@ export default function AdminDashboardPage() {
 
         {activeTab === 'system' && (
           <motion.div key="system" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+            <AutonomyPanel
+              autonomy={autonomy}
+              loading={autonomyLoading}
+              actionLoading={autonomyActionLoading}
+              onRefresh={fetchAutonomyStatus}
+              onSetMode={setAutonomyProfile}
+              onRun={runAutonomy}
+            />
             <SystemMap />
             <div className="glass-panel p-10 rounded-[40px] border-white/5 relative overflow-hidden">
               <div className="flex items-center gap-6 mb-10 relative z-10">

@@ -2,6 +2,7 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any
 from ..services.introspection import introspection_service
+from ..services.autonomy_service import autonomy_service
 from ..agents.maintenance_agent import maintenance_agent
 from ..agents.architect_agent import architect_agent
 from ..deps import get_current_user
@@ -84,3 +85,34 @@ async def trigger_chaos(duration: int = 60, current_user: User = Depends(get_cur
     from ..services.chaos import chaos_monkey
     asyncio.create_task(chaos_monkey.start_chaos_session(duration))
     return {"status": "chaos_unleashed", "duration": duration}
+
+
+@router.get("/autonomy/status")
+async def get_autonomy_status(current_user: User = Depends(get_current_user)):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    return autonomy_service.get_status()
+
+
+@router.post("/autonomy/run")
+async def run_autonomy_now(
+    force_improve: bool = False,
+    force_heal: bool = False,
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    return await autonomy_service.run_once(force_improve=force_improve, force_heal=force_heal)
+
+
+@router.post("/autonomy/profile")
+async def set_autonomy_profile(
+    mode: str,
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    try:
+        return autonomy_service.set_profile(mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

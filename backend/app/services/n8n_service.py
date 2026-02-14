@@ -60,13 +60,19 @@ class N8NService:
             "thumbnail_path": job.thumbnail_path,
             "tier": job.tier,
             "platform": job.platform,
+            "post_settings": getattr(job, "post_settings", None),
+            "audio_qa": getattr(job, "audio_qa", None),
+            "color_qa": getattr(job, "color_qa", None),
+            "subtitle_qa": getattr(job, "subtitle_qa", None),
             "timestamp": now,
         }
         body = self._canonical_body(payload)
+        event_id = f"job-{job.id}-{job.status}-{now}"
         headers = {
             "Content-Type": "application/json",
             "User-Agent": "proedit-backend/n8n-webhook",
             "X-ProEdit-Timestamp": now,
+            "X-ProEdit-Event-Id": event_id,
         }
         signature = self._signature(now, body)
         if signature:
@@ -78,6 +84,7 @@ class N8NService:
 
         for attempt in range(retries + 1):
             try:
+                headers["X-ProEdit-Attempt"] = str(attempt + 1)
                 async with httpx.AsyncClient(timeout=timeout) as client:
                     response = await client.post(url, content=body, headers=headers)
 

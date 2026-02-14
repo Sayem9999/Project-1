@@ -67,6 +67,10 @@ class Job(Base):
     brand_safety_result: Mapped[dict] = mapped_column(JSON, nullable=True)
     ab_test_result: Mapped[dict] = mapped_column(JSON, nullable=True)
     performance_metrics: Mapped[dict] = mapped_column(JSON, nullable=True)
+    post_settings: Mapped[dict] = mapped_column(JSON, nullable=True)
+    audio_qa: Mapped[dict] = mapped_column(JSON, nullable=True)
+    color_qa: Mapped[dict] = mapped_column(JSON, nullable=True)
+    subtitle_qa: Mapped[dict] = mapped_column(JSON, nullable=True)
 
     # Relationships (if needed in future)
     # user: Mapped["User"] = relationship("User", back_populates="jobs")

@@ -172,3 +172,178 @@ async def test_enqueue_job_production_fails_if_no_video_queue_consumer(monkeypat
 
     assert exc.value.status_code == 503
     assert "No active Celery worker subscribed to 'video' queue" in str(exc.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_upload_persists_post_settings(client: AsyncClient, session, monkeypatch):
+    signup = {"email": "upload-post@example.com", "password": "SecurePassword123"}
+    res = await client.post("/api/auth/signup", json=signup)
+    token = res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async def mock_save_upload(_file):
+        return "uploads/mock_source.mp4"
+
+    monkeypatch.setattr(jobs_router.storage_service, "save_upload", mock_save_upload)
+
+    res = await client.post(
+        "/api/jobs/upload",
+        headers=headers,
+        files={"file": ("clip.mp4", b"fake-video-content", "video/mp4")},
+        data={
+            "theme": "cinematic",
+            "pacing": "fast",
+            "mood": "energetic",
+            "ratio": "9:16",
+            "platform": "tiktok",
+            "tier": "pro",
+            "brand_safety": "strict",
+            "transition_style": "wipe",
+            "transition_duration": "0.4",
+            "speed_profile": "fast",
+            "subtitle_preset": "social",
+            "color_profile": "cinematic",
+            "skin_protect_strength": "0.7",
+        },
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["post_settings"]["transition_style"] == "wipe"
+    assert data["post_settings"]["speed_profile"] == "fast"
+    assert data["post_settings"]["subtitle_preset"] == "social"
+
+    job = await session.get(Job, data["id"])
+    assert job is not None
+    assert job.post_settings["transition_style"] == "wipe"
+    assert float(job.post_settings["transition_duration"]) == 0.4
+    assert float(job.post_settings["skin_protect_strength"]) == 0.7
+
+
+@pytest.mark.asyncio
+async def test_edit_persists_post_settings(client: AsyncClient, session):
+    signup = {"email": "edit-post@example.com", "password": "SecurePassword123"}
+    res = await client.post("/api/auth/signup", json=signup)
+    token = res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me = await client.get("/api/auth/me", headers=headers)
+    user_id = me.json()["id"]
+
+    source_job = Job(
+        user_id=user_id,
+        source_path="https://example.com/source.mp4",
+        status=JobStatus.complete,
+        theme="professional",
+        tier="pro",
+        pacing="medium",
+        mood="professional",
+        ratio="16:9",
+        platform="youtube",
+        brand_safety="standard",
+        progress_message="Done",
+    )
+    session.add(source_job)
+    await session.commit()
+    await session.refresh(source_job)
+
+    res = await client.post(
+        f"/api/jobs/{source_job.id}/edit",
+        headers=headers,
+        json={
+            "theme": "modern",
+            "pacing": "slow",
+            "mood": "cinematic",
+            "ratio": "1:1",
+            "platform": "instagram",
+            "tier": "pro",
+            "brand_safety": "strict",
+            "transition_style": "dissolve",
+            "transition_duration": 0.3,
+            "speed_profile": "balanced",
+            "subtitle_preset": "broadcast",
+            "color_profile": "natural",
+            "skin_protect_strength": 0.6,
+        },
+    )
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["post_settings"]["subtitle_preset"] == "broadcast"
+    assert float(payload["post_settings"]["transition_duration"]) == 0.3
+
+    created_job = await session.get(Job, payload["id"])
+    assert created_job is not None
+    assert created_job.post_settings["color_profile"] == "natural"
+    assert float(created_job.post_settings["skin_protect_strength"]) == 0.6
+
+
+@pytest.mark.asyncio
+async def test_upload_normalizes_invalid_post_settings(client: AsyncClient, session, monkeypatch):
+    signup = {"email": "upload-post-invalid@example.com", "password": "SecurePassword123"}
+    res = await client.post("/api/auth/signup", json=signup)
+    token = res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async def mock_save_upload(_file):
+        return "uploads/mock_source.mp4"
+
+    monkeypatch.setattr(jobs_router.storage_service, "save_upload", mock_save_upload)
+
+    res = await client.post(
+        "/api/jobs/upload",
+        headers=headers,
+        files={"file": ("clip.mp4", b"fake-video-content", "video/mp4")},
+        data={
+            "transition_style": "unknown",
+            "transition_duration": "99",
+            "speed_profile": "ultra",
+            "subtitle_preset": "none",
+            "color_profile": "retro",
+            "skin_protect_strength": "-5",
+        },
+    )
+    assert res.status_code == 200
+    payload = res.json()
+    post = payload["post_settings"]
+    assert post["transition_style"] == "dissolve"
+    assert post["speed_profile"] == "balanced"
+    assert post["subtitle_preset"] == "platform_default"
+    assert post["color_profile"] == "natural"
+    assert float(post["transition_duration"]) == 1.5
+    assert float(post["skin_protect_strength"]) == 0.0
+
+
+@pytest.mark.asyncio
+async def test_edit_rejects_invalid_post_settings_enum(client: AsyncClient, session):
+    signup = {"email": "edit-post-invalid@example.com", "password": "SecurePassword123"}
+    res = await client.post("/api/auth/signup", json=signup)
+    token = res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me = await client.get("/api/auth/me", headers=headers)
+    user_id = me.json()["id"]
+
+    source_job = Job(
+        user_id=user_id,
+        source_path="https://example.com/source.mp4",
+        status=JobStatus.complete,
+        theme="professional",
+        tier="pro",
+        pacing="medium",
+        mood="professional",
+        ratio="16:9",
+        platform="youtube",
+        brand_safety="standard",
+        progress_message="Done",
+    )
+    session.add(source_job)
+    await session.commit()
+    await session.refresh(source_job)
+
+    res = await client.post(
+        f"/api/jobs/{source_job.id}/edit",
+        headers=headers,
+        json={
+            "transition_style": "invalid-transition",
+        },
+    )
+    assert res.status_code == 422

@@ -93,6 +93,10 @@ async def test_n8n_service_adds_signature_header(monkeypatch):
         thumbnail_path=None,
         tier="pro",
         platform="youtube",
+        post_settings={"transition_style": "dissolve"},
+        audio_qa={"passed": True},
+        color_qa={"passed": True},
+        subtitle_qa={"passed": False},
     )
 
     ok = await service.send_job_status_event(job)
@@ -100,6 +104,11 @@ async def test_n8n_service_adds_signature_header(monkeypatch):
     assert captured["url"] == "http://127.0.0.1:5678/webhook/proedit/job-status"
     assert "X-ProEdit-Signature" in captured["headers"]
     assert captured["headers"]["X-ProEdit-Signature"].startswith("sha256=")
+    assert "X-ProEdit-Event-Id" in captured["headers"]
+    assert captured["headers"]["X-ProEdit-Attempt"] == "1"
+    body = __import__("json").loads(captured["content"].decode("utf-8"))
+    assert body["post_settings"]["transition_style"] == "dissolve"
+    assert body["subtitle_qa"]["passed"] is False
 
 
 @pytest.mark.asyncio
@@ -119,6 +128,9 @@ async def test_update_status_does_not_fail_when_n8n_notification_errors(monkeypa
             self.brand_safety_result = None
             self.ab_test_result = None
             self.performance_metrics = None
+            self.audio_qa = {"old": True}
+            self.color_qa = {"old": True}
+            self.subtitle_qa = {"old": True}
 
     fake_job = FakeJob()
 
@@ -141,6 +153,16 @@ async def test_update_status_does_not_fail_when_n8n_notification_errors(monkeypa
     monkeypatch.setattr(workflow_engine, "SessionLocal", lambda: FakeSession())
     monkeypatch.setattr(workflow_engine.n8n_service, "send_job_status_event", failing_notify)
 
-    await workflow_engine.update_status(7, "failed", "Processing failed")
+    await workflow_engine.update_status(
+        7,
+        "failed",
+        "Processing failed",
+        audio_qa={},
+        color_qa={},
+        subtitle_qa={},
+    )
     assert fake_job.status == "failed"
     assert fake_job.progress_message == "Processing failed"
+    assert fake_job.audio_qa == {}
+    assert fake_job.color_qa == {}
+    assert fake_job.subtitle_qa == {}

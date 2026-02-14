@@ -37,7 +37,13 @@ export default function UploadPage() {
     ratio: '16:9',
     platform: 'youtube',
     premium: true,
-    brandSafety: 'standard'
+    brandSafety: 'standard',
+    transitionStyle: 'dissolve',
+    transitionDuration: 0.25,
+    speedProfile: 'balanced',
+    subtitlePreset: 'platform_default',
+    colorProfile: 'natural',
+    skinProtectStrength: 0.5,
   });
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -118,6 +124,12 @@ export default function UploadPage() {
       formData.append('platform', settings.platform);
       formData.append('tier', settings.premium ? 'pro' : 'standard');
       formData.append('brand_safety', settings.brandSafety);
+      formData.append('transition_style', settings.transitionStyle);
+      formData.append('transition_duration', String(settings.transitionDuration));
+      formData.append('speed_profile', settings.speedProfile);
+      formData.append('subtitle_preset', settings.subtitlePreset);
+      formData.append('color_profile', settings.colorProfile);
+      formData.append('skin_protect_strength', String(settings.skinProtectStrength));
 
       if (analysisResult) {
         formData.append('media_intelligence', JSON.stringify(analysisResult));
@@ -251,6 +263,56 @@ export default function UploadPage() {
                   {style}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Post-Production Depth */}
+          <div className="space-y-4">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 ml-1">Post Depth</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { key: 'transitionStyle', label: 'Transition', options: ['cut', 'dissolve', 'wipe'] },
+                { key: 'speedProfile', label: 'Speed', options: ['slow', 'balanced', 'fast'] },
+                { key: 'subtitlePreset', label: 'Subtitles', options: ['platform_default', 'broadcast', 'social'] },
+                { key: 'colorProfile', label: 'Color', options: ['natural', 'cinematic', 'punchy'] },
+              ].map((field) => (
+                <div key={field.key} className="col-span-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">{field.label}</label>
+                  <select
+                    value={(settings as any)[field.key]}
+                    onChange={(e) => setSettings((s) => ({ ...s, [field.key]: e.target.value }))}
+                    className="mt-2 w-full bg-white/5 border border-white/10 rounded-2xl px-3 py-3 text-[10px] text-white focus:outline-none focus:border-brand-cyan/50 uppercase font-bold tracking-wider"
+                  >
+                    {field.options.map(opt => <option key={opt} value={opt} className="bg-obsidian-900">{opt}</option>)}
+                  </select>
+                </div>
+              ))}
+              <div className="col-span-2 grid grid-cols-2 gap-3 mt-1">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Transition Sec</label>
+                  <input
+                    type="number"
+                    min={0.1}
+                    max={1.5}
+                    step={0.05}
+                    value={settings.transitionDuration}
+                    onChange={(e) => setSettings((s) => ({ ...s, transitionDuration: Number(e.target.value) || 0.25 }))}
+                    className="mt-2 w-full bg-white/5 border border-white/10 rounded-2xl px-3 py-3 text-[10px] text-white focus:outline-none focus:border-brand-cyan/50 font-bold tracking-wider"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Skin Protect</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    value={settings.skinProtectStrength}
+                    onChange={(e) => setSettings((s) => ({ ...s, skinProtectStrength: Number(e.target.value) || 0.5 }))}
+                    className="mt-2 w-full bg-white/5 border border-white/10 rounded-2xl px-3 py-3 text-[10px] text-white focus:outline-none focus:border-brand-cyan/50 font-bold tracking-wider"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 

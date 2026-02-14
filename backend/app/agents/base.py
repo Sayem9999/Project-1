@@ -326,6 +326,7 @@ async def run_agent_prompt(
         fallback_config = PROVIDERS.get(fallback_name)
         if not fallback_config:
             continue
+        for model in fallback_config.models:
             try:
                 logger.debug("agent_api_attempt", provider=fallback_name, model=model, agent=agent_name)
                 result = await attempt_provider(fallback_name, model)
@@ -336,7 +337,7 @@ async def run_agent_prompt(
                 last_error = e
                 provider_router.record_failure(fallback_name, str(e))
                 provider_router.handle_provider_error(fallback_name, model, str(e))
-                
+
                 # Add a small yield/delay before switching models or providers to ease rate limits
                 import asyncio
                 await asyncio.sleep(0.5)

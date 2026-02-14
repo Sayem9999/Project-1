@@ -14,6 +14,7 @@ from .routers import auth, jobs, agents, oauth, websocket, maintenance
 from .logging_config import configure_logging
 from .models import User
 from .services.introspection import introspection_service
+from .services.autonomy_service import autonomy_service
 
 import os
 
@@ -116,8 +117,12 @@ async def lifespan(app: FastAPI):
             await asyncio.sleep(6 * 3600)
     asyncio.create_task(periodic_cleanup())
     
+    await autonomy_service.start()
     logger.info("startup_ready")
-    yield
+    try:
+        yield
+    finally:
+        await autonomy_service.stop()
 
 
 async def bootstrap_admin() -> None:

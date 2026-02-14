@@ -32,6 +32,10 @@ interface Job {
   director_plan?: any;
   brand_safety_result?: any;
   ab_test_result?: any;
+  post_settings?: any;
+  audio_qa?: any;
+  color_qa?: any;
+  subtitle_qa?: any;
 }
 
 export default function JobPageClient({ id }: { id: string }) {
@@ -51,6 +55,12 @@ export default function JobPageClient({ id }: { id: string }) {
     platform: 'youtube',
     tier: 'pro',
     brand_safety: 'standard',
+    transition_style: 'dissolve',
+    transition_duration: 0.25,
+    speed_profile: 'balanced',
+    subtitle_preset: 'platform_default',
+    color_profile: 'natural',
+    skin_protect_strength: 0.5,
   });
 
   const fetchJob = useCallback(async () => {
@@ -110,6 +120,12 @@ export default function JobPageClient({ id }: { id: string }) {
       platform: job.platform || 'youtube',
       tier: job.tier || 'pro',
       brand_safety: job.brand_safety || 'standard',
+      transition_style: job.post_settings?.transition_style || 'dissolve',
+      transition_duration: Number(job.post_settings?.transition_duration ?? 0.25),
+      speed_profile: job.post_settings?.speed_profile || 'balanced',
+      subtitle_preset: job.post_settings?.subtitle_preset || 'platform_default',
+      color_profile: job.post_settings?.color_profile || 'natural',
+      skin_protect_strength: Number(job.post_settings?.skin_protect_strength ?? 0.5),
     });
     setEditError('');
     setShowEdit(true);
@@ -430,6 +446,10 @@ export default function JobPageClient({ id }: { id: string }) {
                 { key: 'mood', label: 'Mood/Tone', options: ['professional', 'cinematic', 'energetic', 'minimal'] },
                 { key: 'ratio', label: 'Aspect Ratio', options: ['16:9', '9:16', '1:1'] },
                 { key: 'pacing', label: 'Edit Pacing', options: ['fast', 'medium', 'slow'] },
+                { key: 'transition_style', label: 'Transition Style', options: ['cut', 'dissolve', 'wipe'] },
+                { key: 'speed_profile', label: 'Speed Profile', options: ['slow', 'balanced', 'fast'] },
+                { key: 'subtitle_preset', label: 'Subtitle Preset', options: ['platform_default', 'broadcast', 'social'] },
+                { key: 'color_profile', label: 'Color Profile', options: ['natural', 'cinematic', 'punchy'] },
               ].map((field) => (
                 <div key={field.key} className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">{field.label}</label>
@@ -442,6 +462,30 @@ export default function JobPageClient({ id }: { id: string }) {
                   </select>
                 </div>
               ))}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Transition Seconds</label>
+                <input
+                  type="number"
+                  min={0.1}
+                  max={1.5}
+                  step={0.05}
+                  value={editForm.transition_duration}
+                  onChange={(e) => setEditForm(s => ({ ...s, transition_duration: Number(e.target.value) || 0.25 }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-cyan/50 transition-colors font-bold tracking-wider"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Skin Protect Strength</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  value={editForm.skin_protect_strength}
+                  onChange={(e) => setEditForm(s => ({ ...s, skin_protect_strength: Number(e.target.value) || 0.5 }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-cyan/50 transition-colors font-bold tracking-wider"
+                />
+              </div>
             </div>
 
             {editError && <div className="mt-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold">{editError}</div>}

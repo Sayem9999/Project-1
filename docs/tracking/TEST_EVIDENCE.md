@@ -18,6 +18,90 @@ Newest entries go first.
 
 ---
 
+## TST-20260215-014
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer + Frontend Developer
+- `Related change:` CHG-20260215-014
+- `Related bug:` BUG-20260215-011
+- `Scope:` Autonomy profile tuning logic and admin UI control panel integration
+- `Test type:` Unit
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe -m pytest -q tests/test_autonomy_service.py` and full backend `.\.venv\Scripts\python.exe -m pytest -q`; run `npm run lint` in `frontend`.
+- `Result:` Pass
+- `Notes:` Autonomy tests `8 passed`; backend suite `49 passed in 9.60s`; frontend lint passed with existing hook-dependency warnings unrelated to this panel.
+- `Artifacts:` pytest + frontend lint console output
+
+## TST-20260215-013
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-013
+- `Related bug:` BUG-20260215-010
+- `Scope:` OpenAI-first provider routing config and fallback model-loop fix
+- `Test type:` Unit
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe -m pytest -q` in `backend`.
+- `Result:` Pass
+- `Notes:` `45 passed in 10.38s`.
+- `Artifacts:` pytest console output
+
+## TST-20260215-012
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-012
+- `Related bug:` BUG-20260215-009
+- `Scope:` Orchestration callback signature/replay security and end-to-end API behavior
+- `Test type:` Integration
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe -m pytest -q tests/test_orchestration_callback_security.py tests/test_n8n_service.py tests/test_jobs.py`, then run full `.\.venv\Scripts\python.exe -m pytest -q`.
+- `Result:` Pass
+- `Notes:` Targeted run: `15 passed`; full backend run: `45 passed in 9.62s`.
+- `Artifacts:` pytest console output
+
+## TST-20260215-011
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-011
+- `Related bug:` BUG-20260215-008
+- `Scope:` Pending post-settings schema/router/workflow/migration hardening
+- `Test type:` Unit
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe -m pytest -q` in `backend`, then run `.\.venv\Scripts\python.exe -m alembic upgrade head`.
+- `Result:` Pass
+- `Notes:` `42 passed in 9.44s`; Alembic upgraded from `82ef48fc3c57` to `e4f7b7ad4f62`.
+- `Artifacts:` pytest + alembic console output
+
+## TST-20260215-010
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-010
+- `Related bug:` BUG-20260215-007
+- `Scope:` Idle autonomy self-heal/improve loop behavior
+- `Test type:` Unit
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe -m pytest -q` in `backend`.
+- `Result:` Pass
+- `Notes:` `40 passed in 8.60s`, including new `test_autonomy_service.py`.
+- `Artifacts:` pytest console output
+
+## TST-20260215-009
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-009
+- `Related bug:` BUG-20260215-006
+- `Scope:` OpenClaw strategy robustness, n8n payload/headers, workflow QA persistence semantics
+- `Test type:` Unit
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe -m pytest -q` in `backend`.
+- `Result:` Pass
+- `Notes:` `37 passed in 8.99s`, including new `test_openclaw_service.py` and extended `test_n8n_service.py`.
+- `Artifacts:` pytest console output
+
+## TST-20260215-008
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer + Frontend Developer
+- `Related change:` CHG-20260215-008
+- `Related bug:` BUG-20260215-005
+- `Scope:` Post-depth payload plumbing and persistence validation
+- `Test type:` Integration
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe -m pytest -q` in `backend`; run `npm run lint` in `frontend`.
+- `Result:` Pass
+- `Notes:` Backend suite passed (`35 passed in 8.59s`) with new upload/edit persistence tests. Frontend lint passed with existing non-blocking hook dependency warnings.
+- `Artifacts:` pytest console output + frontend lint output
+
 ## TST-20260215-007
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer
