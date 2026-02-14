@@ -61,3 +61,4 @@ ProEdit is a distributed video editing platform that leverages AI agents and ser
   - profile tuning: `conservative` and `aggressive` runtime profiles with load guards + counters
   - profile API: `/api/maintenance/autonomy/profile?mode=...`
   - frontend control surface: Admin `System` tab autonomy panel
+  - auditability: autonomy mode changes and forced runs are persisted in `admin_action_logs` and exposed at `/api/admin/audit/actions`

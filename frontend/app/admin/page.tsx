@@ -113,6 +113,17 @@ interface CreditLedgerEntry {
   created_at: string;
 }
 
+interface AdminActionLogEntry {
+  id: number;
+  admin_user_id: number;
+  admin_email: string;
+  action: string;
+  target_type: string;
+  target_id?: string | null;
+  details?: Record<string, any> | null;
+  created_at: string;
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs' | 'credits' | 'system'>('overview');
@@ -121,6 +132,7 @@ export default function AdminDashboardPage() {
   const [autonomy, setAutonomy] = useState<AutonomyStatus | null>(null);
   const [autonomyLoading, setAutonomyLoading] = useState(false);
   const [autonomyActionLoading, setAutonomyActionLoading] = useState(false);
+  const [autonomyAuditLogs, setAutonomyAuditLogs] = useState<AdminActionLogEntry[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
   const [jobs, setJobs] = useState<JobData[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
@@ -201,8 +213,12 @@ export default function AdminDashboardPage() {
   const fetchAutonomyStatus = useCallback(async () => {
     setAutonomyLoading(true);
     try {
-      const data = await apiRequest<AutonomyStatus>('/maintenance/autonomy/status', { auth: true });
-      setAutonomy(data);
+      const [status, audit] = await Promise.all([
+        apiRequest<AutonomyStatus>('/maintenance/autonomy/status', { auth: true }),
+        apiRequest<AdminActionLogEntry[]>('/admin/audit/actions?action_prefix=autonomy&limit=50', { auth: true }),
+      ]);
+      setAutonomy(status);
+      setAutonomyAuditLogs(audit);
     } catch (err: any) {
       if (err instanceof ApiError && err.isAuth) {
         clearAuth();
@@ -237,13 +253,14 @@ export default function AdminDashboardPage() {
       const query = new URLSearchParams({ mode });
       const data = await apiRequest<AutonomyStatus>(`/maintenance/autonomy/profile?${query.toString()}`, { method: 'POST', auth: true });
       setAutonomy(data);
+      await fetchAutonomyStatus();
       toast.success(`Autonomy mode switched to ${mode}`);
     } catch (err: any) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to switch autonomy mode');
     } finally {
       setAutonomyActionLoading(false);
     }
-  }, []);
+  }, [fetchAutonomyStatus]);
 
   useEffect(() => {
     fetchData();
@@ -688,6 +705,7 @@ export default function AdminDashboardPage() {
               onRefresh={fetchAutonomyStatus}
               onSetMode={setAutonomyProfile}
               onRun={runAutonomy}
+              auditLogs={autonomyAuditLogs}
             />
             <SystemMap />
             <div className="glass-panel p-10 rounded-[40px] border-white/5 relative overflow-hidden">

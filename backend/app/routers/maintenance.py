@@ -5,10 +5,32 @@ from ..services.introspection import introspection_service
 from ..services.autonomy_service import autonomy_service
 from ..agents.maintenance_agent import maintenance_agent
 from ..agents.architect_agent import architect_agent
+from ..db import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
 from ..deps import get_current_user
-from ..models import User
+from ..models import User, AdminActionLog
 
 router = APIRouter(prefix="/maintenance", tags=["maintenance"])
+
+
+async def _log_admin_action(
+    session: AsyncSession,
+    current_user: User,
+    action: str,
+    target_type: str = "system",
+    target_id: str | None = None,
+    details: dict | None = None,
+) -> None:
+    session.add(
+        AdminActionLog(
+            admin_user_id=current_user.id,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            details=details or {},
+        )
+    )
+    await session.commit()
 
 @router.get("/graph")
 async def get_system_graph(current_user: User = Depends(get_current_user)):
@@ -98,21 +120,46 @@ async def get_autonomy_status(current_user: User = Depends(get_current_user)):
 async def run_autonomy_now(
     force_improve: bool = False,
     force_heal: bool = False,
+    session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
-    return await autonomy_service.run_once(force_improve=force_improve, force_heal=force_heal)
+    result = await autonomy_service.run_once(force_improve=force_improve, force_heal=force_heal)
+    await _log_admin_action(
+        session=session,
+        current_user=current_user,
+        action="autonomy.run",
+        details={
+            "force_heal": force_heal,
+            "force_improve": force_improve,
+            "result_summary": {
+                "idle": result.get("idle"),
+                "high_load": result.get("high_load"),
+                "heal_ran": result.get("heal_ran"),
+                "improve_ran": result.get("improve_ran"),
+            },
+        },
+    )
+    return result
 
 
 @router.post("/autonomy/profile")
 async def set_autonomy_profile(
     mode: str,
+    session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
     try:
-        return autonomy_service.set_profile(mode)
+        status = autonomy_service.set_profile(mode)
+        await _log_admin_action(
+            session=session,
+            current_user=current_user,
+            action="autonomy.profile.set",
+            details={"mode": mode, "profile_mode": status.get("profile_mode")},
+        )
+        return status
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

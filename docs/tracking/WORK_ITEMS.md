@@ -21,6 +21,31 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ---
 
+## WRK-20260215-015
+- `Title:` Run production-like migration/smoke checks, enforce callback security in CI, and add autonomy action audit log
+- `Status:` Done
+- `Owner/Role:` Backend Developer + Frontend Developer
+- `Priority:` P1
+- `Why this matters:` You requested deploy validation, non-regression CI gates, and traceability of autonomy control actions.
+- `Scope / files:`
+  - `backend/alembic/versions/7c1d2e8f4a91_add_admin_action_logs.py`
+  - `backend/app/models.py`
+  - `backend/app/schemas.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/app/routers/admin.py`
+  - `backend/tests/test_maintenance_autonomy_api.py`
+  - `.github/workflows/ci.yml`
+  - `docs/tracking/CI_ENFORCEMENT.md`
+  - `frontend/components/admin/AutonomyPanel.tsx`
+  - `frontend/app/admin/page.tsx`
+  - `docs/ARCHITECTURE.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing orchestration callback tests, autonomy endpoints, and admin dashboard
+- `Exit criteria:` Migration applies to head, smoke checks pass, CI has callback security gate, and autonomy mode/run actions are audit logged with actor identity.
+
 ## WRK-20260215-014
 - `Title:` Tune autonomy policy profiles (aggressive/conservative) and add admin UI control panel
 - `Status:` Done

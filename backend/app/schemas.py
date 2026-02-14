@@ -147,3 +147,14 @@ class CreditLedgerResponse(BaseModel):
     created_by: int | None = None
     created_by_email: EmailStr | None = None
     created_at: datetime
+
+
+class AdminActionLogResponse(BaseModel):
+    id: int
+    admin_user_id: int
+    admin_email: EmailStr
+    action: str
+    target_type: str
+    target_id: str | None = None
+    details: dict | None = None
+    created_at: datetime

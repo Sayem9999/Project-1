@@ -37,6 +37,33 @@ Newest entries go first.
 
 ---
 
+## BUG-20260215-012
+- `Title:` Missing CI callback-security gate and missing audit trail for autonomy control actions
+- `Date reported:` 2026-02-15
+- `Reported by:` User request + Codex review
+- `Owner:` Backend Developer + Frontend Developer
+- `Severity:` S2
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` CI did not explicitly protect signed orchestration callback path with a dedicated check; no persistent ops log recorded which admin changed autonomy mode or triggered forced runs.
+- `Expected behavior:` CI should fail when callback security/regression appears; admin actions on autonomy controls must be attributable and queryable.
+- `Root cause:` Legacy CI jobs targeted non-existent test folders and admin autonomy actions were not persisted in a dedicated audit table.
+- `Fix summary:` Added `admin_action_logs` model+migration, API logging in maintenance autonomy endpoints, admin audit endpoint, admin UI audit trail view, and updated CI job layout with dedicated callback-security test job and required-check guidance.
+- `Files changed:`
+  - `.github/workflows/ci.yml`
+  - `backend/alembic/versions/7c1d2e8f4a91_add_admin_action_logs.py`
+  - `backend/app/models.py`
+  - `backend/app/schemas.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/app/routers/admin.py`
+  - `backend/tests/test_maintenance_autonomy_api.py`
+  - `docs/tracking/CI_ENFORCEMENT.md`
+  - `frontend/components/admin/AutonomyPanel.tsx`
+  - `frontend/app/admin/page.tsx`
+- `Validation evidence:` TST-20260215-015
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-015
+
 ## BUG-20260215-011
 - `Title:` Autonomy loop lacked workload profile controls and live operational visibility in admin UI
 - `Date reported:` 2026-02-15

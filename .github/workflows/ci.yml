@@ -36,51 +36,9 @@ jobs:
           mypy app/ --ignore-missing-imports
 
   test-unit:
-    name: Unit Tests
+    name: Backend Pytest
     runs-on: ubuntu-latest
     needs: lint
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      
-      - name: Install dependencies
-        run: |
-          cd backend
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-cov pytest-xdist
-      
-      - name: Run unit tests
-        run: |
-          cd backend
-          pytest tests/unit -v --cov=app --cov-report=xml -n auto
-      
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          file: backend/coverage.xml
-
-  test-integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: lint
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: testdb
-        ports:
-          - 5432:5432
     steps:
       - uses: actions/checkout@v4
       
@@ -96,13 +54,34 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio
       
-      - name: Run integration tests
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/testdb
-          REDIS_URL: redis://localhost:6379/0
+      - name: Run backend tests
         run: |
           cd backend
-          pytest tests/integration -v
+          pytest tests -v
+
+  test-integration:
+    name: Orchestration Callback Security
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+      
+      - name: Run signed callback integration test
+        run: |
+          cd backend
+          pytest tests/test_orchestration_callback_security.py -v
 
   test-e2e:
     name: E2E Smoke Tests

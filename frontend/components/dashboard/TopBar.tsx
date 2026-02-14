@@ -47,7 +47,7 @@ export default function TopBar() {
         const handleCreditUpdate = () => fetchCredits();
         window.addEventListener('credit-update', handleCreditUpdate);
         return () => window.removeEventListener('credit-update', handleCreditUpdate);
-    }, []);
+    }, [mounted]);
 
     useEffect(() => {
         const updateClock = () => {

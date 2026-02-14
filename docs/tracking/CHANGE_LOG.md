@@ -17,6 +17,32 @@ Newest entries go first.
 
 ---
 
+## CHG-20260215-015
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer + Frontend Developer
+- `Summary:` Executed production-like migration/smoke validation, added autonomy action audit logging, and strengthened CI/branch-protection checks for callback security.
+- `Why this change was needed:` You requested migration+smoke verification, required checks on `main`, callback security regression protection, and autonomy action traceability.
+- `Files changed:`
+  - `.github/workflows/ci.yml`
+  - `backend/alembic/versions/7c1d2e8f4a91_add_admin_action_logs.py`
+  - `backend/app/models.py`
+  - `backend/app/schemas.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/app/routers/admin.py`
+  - `backend/tests/test_maintenance_autonomy_api.py`
+  - `docs/tracking/CI_ENFORCEMENT.md`
+  - `frontend/components/admin/AutonomyPanel.tsx`
+  - `frontend/app/admin/page.tsx`
+  - `docs/ARCHITECTURE.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` BUG-20260215-012
+- `Validation:` Alembic upgrade in production mode succeeded to `7c1d2e8f4a91`; targeted smoke tests passed (`13 passed`); full backend suite passed (`51 passed`); frontend lint passed (existing unrelated warnings remain).
+- `Rollback plan:` Revert this commit and disable new CI check names in branch protection if rollback required.
+
 ## CHG-20260215-014
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer + Frontend Developer

@@ -52,17 +52,6 @@ export default function UploadPage() {
     setDragActive(e.type === 'dragenter' || e.type === 'dragover');
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && droppedFile.type.startsWith('video/')) {
-      processNewFile(droppedFile);
-    }
-  }, []);
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
@@ -70,22 +59,7 @@ export default function UploadPage() {
     }
   };
 
-  const processNewFile = (newFile: File) => {
-    setFile(newFile);
-    setPreview(URL.createObjectURL(newFile));
-    // Safe UUID generation for non-secure contexts
-    const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : `job_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-    setIdempotencyKey(uuid);
-    setJobId(null);
-    setStarting(false);
-    setUploadProgress(0);
-    setAnalysisResult(null);
-    runAnalysis(newFile);
-  };
-
-  const runAnalysis = async (videoFile: File) => {
+  const runAnalysis = useCallback(async (videoFile: File) => {
     setAnalyzing(true);
     setAnalysisProgress(0);
     try {
@@ -100,7 +74,33 @@ export default function UploadPage() {
     } finally {
       setAnalyzing(false);
     }
-  };
+  }, []);
+
+  const processNewFile = useCallback((newFile: File) => {
+    setFile(newFile);
+    setPreview(URL.createObjectURL(newFile));
+    // Safe UUID generation for non-secure contexts
+    const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `job_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    setIdempotencyKey(uuid);
+    setJobId(null);
+    setStarting(false);
+    setUploadProgress(0);
+    setAnalysisResult(null);
+    runAnalysis(newFile);
+  }, [runAnalysis]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile && droppedFile.type.startsWith('video/')) {
+      processNewFile(droppedFile);
+    }
+  }, [processNewFile]);
 
   const handleUpload = async () => {
     if (!file) return;

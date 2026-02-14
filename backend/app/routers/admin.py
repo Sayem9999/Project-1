@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
+from datetime import datetime, timezone
 
 from ..db import get_session
 from ..deps import get_current_user
-from ..models import User, Job, CreditLedger
-from ..schemas import AdminUserResponse, CreditLedgerResponse
+from ..models import User, Job, CreditLedger, AdminActionLog
+from ..schemas import AdminUserResponse, CreditLedgerResponse, AdminActionLogResponse
 from ..services.integration_health import get_integration_health
 from ..config import settings
 from .jobs import enqueue_job
@@ -401,3 +402,66 @@ async def trigger_storage_cleanup(
     
     freed = await cleanup_service.run_cleanup(max_age_hours=max_age_hours)
     return {"status": "ok", "bytes_freed": freed, "mb_freed": round(freed / (1024*1024), 2)}
+
+
+@router.get("/audit/actions", response_model=list[AdminActionLogResponse])
+async def list_admin_action_logs(
+    action_prefix: str | None = None,
+    action: str | None = None,
+    admin_email: str | None = None,
+    start_at: str | None = None,
+    end_at: str | None = None,
+    skip: int = 0,
+    limit: int = 100,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+
+    from sqlalchemy.orm import aliased
+
+    admin_user = aliased(User)
+    stmt = (
+        select(AdminActionLog, admin_user.email)
+        .join(admin_user, AdminActionLog.admin_user_id == admin_user.id)
+        .order_by(AdminActionLog.created_at.desc())
+        .offset(skip)
+        .limit(min(limit, 500))
+    )
+    if action_prefix:
+        stmt = stmt.where(AdminActionLog.action.like(f"{action_prefix}%"))
+    if action:
+        stmt = stmt.where(AdminActionLog.action == action)
+    if admin_email:
+        stmt = stmt.where(admin_user.email == admin_email)
+
+    def _parse_iso(value: str) -> datetime:
+        normalized = value.strip()
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+
+    if start_at:
+        stmt = stmt.where(AdminActionLog.created_at >= _parse_iso(start_at))
+    if end_at:
+        stmt = stmt.where(AdminActionLog.created_at <= _parse_iso(end_at))
+
+    result = await session.execute(stmt)
+    rows = result.all()
+    return [
+        AdminActionLogResponse(
+            id=entry.id,
+            admin_user_id=entry.admin_user_id,
+            admin_email=admin_email,
+            action=entry.action,
+            target_type=entry.target_type,
+            target_id=entry.target_id,
+            details=entry.details,
+            created_at=entry.created_at,
+        )
+        for entry, admin_email in rows
+    ]

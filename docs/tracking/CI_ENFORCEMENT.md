@@ -9,8 +9,8 @@ Prevent merges unless required quality and tracking checks pass.
 Mark these checks as **required** in branch protection:
 - `Enforce Tracking IDs In PR Body`
 - `Lint & Type Check`
-- `Unit Tests`
-- `Integration Tests`
+- `Backend Pytest`
+- `Orchestration Callback Security`
 - `Frontend Lint`
 
 Recommended (optional but useful):
@@ -53,8 +53,8 @@ gh api \
   -f rules[][parameters][strict_required_status_checks_policy]=true \
   -f rules[][parameters][required_status_checks][][context]="Enforce Tracking IDs In PR Body" \
   -f rules[][parameters][required_status_checks][][context]="Lint & Type Check" \
-  -f rules[][parameters][required_status_checks][][context]="Unit Tests" \
-  -f rules[][parameters][required_status_checks][][context]="Integration Tests" \
+  -f rules[][parameters][required_status_checks][][context]="Backend Pytest" \
+  -f rules[][parameters][required_status_checks][][context]="Orchestration Callback Security" \
   -f rules[][parameters][required_status_checks][][context]="Frontend Lint"
 ```
 

@@ -18,6 +18,18 @@ Newest entries go first.
 
 ---
 
+## TST-20260215-015
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer + Frontend Developer
+- `Related change:` CHG-20260215-015
+- `Related bug:` BUG-20260215-012
+- `Scope:` Migration deploy validation, smoke checks for requested endpoints, callback-security CI path, and autonomy action audit trail
+- `Test type:` Integration
+- `Command or procedure:` Run `ENVIRONMENT=production alembic upgrade head`; run `pytest -q tests/test_jobs.py tests/test_orchestration_callback_security.py tests/test_maintenance_autonomy_api.py`; run full `pytest -q`; run `npm run lint`.
+- `Result:` Pass
+- `Notes:` Migration applied `e4f7b7ad4f62 -> 7c1d2e8f4a91`; targeted suite `13 passed`; full backend `51 passed`; frontend lint passed with two pre-existing warnings in unrelated files.
+- `Artifacts:` alembic + pytest + lint console output
+
 ## TST-20260215-014
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer + Frontend Developer
