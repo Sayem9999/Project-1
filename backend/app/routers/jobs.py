@@ -3,6 +3,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 from typing import Any
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form, Request
+import asyncio
+import structlog
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -18,6 +20,7 @@ from ..services.storage_service import storage_service as r2_storage
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+logger = structlog.get_logger()
 
 # Check if Celery/Redis is available
 _REDIS_URL = settings.redis_url or ""
@@ -395,17 +398,15 @@ async def enqueue_job(
             
             short_id = task.id[:8] if task and task.id else "unknown"
             job.progress_message = f"Queued for worker pickup (task {short_id})."
-            print(f"[Job] Enqueued job_id={job.id} task_id={task.id} queue={queue_name}")
+            logger.info("job_enqueued", job_id=job.id, task_id=task.id, queue=queue_name)
             return
-        except Exception as e:
-            if settings.environment == "production":
+                logger.error("celery_dispatch_failed_production", error=str(e), job_id=job.id)
                 raise HTTPException(
                     status_code=503,
                     detail="Queue dispatch failed. Check Redis connectivity and worker health.",
                 ) from e
-            print(f"[Job] Celery dispatch failed: {e}. Falling back to inline.")
+            logger.warning("celery_dispatch_failed_fallback", error=str(e), job_id=job.id)
     from ..services.workflow_engine import process_job
-    import asyncio
     asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety))
 
 
