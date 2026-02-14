@@ -31,6 +31,37 @@ Recommended (optional but useful):
    - `Require signed commits` (if your team uses this)
    - `Do not allow bypassing the above settings` (recommended for strict governance)
 
+## GitHub CLI (Quick Setup)
+Use this to create a ruleset from CLI.
+
+```bash
+OWNER="Sayem9999"
+REPO="Project-1"
+
+gh api \
+  --method POST \
+  -H "Accept: application/vnd.github+json" \
+  "/repos/$OWNER/$REPO/rulesets" \
+  -f name="main-protection" \
+  -f target="branch" \
+  -f enforcement="active" \
+  -f conditions[ref_name][include][]=refs/heads/main \
+  -f rules[][type]=pull_request \
+  -f rules[][parameters][required_approving_review_count]=1 \
+  -f rules[][parameters][require_code_owner_review]=false \
+  -f rules[][type]=required_status_checks \
+  -f rules[][parameters][strict_required_status_checks_policy]=true \
+  -f rules[][parameters][required_status_checks][][context]="Enforce Tracking IDs In PR Body" \
+  -f rules[][parameters][required_status_checks][][context]="Lint & Type Check" \
+  -f rules[][parameters][required_status_checks][][context]="Unit Tests" \
+  -f rules[][parameters][required_status_checks][][context]="Integration Tests" \
+  -f rules[][parameters][required_status_checks][][context]="Frontend Lint"
+```
+
+Notes:
+- Run `gh auth login` first.
+- If branch protection already exists, update/remove old rule before applying.
+
 ## Enforcement Notes
 - The PR template and `PR Tracking Enforcement` workflow work together.
 - If a PR body omits `WRK`, `CHG`, `TST` (and `BUG`/`DEC` as `N/A` or ID), merge will be blocked.
@@ -38,4 +69,3 @@ Recommended (optional but useful):
 ## Team Process
 - Open/assign work in `docs/tracking/WORK_ITEMS.md` first.
 - Keep `CHANGE_LOG`, `BUG_REGISTER`, and `TEST_EVIDENCE` in sync before requesting review.
-

@@ -18,6 +18,18 @@ Newest entries go first.
 
 ---
 
+## TST-20260214-005
+- `Date:` 2026-02-14
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260214-005
+- `Related bug:` None
+- `Scope:` `gh` CLI ruleset setup documentation
+- `Test type:` Manual
+- `Command or procedure:` Reviewed command arguments and check names for consistency with documented required statuses.
+- `Result:` Pass
+- `Notes:` Command is intended as a starter template; owner/repo variables are configurable.
+- `Artifacts:` `docs/tracking/CI_ENFORCEMENT.md`
+
 ## TST-20260214-004
 - `Date:` 2026-02-14
 - `Owner/Role:` Backend Developer

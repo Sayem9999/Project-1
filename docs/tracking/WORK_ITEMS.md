@@ -21,6 +21,20 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ---
 
+## WRK-20260214-005
+- `Title:` Add `gh` CLI automation block for branch ruleset setup
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P2
+- `Why this matters:` Reduces manual setup errors and speeds branch protection rollout.
+- `Scope / files:`
+  - `docs/tracking/CI_ENFORCEMENT.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` GitHub CLI (`gh`) authentication
+- `Exit criteria:` Document includes runnable CLI block with required status checks.
+
 ## WRK-20260214-004
 - `Title:` Add branch protection and required-check guidance
 - `Status:` Done

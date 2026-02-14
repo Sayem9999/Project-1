@@ -17,6 +17,21 @@ Newest entries go first.
 
 ---
 
+## CHG-20260214-005
+- `Date:` 2026-02-14
+- `Owner/Role:` Backend Developer
+- `Summary:` Added a short `gh` CLI command block to automate branch ruleset setup.
+- `Why this change was needed:` Requested automation guidance instead of UI-only steps for faster and repeatable enforcement setup.
+- `Files changed:`
+  - `docs/tracking/CI_ENFORCEMENT.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` None
+- `Validation:` Verified command block includes required status check contexts documented in the same file.
+- `Rollback plan:` Remove CLI section if GitHub API contract changes.
+
 ## CHG-20260214-004
 - `Date:` 2026-02-14
 - `Owner/Role:` Backend Developer
