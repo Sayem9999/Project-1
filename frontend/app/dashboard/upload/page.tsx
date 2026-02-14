@@ -152,7 +152,7 @@ export default function UploadPage() {
     setError('');
     try {
       await apiRequest(`/jobs/${jobId}/start`, { method: 'POST', auth: true });
-      router.push(`/dashboard`);
+      router.push(`/jobs/${jobId}`);
     } catch (err: any) {
       setError(err instanceof ApiError ? err.message : 'Failed to start pipeline');
       setStarting(false);
