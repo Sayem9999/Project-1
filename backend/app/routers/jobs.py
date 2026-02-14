@@ -400,6 +400,8 @@ async def enqueue_job(
             job.progress_message = f"Queued for worker pickup (task {short_id})."
             logger.info("job_enqueued", job_id=job.id, task_id=task.id, queue=queue_name)
             return
+        except Exception as e:
+            if settings.environment == "production":
                 logger.error("celery_dispatch_failed_production", error=str(e), job_id=job.id)
                 raise HTTPException(
                     status_code=503,
