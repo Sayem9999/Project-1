@@ -252,6 +252,7 @@ async def retry_job(job_id: int, current_user: User = Depends(get_current_user),
 
 @router.post("/{job_id}/start")
 async def start_job(job_id: int, current_user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    logger.info("start_job_called", job_id=job_id, user_id=current_user.id)
     job = await session.scalar(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
     if not job:
         raise NotFoundError("Job not found")
@@ -265,6 +266,7 @@ async def start_job(job_id: int, current_user: User = Depends(get_current_user),
     if settings.credits_enabled:
         # Lock user row for update
         result = await session.execute(select(User).where(User.id == current_user.id).with_for_update())
+        logger.info("lock_user_acquired")
         user_to_charge = result.scalar_one()
 
         cost = job.credits_cost or (2 if (job.tier or "standard") == "pro" else 1)
