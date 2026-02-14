@@ -46,6 +46,58 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 - `Dependencies:` Existing orchestration callback tests, autonomy endpoints, and admin dashboard
 - `Exit criteria:` Migration applies to head, smoke checks pass, CI has callback security gate, and autonomy mode/run actions are audit logged with actor identity.
 
+## WRK-20260215-016
+- `Title:` Fix /jobs/{id}/start hanging by detaching Celery dispatch from request lifecycle; add regression test
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` Live E2E smoke timed out at job start, blocking real video edits end-to-end.
+- `Scope / files:`
+  - `backend/app/routers/jobs.py`
+  - `backend/app/routers/admin.py`
+  - `backend/tests/test_jobs.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Celery worker + Redis broker availability; existing job queue model
+- `Exit criteria:` `/api/jobs/{id}/start` returns immediately, job is dispatched in background, regression test passes, and smoke E2E completes to downloadable output.
+
+## WRK-20260215-017
+- `Title:` Make E2E smoke scripts self-contained by fixing FFmpeg resolution and missing dummy video
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P2
+- `Why this matters:` Scripted checks should run on any machine without relying on a hardcoded local FFmpeg path or a frontend dummy asset.
+- `Scope / files:`
+  - `scripts/smoke_e2e.py`
+  - `scripts/pro_e2e_check.py`
+  - `scripts/smoke_test.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Working local API (`:8000`) and worker for full E2E
+- `Exit criteria:` Smoke scripts generate or locate a real MP4 input, resolve FFmpeg without hardcoded paths, and complete successfully when the stack is up.
+
+## WRK-20260215-018
+- `Title:` Add hard timeouts + stuck protection for AI stages (prevent >10min stalls); improve smoke reliability
+- `Status:` In Progress
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` A single hung provider call can block the editor pipeline and make the app feel "dead".
+- `Scope / files:`
+  - `backend/app/agents/base.py`
+  - `backend/app/config.py`
+  - `backend/app/db.py`
+  - `backend/app/graph/nodes/*.py` (add per-node guardrails where needed)
+  - `backend/app/services/workflow_engine.py`
+  - `scripts/smoke_e2e.py`
+  - `scripts/smoke_test.py`
+  - `docs/tracking/*`
+- `Dependencies:` Provider health; Celery worker; SQLite vs Postgres differences
+- `Exit criteria:` Every AI node has a bounded runtime and produces either a fallback or a clear failure; no job can sit in one stage indefinitely; smoke scripts report pass/fail reliably.
+
 ## WRK-20260215-014
 - `Title:` Tune autonomy policy profiles (aggressive/conservative) and add admin UI control panel
 - `Status:` Done

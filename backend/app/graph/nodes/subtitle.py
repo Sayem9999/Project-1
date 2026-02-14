@@ -1,4 +1,5 @@
 import structlog
+import asyncio
 from pathlib import Path
 from typing import Any, Dict
 from ..state import GraphState
@@ -24,7 +25,9 @@ async def subtitle_node(state: GraphState) -> Dict[str, Any]:
     try:
         # Run Subtitle Agent
         payload = {"source_path": source_path}
-        sub_resp = await subtitle_agent.run(payload)
+        from ...config import settings
+        timeout = max(1.0, float(getattr(settings, "llm_request_timeout_seconds", 90.0)))
+        sub_resp = await asyncio.wait_for(subtitle_agent.run(payload), timeout=timeout)
         srt_content = sub_resp.get("raw_response", "") if isinstance(sub_resp, dict) else ""
         
         if not srt_content or "1" not in srt_content:
@@ -32,7 +35,6 @@ async def subtitle_node(state: GraphState) -> Dict[str, Any]:
             return {"srt_path": None}
             
         # Save SRT to temporary file
-        from ...config import settings
         srt_filename = f"job-{job_id}.srt"
         srt_path = Path(settings.storage_root) / "outputs" / srt_filename
         srt_path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,6 +48,12 @@ async def subtitle_node(state: GraphState) -> Dict[str, Any]:
         return {
             "srt_path": str(srt_path),
             "subtitle_qa": qa,
+        }
+    except asyncio.TimeoutError:
+        logger.warning("subtitle_node_timeout", job_id=job_id)
+        return {
+            "errors": ["Subtitle generation timed out"],
+            "srt_path": None,
         }
     except Exception as e:
         logger.error("subtitle_node_failed", job_id=job_id, error=str(e))

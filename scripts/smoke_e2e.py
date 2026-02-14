@@ -3,12 +3,43 @@ import json
 import time
 import uuid
 import subprocess
+import os
+import shutil
 from pathlib import Path
 from urllib import request, error
 
 API = "http://127.0.0.1:8000/api"
 OUT_DIR = Path("tmp/smoke")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def resolve_ffmpeg() -> str:
+    """Resolve an ffmpeg binary for this repo without relying on external PATH setup."""
+    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+
+    candidates = [
+        Path("tools") / "ffmpeg-8.0.1-essentials_build" / "bin" / exe,
+        Path("..") / "tools" / "ffmpeg-8.0.1-essentials_build" / "bin" / exe,
+        Path(r"C:\pinokio\api\editstudio\tools\ffmpeg-8.0.1-essentials_build\bin") / exe,
+        Path(r"C:\pinokio\bin\miniconda\Library\bin") / exe,
+    ]
+    for c in candidates:
+        try:
+            if c.exists():
+                return str(c)
+        except Exception:
+            continue
+
+    on_path = shutil.which("ffmpeg")
+    if on_path:
+        return on_path
+
+    try:
+        import imageio_ffmpeg  # type: ignore
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return "ffmpeg"
 
 
 def http_json(method: str, url: str, payload: dict | None = None, token: str | None = None):
@@ -19,8 +50,12 @@ def http_json(method: str, url: str, payload: dict | None = None, token: str | N
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
     req = request.Request(url, data=data, headers=headers, method=method)
-    timeout = 60 if "/start" in url else 30
+    timeout = 60 if "/start" in url else 45
     try:
+        with request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except TimeoutError:
+        # transient stalls (e.g., sqlite lock) shouldn't fail the whole smoke run immediately
         with request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except error.HTTPError as e:
@@ -70,7 +105,7 @@ def main():
     if not video.exists():
         video = OUT_DIR / "real-input.mp4"
     
-    ffmpeg_path = r"C:\Users\Sayem\Downloads\New folder\Project-1-1\tools\ffmpeg-8.0.1-essentials_build\bin\ffmpeg.exe"
+    ffmpeg_path = resolve_ffmpeg()
     if video.exists() and video.stat().st_size < 1000: # Delete dummy/small files
         video.unlink()
         
@@ -87,7 +122,6 @@ def main():
                  # Try to copy an existing upload if available
                  uploads = list(Path("backend/storage/uploads").glob("*.mp4"))
                  if uploads:
-                     import shutil
                      shutil.copy(uploads[0], video)
                      print(f"Using existing upload: {uploads[0]}")
                  else:

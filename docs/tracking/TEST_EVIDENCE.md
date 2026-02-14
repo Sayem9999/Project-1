@@ -18,6 +18,42 @@ Newest entries go first.
 
 ---
 
+## TST-20260215-016
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-016
+- `Related bug:` BUG-20260215-013
+- `Scope:` `/api/jobs/{id}/start` must not hang; smoke E2E should progress past job start.
+- `Test type:` Unit + Smoke
+- `Command or procedure:` Run `backend` pytest `.\.venv\Scripts\python.exe -m pytest -q tests/test_jobs.py::test_start_job_returns_without_waiting_for_queue_dispatch`; run live smoke `backend\.venv\Scripts\python.exe ..\scripts\smoke_e2e.py` (repo root) against local API/worker.
+- `Result:` Pass
+- `Notes:` Unit regression passed; live smoke completed end-to-end. Smoke output: `tmp/smoke/download-59.mp4` (job `59`).
+- `Artifacts:` `tmp/smoke/download-59.mp4`
+
+## TST-20260215-017
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-017
+- `Related bug:` BUG-20260215-014
+- `Scope:` Smoke scripts input/FFmpeg resolution.
+- `Test type:` Manual
+- `Command or procedure:` Run `python scripts/smoke_test.py` and `python scripts/smoke_e2e.py` from repo root with local stack running.
+- `Result:` Partial
+- `Notes:` Smoke scripts no longer depend on hardcoded FFmpeg path or `frontend/dummy_video.mp4`. `smoke_test.py` can still time out if the AI pipeline stalls.
+- `Artifacts:` console output
+
+## TST-20260215-018
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-018
+- `Related bug:` BUG-20260215-015
+- `Scope:` LLM timeout bounding + SQLite lock hardening + smoke polling robustness.
+- `Test type:` Smoke
+- `Command or procedure:` Restart local API/worker; run `python scripts/smoke_e2e.py`.
+- `Result:` Pass
+- `Notes:` Smoke E2E completed end-to-end after changes. Output: `tmp/smoke/download-68.mp4`.
+- `Artifacts:` `tmp/smoke/download-68.mp4`
+
 ## TST-20260215-015
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer + Frontend Developer

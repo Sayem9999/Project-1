@@ -37,6 +37,68 @@ Newest entries go first.
 
 ---
 
+## BUG-20260215-013
+- `Title:` `/api/jobs/{id}/start` can hang until client timeout (blocks E2E and real edits)
+- `Date reported:` 2026-02-15
+- `Reported by:` Live smoke E2E run
+- `Owner:` Backend Developer
+- `Severity:` S1
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Smoke E2E upload succeeds, but POST `/api/jobs/{id}/start` never returns; client times out after ~60s. Server logs show `start_job_called` and credit lock acquired, then no request completion.
+- `Expected behavior:` Start endpoint should return promptly after persisting state; queue dispatch should not block HTTP.
+- `Root cause:` Start/retry paths awaited queue dispatch (`enqueue_job`) inside the request transaction, so any broker/dispatch latency stalls the response and holds DB locks.
+- `Fix summary:` Commit job state first, then dispatch in a detached async task that records dispatch failure on the job row.
+- `Files changed:`
+  - `backend/app/routers/jobs.py`
+  - `backend/app/routers/admin.py`
+  - `backend/tests/test_jobs.py`
+- `Validation evidence:` TST-20260215-016
+- `Regression risk:` Medium (touches job start/retry behavior)
+- `Linked change:` CHG-20260215-016
+
+## BUG-20260215-014
+- `Title:` Smoke/E2E scripts rely on hardcoded FFmpeg path and missing dummy video asset
+- `Date reported:` 2026-02-15
+- `Reported by:` Codex smoke runs
+- `Owner:` Backend Developer
+- `Severity:` S3
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` `scripts/smoke_e2e.py` tries a hardcoded `tools/.../ffmpeg.exe` path that does not exist in this repo; `scripts/smoke_test.py` expects `frontend/dummy_video.mp4` which is missing, causing smoke to abort.
+- `Expected behavior:` Smoke scripts should be self-contained: resolve FFmpeg robustly and generate or reuse a real MP4 input.
+- `Root cause:` Script assumptions baked in from another machine/repo layout.
+- `Fix summary:` Add `resolve_ffmpeg()` + generate/fallback MP4 logic and remove dependence on frontend dummy asset.
+- `Files changed:`
+  - `scripts/smoke_e2e.py`
+  - `scripts/pro_e2e_check.py`
+  - `scripts/smoke_test.py`
+- `Validation evidence:` TST-20260215-017
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-017
+
+## BUG-20260215-015
+- `Title:` Pro pipeline can stall for long periods at AI stages (needs hard timeouts + better stuck detection)
+- `Date reported:` 2026-02-15
+- `Reported by:` Smoke runs (intermittent)
+- `Owner:` Backend Developer
+- `Severity:` S2
+- `Status:` Investigating
+- `Environment:` Local
+- `Symptoms:` Jobs can remain in `processing` with `[AI] ...` progress messages for >10-15 minutes (e.g., Director/Platform stages) depending on provider latency/outage; smoke scripts may time out.
+- `Expected behavior:` Each AI stage should have a bounded runtime and fail/skip gracefully so the job either completes (degraded) or fails fast with a clear reason.
+- `Root cause:` LLM provider calls and fallback loops could consume long time; sqlite concurrency could stall API polls under load.
+- `Fix summary:` Added total/per-call LLM timeouts, WAL + short SQLite busy timeout, and retry/timeout hardening in smoke; further per-node watchdogs still pending.
+- `Files changed:`
+  - `backend/app/agents/base.py`
+  - `backend/app/config.py`
+  - `backend/app/db.py`
+  - `backend/app/graph/nodes/subtitle.py`
+  - `scripts/smoke_e2e.py`
+- `Validation evidence:` TST-20260215-018
+- `Regression risk:` Medium
+- `Linked change:` CHG-20260215-018
+
 ## BUG-20260215-012
 - `Title:` Missing CI callback-security gate and missing audit trail for autonomy control actions
 - `Date reported:` 2026-02-15

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+import asyncio
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
@@ -10,7 +11,7 @@ from ..models import User, Job, CreditLedger, AdminActionLog
 from ..schemas import AdminUserResponse, CreditLedgerResponse, AdminActionLogResponse
 from ..services.integration_health import get_integration_health
 from ..config import settings
-from .jobs import enqueue_job
+from .jobs import _dispatch_job_background
 from ..services.cleanup_service import cleanup_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -260,14 +261,17 @@ async def admin_retry_job(
     job.thumbnail_path = None
     session.add(job)
     await session.commit()
-    await enqueue_job(
-        job,
-        job.pacing or "medium",
-        job.mood or "professional",
-        job.ratio or "16:9",
-        job.tier or "standard",
-        job.platform or "youtube",
-        job.brand_safety or "standard",
+    # Avoid hanging admin endpoints on broker latency; detached dispatch handles persistence.
+    asyncio.create_task(
+        _dispatch_job_background(
+            job.id,
+            job.pacing or "medium",
+            job.mood or "professional",
+            job.ratio or "16:9",
+            job.tier or "standard",
+            job.platform or "youtube",
+            job.brand_safety or "standard",
+        )
     )
     return {"status": "ok", "job_id": job.id}
 
@@ -296,14 +300,17 @@ async def admin_force_retry_job(
     job.thumbnail_path = None
     session.add(job)
     await session.commit()
-    await enqueue_job(
-        job,
-        job.pacing or "medium",
-        job.mood or "professional",
-        job.ratio or "16:9",
-        job.tier or "standard",
-        job.platform or "youtube",
-        job.brand_safety or "standard",
+    # Avoid hanging admin endpoints on broker latency; detached dispatch handles persistence.
+    asyncio.create_task(
+        _dispatch_job_background(
+            job.id,
+            job.pacing or "medium",
+            job.mood or "professional",
+            job.ratio or "16:9",
+            job.tier or "standard",
+            job.platform or "youtube",
+            job.brand_safety or "standard",
+        )
     )
     return {"status": "ok", "job_id": job.id, "forced": True}
 

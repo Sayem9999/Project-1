@@ -4,6 +4,7 @@ Supports Groq, Gemini, and OpenAI with automatic fallback.
 """
 import json
 import time
+import asyncio
 import structlog
 from typing import TypeVar, Type, Optional
 from pydantic import BaseModel, ValidationError
@@ -156,71 +157,96 @@ async def run_agent_prompt(
     provider = provider_router.select_provider(policy)
 
     last_error = None
+    total_timeout = max(10.0, float(getattr(settings, "llm_total_timeout_seconds", 180.0)))
+    deadline = time.monotonic() + total_timeout
+
+    def remaining_seconds() -> float:
+        return max(0.0, deadline - time.monotonic())
 
     async def attempt_provider(provider_name: str, model: str) -> Optional[dict]:
         payload_json = json.dumps(payload, indent=2)
         attempt_start = time.time()
         response_text = ""
+        per_call_timeout = max(5.0, float(getattr(settings, "llm_request_timeout_seconds", 90.0)))
+        timeout = min(per_call_timeout, max(0.1, remaining_seconds()))
+        if timeout <= 0.11:
+            raise asyncio.TimeoutError("LLM request total timeout exceeded")
 
         if provider_name == "groq" and groq_client:
-            chat_completion = groq_client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": payload_json},
-                ],
-                model=model,
+            chat_completion = await asyncio.wait_for(
+                asyncio.to_thread(
+                    groq_client.chat.completions.create,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": payload_json},
+                    ],
+                    model=model,
+                ),
+                timeout=timeout,
             )
             response_text = chat_completion.choices[0].message.content
 
         elif provider_name == "gemini" and gemini_client:
             full_prompt = f"System: {system_prompt}\n\nUser Input: {payload_json}"
-            response = await gemini_client.aio.models.generate_content(
-                model=model,
-                contents=full_prompt,
+            response = await asyncio.wait_for(
+                gemini_client.aio.models.generate_content(
+                    model=model,
+                    contents=full_prompt,
+                ),
+                timeout=timeout,
             )
             response_text = response.text
 
         elif provider_name == "openai" and openai_client:
-            response = await openai_client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": payload_json},
-                ],
+            response = await asyncio.wait_for(
+                openai_client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": payload_json},
+                    ],
+                ),
+                timeout=timeout,
             )
             response_text = response.choices[0].message.content
 
         elif provider_name == "ollama":
             import httpx
             # Ollama standard chat endpoint
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    f"{settings.ollama_base_url}/api/chat",
-                    json={
-                        "model": model,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": payload_json}
-                        ],
-                        "stream": False,
-                        "format": "json" if PROVIDERS["ollama"].supports_json else None
-                    }
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await asyncio.wait_for(
+                    client.post(
+                        f"{settings.ollama_base_url}/api/chat",
+                        json={
+                            "model": model,
+                            "messages": [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": payload_json}
+                            ],
+                            "stream": False,
+                            "format": "json" if PROVIDERS["ollama"].supports_json else None
+                        }
+                    ),
+                    timeout=timeout,
                 )
                 resp.raise_for_status()
                 data = resp.json()
                 response_text = data.get("message", {}).get("content", "")
 
         elif provider_name == "openrouter" and openrouter_client:
-            response = await openrouter_client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": payload_json},
-                ],
-                extra_headers={
-                    "HTTP-Referer": "https://proedit.ai",
-                    "X-Title": "ProEdit Studio",
-                }
+            response = await asyncio.wait_for(
+                openrouter_client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": payload_json},
+                    ],
+                    extra_headers={
+                        "HTTP-Referer": "https://proedit.ai",
+                        "X-Title": "ProEdit Studio",
+                    }
+                ),
+                timeout=timeout,
             )
             response_text = response.choices[0].message.content
 
@@ -281,6 +307,8 @@ async def run_agent_prompt(
 
     # Try the selected provider and its models
     for model in provider.models:
+        if remaining_seconds() <= 0:
+            raise RuntimeError(f"LLM total timeout exceeded for agent {agent_name}")
         try:
             logger.debug("agent_api_attempt", provider=provider.name, model=model, agent=agent_name)
             result = await attempt_provider(provider.name, model)
@@ -293,8 +321,8 @@ async def run_agent_prompt(
             provider_router.handle_provider_error(provider.name, model, str(e))
             
             # Short sleep before trying next model of the SAME provider
-            import asyncio
-            await asyncio.sleep(0.5)
+            if remaining_seconds() > 0.5:
+                await asyncio.sleep(0.5)
             continue
 
     # Fallback if selected provider failed
@@ -317,6 +345,8 @@ async def run_agent_prompt(
     for fallback_name in fallback_order:
         if fallback_name == provider.name:
             continue
+        if remaining_seconds() <= 0:
+            break
         if fallback_name == "gemini" and not gemini_client:
             continue
         if fallback_name == "groq" and not groq_client:
@@ -327,6 +357,8 @@ async def run_agent_prompt(
         if not fallback_config:
             continue
         for model in fallback_config.models:
+            if remaining_seconds() <= 0:
+                break
             try:
                 logger.debug("agent_api_attempt", provider=fallback_name, model=model, agent=agent_name)
                 result = await attempt_provider(fallback_name, model)
@@ -339,8 +371,8 @@ async def run_agent_prompt(
                 provider_router.handle_provider_error(fallback_name, model, str(e))
 
                 # Add a small yield/delay before switching models or providers to ease rate limits
-                import asyncio
-                await asyncio.sleep(0.5)
+                if remaining_seconds() > 0.5:
+                    await asyncio.sleep(0.5)
                 continue
 
     raise RuntimeError(f"All attempts failed for agent {agent_name}. Last error: {last_error}")

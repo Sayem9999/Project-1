@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..db import get_session
+from ..db import SessionLocal, get_session
 from ..errors import CreditError, NotFoundError
 from ..config import settings
 from ..deps import get_current_user
@@ -104,6 +104,59 @@ def _has_queue_consumer(diagnostics: dict[str, Any], queue_name: str) -> bool:
         if isinstance(queue_list, list) and queue_name in queue_list:
             return True
     return False
+
+
+async def _dispatch_job_background(
+    job_id: int,
+    pacing: str,
+    mood: str,
+    ratio: str,
+    tier: str,
+    platform: str,
+    brand_safety: str,
+) -> None:
+    """Detach queue dispatch from request lifecycle so /start never hangs.
+
+    This is intentionally defensive: any dispatch error is recorded on the job row
+    so the UI/client can surface it, rather than timing out the HTTP request.
+    """
+    async with SessionLocal() as session:
+        job = await session.get(Job, job_id)
+        if not job:
+            return
+        try:
+            await enqueue_job(
+                job,
+                pacing=pacing,
+                mood=mood,
+                ratio=ratio,
+                tier=tier,
+                platform=platform,
+                brand_safety=brand_safety,
+            )
+        except HTTPException as exc:
+            job.status = "failed"
+            job.progress_message = f"Dispatch failed: {exc.detail}"
+            session.add(job)
+            await session.commit()
+            logger.warning(
+                "job_dispatch_failed_http",
+                job_id=job_id,
+                status_code=exc.status_code,
+                detail=str(exc.detail),
+            )
+            return
+        except Exception as exc:
+            job.status = "failed"
+            job.progress_message = "Dispatch failed due to unexpected error."
+            session.add(job)
+            await session.commit()
+            logger.exception("job_dispatch_failed_unhandled", job_id=job_id, error=str(exc))
+            return
+
+        # Persist any progress_message changes made during enqueue_job().
+        session.add(job)
+        await session.commit()
 
 
 def _parse_bounded_float(value: Any, default: float, minimum: float, maximum: float) -> float:
@@ -308,20 +361,31 @@ async def retry_job(job_id: int, current_user: User = Depends(get_current_user),
     job.output_path = None
     job.thumbnail_path = None
     session.add(job)
-    try:
-        await enqueue_job(
-            job,
-            job.pacing or "medium",
-            job.mood or "professional",
-            job.ratio or "16:9",
-            job.tier or "standard",
-            job.platform or "youtube",
-            job.brand_safety or "standard",
-        )
-    except HTTPException:
-        await session.rollback()
-        raise
     await session.commit()
+    pacing = job.pacing or "medium"
+    mood = job.mood or "professional"
+    ratio = job.ratio or "16:9"
+    tier = job.tier or "standard"
+    platform = job.platform or "youtube"
+    brand_safety = job.brand_safety or "standard"
+
+    # Best-effort quick dispatch in-request (bounded). If dispatch is slow/unavailable,
+    # fall back to detached dispatch so the HTTP request never hangs indefinitely.
+    try:
+        await asyncio.wait_for(
+            enqueue_job(job, pacing, mood, ratio, tier, platform, brand_safety),
+            timeout=2.5,
+        )
+        session.add(job)
+        await session.commit()
+    except asyncio.TimeoutError:
+        logger.warning("job_dispatch_timeout_retry", job_id=job.id)
+        asyncio.create_task(_dispatch_job_background(job.id, pacing, mood, ratio, tier, platform, brand_safety))
+    except HTTPException as exc:
+        job.status = "failed"
+        job.progress_message = f"Dispatch failed: {exc.detail}"
+        session.add(job)
+        await session.commit()
     return {"status": "ok", "job_id": job.id}
 
 
@@ -362,23 +426,34 @@ async def start_job(job_id: int, current_user: User = Depends(get_current_user),
         )
 
     job.status = "processing"
-    job.progress_message = "Starting pipeline..."
+    job.progress_message = "Dispatching job to pipeline..."
     job.cancel_requested = False
     session.add(job)
-    try:
-        await enqueue_job(
-            job,
-            job.pacing or "medium",
-            job.mood or "professional",
-            job.ratio or "16:9",
-            job.tier or "standard",
-            job.platform or "youtube",
-            job.brand_safety or "standard",
-        )
-    except HTTPException:
-        await session.rollback()
-        raise
     await session.commit()
+    pacing = job.pacing or "medium"
+    mood = job.mood or "professional"
+    ratio = job.ratio or "16:9"
+    tier = job.tier or "standard"
+    platform = job.platform or "youtube"
+    brand_safety = job.brand_safety or "standard"
+
+    # Best-effort quick dispatch in-request (bounded). If dispatch is slow/unavailable,
+    # fall back to detached dispatch so the HTTP request never hangs indefinitely.
+    try:
+        await asyncio.wait_for(
+            enqueue_job(job, pacing, mood, ratio, tier, platform, brand_safety),
+            timeout=2.5,
+        )
+        session.add(job)
+        await session.commit()
+    except asyncio.TimeoutError:
+        logger.warning("job_dispatch_timeout_start", job_id=job.id)
+        asyncio.create_task(_dispatch_job_background(job.id, pacing, mood, ratio, tier, platform, brand_safety))
+    except HTTPException as exc:
+        job.status = "failed"
+        job.progress_message = f"Dispatch failed: {exc.detail}"
+        session.add(job)
+        await session.commit()
     return {"status": "ok", "job_id": job.id}
 
 
@@ -491,16 +566,36 @@ async def enqueue_job(
             from ..tasks.video_tasks import process_video_task
             
             # Using asyncio.to_thread to prevent blocking the event loop
-            task = await asyncio.to_thread(
-                process_video_task.apply_async,
-                args=[job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety],
-                queue=queue_name
-            )
+            try:
+                task = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        process_video_task.apply_async,
+                        args=[job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety],
+                        queue=queue_name,
+                    ),
+                    timeout=2.0,
+                )
+            except asyncio.TimeoutError as e:
+                # In local/dev, fall back to in-process workflow rather than hanging the job forever.
+                logger.warning(
+                    "celery_dispatch_timeout",
+                    job_id=job.id,
+                    queue=queue_name,
+                    broker=_broker_fingerprint(_REDIS_URL),
+                )
+                if settings.environment == "production":
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Queue dispatch timed out. Check broker connectivity/latency.",
+                    ) from e
+                # Fall through to workflow_engine fallback below.
+                task = None
             
             short_id = task.id[:8] if task and task.id else "unknown"
-            job.progress_message = f"Queued for worker pickup (task {short_id})."
-            logger.info("job_enqueued", job_id=job.id, task_id=task.id, queue=queue_name)
-            return
+            if task is not None:
+                job.progress_message = f"Queued for worker pickup (task {short_id})."
+                logger.info("job_enqueued", job_id=job.id, task_id=task.id, queue=queue_name)
+                return
         except Exception as e:
             if settings.environment == "production":
                 logger.error("celery_dispatch_failed_production", error=str(e), job_id=job.id)
@@ -510,6 +605,7 @@ async def enqueue_job(
                 ) from e
             logger.warning("celery_dispatch_failed_fallback", error=str(e), job_id=job.id)
     from ..services.workflow_engine import process_job
+    job.progress_message = "Starting local pipeline (Celery dispatch unavailable)."
     asyncio.create_task(process_job(job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety))
 
 

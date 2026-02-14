@@ -3,12 +3,41 @@ import json
 import time
 import uuid
 import subprocess
+import os
+import shutil
 from pathlib import Path
 from urllib import request, error
 
 API = "http://127.0.0.1:8000/api"
 OUT_DIR = Path("tmp/pro_e2e")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def resolve_ffmpeg() -> str:
+    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    candidates = [
+        Path("tools") / "ffmpeg-8.0.1-essentials_build" / "bin" / exe,
+        Path("..") / "tools" / "ffmpeg-8.0.1-essentials_build" / "bin" / exe,
+        Path(r"C:\pinokio\api\editstudio\tools\ffmpeg-8.0.1-essentials_build\bin") / exe,
+        Path(r"C:\pinokio\bin\miniconda\Library\bin") / exe,
+    ]
+    for c in candidates:
+        try:
+            if c.exists():
+                return str(c)
+        except Exception:
+            continue
+
+    on_path = shutil.which("ffmpeg")
+    if on_path:
+        return on_path
+
+    try:
+        import imageio_ffmpeg  # type: ignore
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return "ffmpeg"
 
 
 def http_json(method: str, url: str, payload: dict | None = None, token: str | None = None):
@@ -83,9 +112,7 @@ def main():
     video = OUT_DIR / "pro-check-input.mp4"
     if not video.exists():
         print("Generating test video file...")
-        ffmpeg_path = r"C:\pinokio\bin\ffmpeg.exe" # Common Pinokio path or fallback to system
-        if not Path(ffmpeg_path).exists():
-             ffmpeg_path = "ffmpeg"
+        ffmpeg_path = resolve_ffmpeg()
         
         try:
             subprocess.run([

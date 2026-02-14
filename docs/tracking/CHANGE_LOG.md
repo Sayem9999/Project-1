@@ -17,6 +17,62 @@ Newest entries go first.
 
 ---
 
+## CHG-20260215-016
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Made job start/retry non-blocking by detaching queue dispatch from the request lifecycle.
+- `Why this change was needed:` Live smoke E2E timed out on POST `/api/jobs/{id}/start`, preventing end-to-end edits.
+- `Files changed:`
+  - `backend/app/routers/jobs.py`
+  - `backend/app/routers/admin.py`
+  - `backend/tests/test_jobs.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` BUG-20260215-013
+- `Validation:` TST-20260215-016
+- `Rollback plan:` Revert this change; if needed temporarily restore synchronous enqueue in start/retry endpoints (not recommended).
+
+## CHG-20260215-017
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Hardened smoke/E2E scripts to resolve FFmpeg without hardcoded paths and to generate/fallback to a valid MP4 input.
+- `Why this change was needed:` Local smoke checks were brittle and failed on machines without the expected `tools/` layout or a `frontend/dummy_video.mp4`.
+- `Files changed:`
+  - `scripts/smoke_e2e.py`
+  - `scripts/pro_e2e_check.py`
+  - `scripts/smoke_test.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260215-014
+- `Validation:` TST-20260215-017
+- `Rollback plan:` Revert these script changes (no production impact).
+
+## CHG-20260215-018
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Added bounded LLM timeouts and SQLite concurrency hardening to prevent long hangs during agentic pipeline execution.
+- `Why this change was needed:` Smoke runs showed jobs could appear stuck for long periods, and API polling could time out under concurrent SQLite writes.
+- `Files changed:`
+  - `backend/app/agents/base.py`
+  - `backend/app/config.py`
+  - `backend/app/db.py`
+  - `backend/app/graph/nodes/subtitle.py`
+  - `scripts/smoke_e2e.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` BUG-20260215-015
+- `Validation:` TST-20260215-018
+- `Rollback plan:` Revert these changes; on SQLite, expect more lock-related polling stalls; on LLM providers, expect longer hangs during outages.
+
 ## CHG-20260215-015
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer + Frontend Developer

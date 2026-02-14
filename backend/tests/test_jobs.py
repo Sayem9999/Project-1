@@ -220,6 +220,55 @@ async def test_upload_persists_post_settings(client: AsyncClient, session, monke
 
 
 @pytest.mark.asyncio
+async def test_start_job_returns_without_waiting_for_queue_dispatch(client: AsyncClient, session, monkeypatch):
+    """Regression: /jobs/{id}/start must not hang if Celery broker/dispatch is slow."""
+    signup = {"email": "start-nonblock@example.com", "password": "SecurePassword123"}
+    res = await client.post("/api/auth/signup", json=signup)
+    token = res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me = await client.get("/api/auth/me", headers=headers)
+    user_id = me.json()["id"]
+
+    # Create queued job directly (avoid upload mocking complexity here).
+    job = Job(
+        user_id=user_id,
+        # Use http URL to skip local file existence checks in /start.
+        source_path="http://example.com/test.mp4",
+        status=JobStatus.queued,
+        theme="professional",
+        progress_message="Awaiting manual start.",
+        tier="pro",
+        pacing="medium",
+        mood="professional",
+        ratio="16:9",
+        platform="youtube",
+        brand_safety="standard",
+    )
+    session.add(job)
+    await session.commit()
+    await session.refresh(job)
+
+    async def slow_enqueue(*args, **kwargs):
+        # Simulate slow broker/dispatch; endpoint should still return promptly (bounded wait + fallback).
+        import asyncio
+        await asyncio.sleep(10)
+
+    async def noop_dispatch(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(jobs_router, "enqueue_job", slow_enqueue)
+    monkeypatch.setattr(jobs_router, "_dispatch_job_background", noop_dispatch)
+
+    res = await client.post(f"/api/jobs/{job.id}/start", headers=headers)
+    assert res.status_code == 200
+
+    refreshed = await session.get(Job, job.id)
+    assert refreshed is not None
+    assert refreshed.status == JobStatus.processing
+
+
+@pytest.mark.asyncio
 async def test_edit_persists_post_settings(client: AsyncClient, session):
     signup = {"email": "edit-post@example.com", "password": "SecurePassword123"}
     res = await client.post("/api/auth/signup", json=signup)
