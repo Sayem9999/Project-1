@@ -17,6 +17,26 @@ Newest entries go first.
 
 ---
 
+## CHG-20260214-008
+- `Date:` 2026-02-14
+- `Owner/Role:` Backend Developer
+- `Summary:` Added outbound n8n webhook integration with retries/signature and made backend tests resilient when n8n/ffmpeg environment dependencies are missing.
+- `Why this change was needed:` Requested n8n integration for terminal job states plus tests that prove the backend remains stable even when n8n is down.
+- `Files changed:`
+  - `backend/app/config.py`
+  - `backend/app/services/n8n_service.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/tests/test_n8n_service.py`
+  - `backend/tests/test_parallel_render.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260214-005
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` from `backend` passed (`26 passed`).
+- `Rollback plan:` Revert this commit to disable outbound n8n notifications and restore previous test behavior.
+
 ## CHG-20260214-007
 - `Date:` 2026-02-14
 - `Owner/Role:` Backend Developer

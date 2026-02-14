@@ -19,6 +19,7 @@ from ..agents.base import parse_json_response
 from .memory.hybrid_memory import hybrid_memory
 from .concurrency import limits
 from .metrics_service import metrics_service
+from .n8n_service import n8n_service
 
 # Redis for progress publishing (optional)
 REDIS_URL = os.getenv("REDIS_URL")
@@ -568,6 +569,11 @@ async def update_status(
                 job.performance_metrics = performance_metrics
                 
             await session.commit()
+            if status in {"complete", "failed"}:
+                try:
+                    await n8n_service.send_job_status_event(job)
+                except Exception as exc:
+                    print(f"[n8n] webhook notify failed for job {job_id}: {exc}")
 async def render_orchestrated_job(job_id: int, cuts: list, vf_filters: str | None = None, af_filters: str | None = None):
     """
     Directly renders a job using provided technical parameters, bypassing AI agents.

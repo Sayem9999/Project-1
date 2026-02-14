@@ -37,6 +37,28 @@ Newest entries go first.
 
 ---
 
+## BUG-20260214-005
+- `Title:` Missing outbound n8n webhook reliability controls and brittle ffmpeg test bootstrap
+- `Date reported:` 2026-02-14
+- `Reported by:` Codex implementation/test run
+- `Owner:` Backend Developer
+- `Severity:` S2
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` No dedicated n8n outbound client/signature/retry logic existed, and backend suite could fail on systems where `ffmpeg` was not on PATH.
+- `Expected behavior:` Terminal job updates should notify n8n using signed requests with timeout/retry, and tests should resolve bundled ffmpeg binaries when PATH is missing.
+- `Root cause:` Integration gap for outbound n8n events and test dependency on environment-specific PATH setup.
+- `Fix summary:` Added n8n settings + resilient webhook client + terminal status trigger in workflow updates; updated parallel render test to locate bundled ffmpeg/ffprobe.
+- `Files changed:`
+  - `backend/app/config.py`
+  - `backend/app/services/n8n_service.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/tests/test_n8n_service.py`
+  - `backend/tests/test_parallel_render.py`
+- `Validation evidence:` TST-20260214-008
+- `Regression risk:` Low
+- `Linked change:` CHG-20260214-008
+
 ## BUG-20260214-004
 - `Title:` Production queue dispatch path lacked deterministic preflight guards
 - `Date reported:` 2026-02-14

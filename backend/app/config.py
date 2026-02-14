@@ -63,6 +63,14 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str | None = None
     stripe_price_id_pro: str | None = None
 
+    # n8n Outbound Webhooks
+    n8n_base_url: str | None = None
+    n8n_webhook_secret: str | None = None
+    n8n_job_status_path: str = "/webhook/proedit/job-status"
+    n8n_timeout_seconds: float = 3.0
+    n8n_retry_attempts: int = 2
+    n8n_retry_backoff_seconds: float = 0.25
+
     # Modal (GPU Offloading)
     modal_token_id: str | None = None
     modal_token_secret: str | None = None

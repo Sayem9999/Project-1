@@ -21,6 +21,25 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ---
 
+## WRK-20260214-008
+- `Title:` Integrate outbound n8n status webhook with retries/signature and protect pipeline from n8n outages
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` External orchestration needs reliable terminal-state notifications without risking job pipeline failures if n8n is unavailable.
+- `Scope / files:`
+  - `backend/app/config.py`
+  - `backend/app/services/n8n_service.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/tests/test_n8n_service.py`
+  - `backend/tests/test_parallel_render.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing workflow `update_status(...)` terminal state updates
+- `Exit criteria:` n8n config + signed client + trigger point + resilience tests are in place and backend suite is green.
+
 ## WRK-20260214-007
 - `Title:` Stabilize backend queue preflight behavior and green test suite
 - `Status:` Done

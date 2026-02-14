@@ -18,6 +18,18 @@ Newest entries go first.
 
 ---
 
+## TST-20260214-008
+- `Date:` 2026-02-14
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260214-008
+- `Related bug:` BUG-20260214-005
+- `Scope:` n8n outbound webhook client + terminal-state trigger + ffmpeg test bootstrap resilience
+- `Test type:` Unit
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe -m pytest -q` in `backend`.
+- `Result:` Pass
+- `Notes:` `26 passed in 11.14s`, including new `test_n8n_service.py`.
+- `Artifacts:` pytest console output
+
 ## TST-20260214-007
 - `Date:` 2026-02-14
 - `Owner/Role:` Backend Developer
