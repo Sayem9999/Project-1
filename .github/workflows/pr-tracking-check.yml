@@ -1,0 +1,67 @@
+name: PR Tracking Enforcement
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  enforce-tracking-ids:
+    name: Enforce Tracking IDs In PR Body
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR body fields
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr?.body || "";
+
+            const checks = [
+              {
+                name: "Work Item",
+                regex: /Work Item:\s*`?WRK-\d{8}-\d{3}`?/i,
+                help: "Work Item: `WRK-YYYYMMDD-###`"
+              },
+              {
+                name: "Change Log",
+                regex: /Change Log:\s*`?CHG-\d{8}-\d{3}`?/i,
+                help: "Change Log: `CHG-YYYYMMDD-###`"
+              },
+              {
+                name: "Bug ID",
+                regex: /Bug ID:\s*`?(BUG-\d{8}-\d{3}|N\/A)`?/i,
+                help: "Bug ID: `BUG-YYYYMMDD-###` or `N/A`"
+              },
+              {
+                name: "Test Evidence",
+                regex: /Test Evidence:\s*`?TST-\d{8}-\d{3}`?/i,
+                help: "Test Evidence: `TST-YYYYMMDD-###`"
+              },
+              {
+                name: "Decision Log",
+                regex: /Decision Log:\s*`?(DEC-\d{8}-\d{3}|N\/A)`?/i,
+                help: "Decision Log: `DEC-YYYYMMDD-###` or `N/A`"
+              }
+            ];
+
+            const missing = checks.filter(c => !c.regex.test(body));
+            if (missing.length > 0) {
+              const details = missing.map(m => `- Missing or invalid: ${m.help}`).join("\n");
+              core.setFailed(
+                [
+                  "PR body is missing required tracking IDs.",
+                  "",
+                  details,
+                  "",
+                  "Use `.github/pull_request_template.md`."
+                ].join("\n")
+              );
+            } else {
+              core.info("Tracking IDs validated successfully.");
+            }
+

@@ -133,3 +133,6 @@ This project uses a high-performance hybrid setup: the UI is global on **Vercel*
 - **API Documentation**: `http://localhost:8000/docs`
 - **Architecture**: See [docs/ARCHITECTURE.md](file:///C:/pinokio/api/editstudio/docs/ARCHITECTURE.md) for detailed system design.
 - **AI Models**: See [docs/AI_MODELS.md](file:///C:/pinokio/api/editstudio/docs/AI_MODELS.md) for model-specific info.
+- **Tracking System**: `docs/TRACKING_SYSTEM.md`
+- **Change Logs**: `docs/tracking/CHANGE_LOG.md`, `docs/tracking/BUG_REGISTER.md`, `docs/tracking/DECISION_LOG.md`, `docs/tracking/TEST_EVIDENCE.md`
+- **Multi-Agent Workflow**: `docs/MULTI_AGENT_WORKFLOW.md`

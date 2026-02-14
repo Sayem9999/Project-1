@@ -1,20 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
 from pathlib import Path
-import time
-import asyncio
 
 from ..db import get_session
 from ..deps import get_current_user
 from ..models import User, Job, CreditLedger
 from ..schemas import AdminUserResponse, CreditLedgerResponse
-from ..services.storage_service import storage_service
-from ..services.llm_health import get_llm_health_summary
 from ..services.integration_health import get_integration_health
 from ..config import settings
-from .jobs import enqueue_job, get_celery_dispatch_diagnostics
+from .jobs import enqueue_job
 from ..services.cleanup_service import cleanup_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -310,12 +305,6 @@ async def admin_force_retry_job(
         job.brand_safety or "standard",
     )
     return {"status": "ok", "job_id": job.id, "forced": True}
-
-# --- Admin Dashboard Caching ---
-_STATS_CACHE = None
-_STATS_CACHE_TIME = 0.0
-_HEALTH_CACHE = None
-_HEALTH_CACHE_TIME = 0.0
 
 from ..services.admin_cache import get_cached_stats, get_cached_health
 
