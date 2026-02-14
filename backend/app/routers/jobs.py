@@ -1,3 +1,4 @@
+import asyncio
 import os
 from pathlib import Path
 from urllib.parse import urlparse
@@ -395,11 +396,27 @@ async def enqueue_job(
     brand_safety: str,
 ) -> None:
     queue_name = (settings.celery_video_queue or "video").strip() or "video"
+    health_queue_name = "video"
     if settings.environment == "production" and not USE_CELERY:
         raise HTTPException(
             status_code=503,
             detail="Queue dispatch unavailable. Configure REDIS_URL and a running Celery worker.",
         )
+
+    if settings.environment == "production" and USE_CELERY:
+        diagnostics = get_celery_dispatch_diagnostics()
+        if diagnostics.get("worker_count", 0) < 1:
+            raise HTTPException(
+                status_code=503,
+                detail="No active Celery worker reachable",
+            )
+        has_configured_queue = _has_queue_consumer(diagnostics, queue_name)
+        has_default_video_queue = _has_queue_consumer(diagnostics, health_queue_name)
+        if not (has_configured_queue or has_default_video_queue):
+            raise HTTPException(
+                status_code=503,
+                detail=f"No active Celery worker subscribed to '{health_queue_name}' queue",
+            )
 
     if USE_CELERY:
         try:

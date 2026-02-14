@@ -17,6 +17,22 @@ Newest entries go first.
 
 ---
 
+## CHG-20260214-007
+- `Date:` 2026-02-14
+- `Owner/Role:` Backend Developer
+- `Summary:` Added production queue preflight checks and fixed dispatch import path in jobs router.
+- `Why this change was needed:` Backend tests required explicit 503 failure modes for missing workers/queue consumers and stable dispatch path behavior.
+- `Files changed:`
+  - `backend/app/routers/jobs.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260214-004
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` from `backend` passed.
+- `Rollback plan:` Revert this commit to restore previous queue behavior.
+
 ## CHG-20260214-006
 - `Date:` 2026-02-14
 - `Owner/Role:` Backend Developer
