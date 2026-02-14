@@ -37,6 +37,26 @@ Newest entries go first.
 
 ---
 
+## BUG-20260214-003
+- `Title:` Risky bootstrap default and brittle cache health/query behavior
+- `Date reported:` 2026-02-14
+- `Reported by:` Codex review
+- `Owner:` Backend Developer
+- `Severity:` S3
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` `admin_cache` used `!= None` SQL comparison and had no overall timeout around concurrent health probes; routing circuit breaker kept stale reset timestamp; config had hardcoded bootstrap admin email default.
+- `Expected behavior:` Robust SQL null checks/timeouts, clean breaker state reset, and no privileged email defaults in source code.
+- `Root cause:` Incremental refactors left non-idiomatic query and permissive/risky defaults.
+- `Fix summary:` Replaced with `isnot(None)`, wrapped health gather in `wait_for`, cleared `circuit_open_until` on reset, and set `admin_bootstrap_email` default to `None`.
+- `Files changed:`
+  - `backend/app/services/admin_cache.py`
+  - `backend/app/agents/routing_policy.py`
+  - `backend/app/config.py`
+- `Validation evidence:` TST-20260214-006
+- `Regression risk:` Low
+- `Linked change:` CHG-20260214-006
+
 ## BUG-20260214-002
 - `Title:` Unused imports and stale cache placeholders in admin/routing modules
 - `Date reported:` 2026-02-14

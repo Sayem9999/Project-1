@@ -21,6 +21,23 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ---
 
+## WRK-20260214-006
+- `Title:` Harden admin cache/query semantics and configuration defaults
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P2
+- `Why this matters:` Prevents stale circuit state, avoids ambiguous SQL null checks, and removes risky default bootstrap behavior.
+- `Scope / files:`
+  - `backend/app/services/admin_cache.py`
+  - `backend/app/agents/routing_policy.py`
+  - `backend/app/config.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` None
+- `Exit criteria:` Code updated and validated by compile/static checks with tracking entries linked.
+
 ## WRK-20260214-005
 - `Title:` Add `gh` CLI automation block for branch ruleset setup
 - `Status:` Done

@@ -17,6 +17,24 @@ Newest entries go first.
 
 ---
 
+## CHG-20260214-006
+- `Date:` 2026-02-14
+- `Owner/Role:` Backend Developer
+- `Summary:` Hardened cache/query behavior and removed privileged config default.
+- `Why this change was needed:` Follow-up hardening for reliability and security posture in actively edited backend modules.
+- `Files changed:`
+  - `backend/app/services/admin_cache.py`
+  - `backend/app/agents/routing_policy.py`
+  - `backend/app/config.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260214-003
+- `Validation:` Python compile check + static grep checks.
+- `Rollback plan:` Revert this commit if unexpected behavior is observed in startup/admin health.
+
 ## CHG-20260214-005
 - `Date:` 2026-02-14
 - `Owner/Role:` Backend Developer

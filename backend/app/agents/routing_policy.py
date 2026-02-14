@@ -61,6 +61,7 @@ class ProviderHealth:
                 return False
             # Reset circuit
             self.circuit_open = False
+            self.circuit_open_until = None
         return self.success_rate > 0.5 or self.failure_count < 3
 
     def open_circuit_for(self, seconds: float) -> None:

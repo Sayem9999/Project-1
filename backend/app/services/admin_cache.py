@@ -49,7 +49,12 @@ async def refresh_admin_data():
                         )
                         
                         # Performance aggregation (last 50 jobs)
-                        perf_stmt = select(Job.performance_metrics).where(Job.performance_metrics != None).order_by(Job.created_at.desc()).limit(50)
+                        perf_stmt = (
+                            select(Job.performance_metrics)
+                            .where(Job.performance_metrics.isnot(None))
+                            .order_by(Job.created_at.desc())
+                            .limit(50)
+                        )
                         perf_rows = (await session.execute(perf_stmt)).scalars().all()
                         
                         avg_lat = 0
@@ -111,10 +116,13 @@ async def refresh_admin_data():
                 from .integration_health import get_integration_health
                 from ..routers.jobs import get_celery_dispatch_diagnostics
                 
-                celery_res, integrations_res = await asyncio.gather(
-                    asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=2.0),
-                    asyncio.to_thread(get_integration_health, run_probe=False),
-                    return_exceptions=True
+                celery_res, integrations_res = await asyncio.wait_for(
+                    asyncio.gather(
+                        asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=2.0),
+                        asyncio.to_thread(get_integration_health, run_probe=False),
+                        return_exceptions=True,
+                    ),
+                    timeout=4.0,
                 )
                 
                 health["redis"] = celery_res if not isinstance(celery_res, Exception) else {"configured": True, "reachable": False, "error": str(celery_res)}
