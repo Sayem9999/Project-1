@@ -7,8 +7,6 @@ from sqlalchemy import select, func
 from ..db import SessionLocal
 from ..models import User, Job
 from ..services.storage_service import storage_service
-from .integration_health import get_integration_health
-from ..routers.jobs import get_celery_dispatch_diagnostics
 
 logger = structlog.get_logger()
 
@@ -23,6 +21,7 @@ async def refresh_admin_data():
     
     while True:
         try:
+            logger.info("admin_cache_refresh_start")
             start_time = time.perf_counter()
             
             # 1. DB Stats (Strict timeout to prevent deadlock)
@@ -87,20 +86,24 @@ async def refresh_admin_data():
             
             # External checks (Parallel with strict timeout)
             try:
+                from .integration_health import get_integration_health
+                from ..routers.jobs import get_celery_dispatch_diagnostics
+                
                 celery_res, integrations_res = await asyncio.gather(
                     asyncio.to_thread(get_celery_dispatch_diagnostics, timeout=2.0),
                     asyncio.to_thread(get_integration_health, run_probe=False),
                     return_exceptions=True
                 )
                 
-                health["redis"] = celery_res if not isinstance(celery_res, Exception) else {"configured": True, "reachable": False, "error": "timeout"}
-                health["integrations"] = integrations_res if not isinstance(integrations_res, Exception) else {"error": "timeout"}
+                health["redis"] = celery_res if not isinstance(celery_res, Exception) else {"configured": True, "reachable": False, "error": str(celery_res)}
+                health["integrations"] = integrations_res if not isinstance(integrations_res, Exception) else {"error": str(integrations_res)}
             except Exception as e:
                 logger.warning("admin_cache_health_refresh_slow", error=str(e))
                 health["error"] = "diagnostic_timeout"
             
             # DB health is internal and should be reported even if external checks time out
             health["db"] = {"reachable": True}
+            health["llm"] = health.get("integrations", {}).get("llm", {}) # Fallback if not nested
             
             _ADMIN_HEALTH = health
             _LAST_REFRESH = time.time()

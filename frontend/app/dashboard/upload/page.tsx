@@ -272,9 +272,9 @@ export default function UploadPage() {
 
         <div className="relative z-10 w-full h-full flex flex-col">
           {preview ? (
-            <div className="flex-1 flex flex-col h-full">
-              <div className="flex-1 relative flex items-center justify-center p-8 bg-black/40">
-                <video src={preview} className="max-w-full max-h-full rounded-[32px] shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-white/5" controls />
+            <div className="flex-1 min-h-0 flex flex-col h-full">
+              <div className="flex-1 relative flex items-center justify-center p-8 bg-black/40 min-h-0">
+                <video src={preview} className="max-w-full max-h-full rounded-[32px] shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-white/5 object-contain" controls />
                 <button
                   onClick={() => { setFile(null); setPreview(null); setJobId(null); }}
                   className="absolute top-8 right-8 p-3 bg-black/60 hover:bg-black text-white rounded-full backdrop-blur-2xl transition-all border border-white/10 group/close"
@@ -284,25 +284,27 @@ export default function UploadPage() {
                 {!file && <div className="text-white/50 font-black uppercase tracking-widest animate-pulse">Preview Loading...</div>}
               </div>
 
-              <div className="p-10 bg-gradient-to-t from-obsidian-950 via-obsidian-950 to-transparent border-t border-white/5">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-10">
-                  <div className="space-y-3">
+              <div className="flex-shrink-0 p-10 bg-gradient-to-t from-obsidian-950 via-obsidian-950 to-transparent border-t border-white/5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-6">
+                  <div className="space-y-3 flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <BrainCircuit className="w-4 h-4 text-brand-cyan" />
                       <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-cyan">TELEMETRY_SYNC_INITIATED</span>
                     </div>
-                    <h3 className="text-3xl font-black text-white truncate max-w-2xl tracking-tight">{file?.name}</h3>
+                    <div className="flex items-center gap-4">
+                      <h3 className="text-3xl font-black text-white truncate tracking-tight flex-1">{file?.name}</h3>
+                    </div>
                     <p className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">
                       {(file?.size ? (file.size / 1024 / 1024).toFixed(2) : 0)} MB • {(analyzing ? "ANALYZING_BEATS..." : "MEDIA_READY")}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0 flex items-center gap-4">
                     <Button
                       onClick={handleUpload}
                       disabled={uploading || !!jobId}
                       variant={jobId ? "secondary" : "primary"}
-                      className="w-full md:w-auto h-20 px-20 font-black text-base uppercase tracking-[0.5em] shadow-[0_0_60px_rgba(6,182,212,0.6)] animate-in zoom-in-95 duration-500"
+                      className="w-full md:w-auto h-20 px-12 md:px-20 font-black text-base uppercase tracking-[0.5em] shadow-[0_0_60px_rgba(6,182,212,0.6)]"
                       loading={uploading}
                     >
                       {jobId ? (
