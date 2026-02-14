@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     gemini_api_key: str | None = None
     groq_api_key: str | None = None
+    openrouter_api_key: str | None = None
     llm_primary_provider: str = "gemini"
     llm_fallback_provider: str = "groq"
     
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
     ollama_enabled: bool = True
+    openrouter_enabled: bool = True
     password_policy: str = "basic"
     
     # OAuth - Google

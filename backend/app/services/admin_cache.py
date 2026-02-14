@@ -56,12 +56,34 @@ async def refresh_admin_data():
                         if perf_rows:
                             avg_lat = sum(m.get("total_duration_ms", 0) for m in perf_rows) / len(perf_rows)
                         
+                        # NEW: Extended Analytics
+                        # 1. Tier Distribution (Standard vs Pro)
+                        tier_stmt = select(func.count(Job.id)).where(Job.tier == "pro")
+                        pro_jobs = (await session.execute(tier_stmt)).scalar() or 0
+                        
+                        # 2. Revenue Estimation (Placeholder: $2 per Pro job)
+                        revenue_est = pro_jobs * 2.0
+                        
+                        # 3. Top Users (Leaderboard)
+                        leaderboard_stmt = select(User.email, func.count(Job.id).label("job_count"))\
+                            .join(Job)\
+                            .group_by(User.id)\
+                            .order_by(func.count(Job.id).desc())\
+                            .limit(5)
+                        leaderboard = await session.execute(leaderboard_stmt)
+                        
                         return {
                             "users": {"total": u_count, "active_24h": active},
                             "jobs": {"total": j_count, "recent_24h": recent},
                             "performance": {
                                 "avg_latency_ms": round(avg_lat, 2),
                                 "tracked_count": len(perf_rows)
+                            },
+                            "analytics": {
+                                "pro_jobs": pro_jobs,
+                                "standard_jobs": j_count - pro_jobs,
+                                "revenue_est": round(revenue_est, 2),
+                                "leaderboard": [{"email": row[0], "count": row[1]} for row in leaderboard.all()]
                             },
                             "trends": {
                                 "jobs_by_day": [{"date": str(row[0]), "count": row[1]} for row in by_day.all()],

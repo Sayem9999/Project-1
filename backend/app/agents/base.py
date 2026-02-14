@@ -26,6 +26,12 @@ gemini_client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini
 # Groq Client
 groq_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
 
+# OpenRouter Client (OpenAI-compatible)
+openrouter_client = AsyncOpenAI(
+    api_key=settings.openrouter_api_key,
+    base_url="https://openrouter.ai/api/v1"
+) if settings.openrouter_api_key else None
+
 
 def parse_json_response(text: str) -> dict:
     """Parse JSON from model response, handling markdown code blocks and conversational filler."""
@@ -203,6 +209,20 @@ async def run_agent_prompt(
                 resp.raise_for_status()
                 data = resp.json()
                 response_text = data.get("message", {}).get("content", "")
+
+        elif provider_name == "openrouter" and openrouter_client:
+            response = await openrouter_client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": payload_json},
+                ],
+                extra_headers={
+                    "HTTP-Referer": "https://proedit.ai",
+                    "X-Title": "ProEdit Studio",
+                }
+            )
+            response_text = response.choices[0].message.content
 
         if response_text:
             latency_ms = (time.time() - attempt_start) * 1000

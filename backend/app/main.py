@@ -406,10 +406,11 @@ async def debug_redis() -> dict[str, Any]:
 app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(oauth.router, prefix=settings.api_prefix)
 app.include_router(agents.router, prefix=settings.api_prefix)
-from .routers import payments, admin, jobs
+from .routers import payments, admin, jobs, orchestration
 app.include_router(payments.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(jobs.router, prefix=settings.api_prefix)
+app.include_router(orchestration.router, prefix=settings.api_prefix)
 app.include_router(maintenance.router, prefix=settings.api_prefix)
 app.include_router(websocket.router)
 

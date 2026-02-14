@@ -151,6 +151,7 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
 
     try:
         # === PHASE 1: Analysis (10%) ===
+        tracker.start_phase("analysis")
         await update_status(job_id, "processing", "[FRAME] Analyzing keyframes...")
         publish_progress(job_id, "processing", "Analyzing video keyframes...", 10, user_id=user_id)
         memory_context = await hybrid_memory.get_agent_context(user_id)
@@ -171,8 +172,10 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             keyframe_data = parse_json_safe(keyframe_resp.get("raw_response", "{}"))
         
         print(f"[Workflow] Keyframe Analysis: {keyframe_data.get('scene_count', 'N/A')} scenes")
+        tracker.end_phase("analysis")
         
         # === PHASE 2: Director Planning (20%) ===
+        tracker.start_phase("planning")
         max_retries = 1
         attempt = 0
         final_output_path = None
@@ -198,8 +201,10 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             plan = await director_agent.run(director_payload)
             director_plan = normalize_agent_result(plan)
             print(f"[Workflow] Director Plan: {director_plan.get('strategy', 'No strategy')}")
+            tracker.end_phase("planning")
 
             # === PHASE 3: Parallel Specialists (30-60%) ===
+            tracker.start_phase("specialists")
             await update_status(job_id, "processing", f"{status_prefix} Specialists working...")
             publish_progress(job_id, "processing", "6 AI agents working in parallel...", 35, user_id=user_id)
             
@@ -245,8 +250,10 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
             print(f"[Workflow] Transitions: {transition_res.get('style_note', 'None')}")
             print(f"[Workflow] VFX: {vfx_res.get('style_note', 'None')}")
             print(f"[Workflow] Color: {color_res.get('color_mood', 'None')}")
+            tracker.end_phase("specialists")
 
             # === PHASE 4: Render (60-80%) ===
+            tracker.start_phase("rendering")
             await update_status(job_id, "processing", f"{status_prefix} Rendering video...")
             
             src = Path(source_path)
@@ -438,6 +445,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         }
         
         # Run Graph
+        tracker.start_phase("graph_execution")
         print("[Graph] Streaming workflow (with checkpointing)...")
         config = {"configurable": {"thread_id": str(job_id)}}
         final_state: dict = {}
@@ -473,7 +481,8 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
                 # Update DB and Publish
                 await update_status(job_id, "processing", f"[AI] {msg}")
                 publish_progress(job_id, "processing", msg, progress_p, user_id=user_id)
-        
+        # 1. Finalize State
+        tracker.end_phase("graph_execution")
         output_rel_path = final_state.get("output_path")
         graph_errors = final_state.get("errors") or []
         if graph_errors and not output_rel_path:
@@ -559,3 +568,53 @@ async def update_status(
                 job.performance_metrics = performance_metrics
                 
             await session.commit()
+async def render_orchestrated_job(job_id: int, cuts: list, vf_filters: str | None = None, af_filters: str | None = None):
+    """
+    Directly renders a job using provided technical parameters, bypassing AI agents.
+    Used for n8n/External Orchestration.
+    """
+    async with SessionLocal() as session:
+        job = await session.get(Job, job_id)
+        if not job: return
+        job.status = "processing"
+        job.progress_message = "Rendering orchestrated edit..."
+        source_path = job.source_path
+        user_id = job.user_id
+        tier = job.tier
+        await session.commit()
+
+    publish_progress(job_id, "processing", "Starting technical render...", 5, user_id=user_id)
+    
+    from .rendering_orchestrator import rendering_orchestrator
+    
+    output_filename = f"job-{job_id}-orchestrated.mp4"
+    output_abs = Path(settings.storage_root) / "outputs" / output_filename
+    output_abs.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        tracker = metrics_service.get_tracker(job_id)
+        tracker.start_phase("orchestrated_render")
+        success = await rendering_orchestrator.render_parallel(
+            job_id=job_id,
+            source_path=source_path,
+            cuts=cuts,
+            output_path=str(output_abs),
+            vf_filters=vf_filters,
+            af_filters=af_filters,
+            crf=18 if tier == "pro" else 23,
+            preset="medium",
+            user_id=user_id
+        )
+        tracker.end_phase("orchestrated_render")
+        
+        if success:
+            final_rel_path = f"storage/outputs/{output_filename}"
+            await update_status(job_id, "complete", "Orchestrated Edit Ready!", final_rel_path)
+            publish_progress(job_id, "complete", "Orchestrated Edit Ready!", 100, user_id=user_id)
+        else:
+            raise Exception("Rendering failed.")
+            
+    except Exception as e:
+        logger.error("orchestration_render_failed", job_id=job_id, error=str(e))
+        await update_status(job_id, "failed", f"Orchestration failed: {str(e)}")
+        publish_progress(job_id, "failed", f"Orchestration failed: {str(e)}", 0, user_id=user_id)

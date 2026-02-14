@@ -78,6 +78,8 @@ def _provider_configured(name: str) -> bool:
         return bool(settings.groq_api_key)
     if name == "ollama":
         return settings.ollama_enabled
+    if name == "openrouter":
+        return bool(settings.openrouter_api_key) and settings.openrouter_enabled
     return False
 
 
@@ -116,6 +118,17 @@ PROVIDERS: Dict[str, ProviderConfig] = {
         avg_latency_ms=1000,
         cost_per_1k_tokens=0.0,  # Local
         supports_json=True
+    ),
+    "openrouter": ProviderConfig(
+        name="openrouter",
+        models=[
+            "anthropic/claude-3.5-sonnet",
+            "google/gemini-2.0-flash-001",
+            "deepseek/deepseek-chat"
+        ],
+        quality_tier="premium",
+        avg_latency_ms=2500,
+        cost_per_1k_tokens=0.10
     ),
 }
 

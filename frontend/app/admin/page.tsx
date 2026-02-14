@@ -13,6 +13,7 @@ import StatusBadge from '@/components/admin/StatusBadge';
 import UserTable from '@/components/admin/UserTable';
 import JobTable from '@/components/admin/JobTable';
 import SystemTrends from '@/components/admin/SystemTrends';
+import UsageLeaderboard from '@/components/admin/UsageLeaderboard';
 import { Button } from '@/components/ui/Button';
 
 interface SystemStats {
@@ -27,6 +28,12 @@ interface SystemStats {
   performance?: {
     avg_latency_ms: number;
     tracked_count: number;
+  };
+  analytics?: {
+    pro_jobs: number;
+    standard_jobs: number;
+    revenue_est: number;
+    leaderboard: { email: string; count: number }[];
   };
 }
 
@@ -389,9 +396,9 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
         {[
           { icon: Users, title: "Total Fleet", value: stats?.users?.total ?? 0, sub: "Registered Entities", color: "cyan" },
-          { icon: Activity, title: "Avg Latency", value: stats?.performance?.avg_latency_ms ? `${(stats.performance.avg_latency_ms / 1000).toFixed(1)}s` : '0s', sub: `Last ${stats?.performance?.tracked_count ?? 0} jobs`, color: "emerald" },
+          { icon: Sparkles, title: "Pro Volume", value: stats?.analytics?.pro_jobs ?? 0, sub: `${stats?.analytics?.standard_jobs ?? 0} Standard Jobs`, color: "emerald" },
+          { icon: CreditCard, title: "Rev. Estimate", value: `$${stats?.analytics?.revenue_est ?? 0}`, sub: "Projected Gross (Pro)", color: "amber" },
           { icon: Video, title: "Pipeline Volume", value: stats?.jobs?.total ?? 0, sub: `+${stats?.jobs?.recent_24h ?? 0} New Exports`, color: "violet" },
-          { icon: Wrench, title: "Active Threads", value: jobs.filter(j => j.status === 'processing').length, sub: `${jobs.filter(j => j.status === 'failed').length} Error States`, color: "violet" },
           { icon: HardDrive, title: "Storage Index", value: `${stats?.storage?.percent ?? 0}%`, sub: `${stats?.storage?.used_gb ?? 0}GB Utilized`, color: "amber", progress: stats?.storage?.percent },
         ].map((s, i) => (
           <StatCard key={i} icon={s.icon} title={s.title} value={s.value} subtext={s.sub} color={s.color as any} progress={s.progress} />
@@ -436,18 +443,21 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="glass-panel p-8 rounded-[32px] border-white/5 relative overflow-hidden bg-gradient-to-br from-white/[0.02] to-transparent">
-            <h3 className="text-[10px] font-black font-bold text-gray-500 uppercase tracking-[0.3em] mb-6">Agent LLM Cluster</h3>
-            <div className="space-y-4">
-              {Object.entries(health.llm || {}).map(([name, item]) => (
-                <div key={name} className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/5">
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest">{name}</span>
-                  <div className={`text-[10px] font-black px-3 py-1 rounded-lg ${item.is_healthy ? 'bg-emerald-400/10 text-emerald-400' : 'bg-red-400/10 text-red-300'}`}>
-                    {item.is_healthy ? 'HEALTH_OK' : 'FAIL_STATE'}
+          <div className="space-y-6">
+            <div className="glass-panel p-8 rounded-[32px] border-white/5 relative overflow-hidden bg-gradient-to-br from-white/[0.02] to-transparent">
+              <h3 className="text-[10px] font-black font-bold text-gray-500 uppercase tracking-[0.3em] mb-6">Agent LLM Cluster</h3>
+              <div className="space-y-4">
+                {Object.entries(health.llm || {}).map(([name, item]) => (
+                  <div key={name} className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.02] border border-white/5">
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">{name}</span>
+                    <div className={`text-[10px] font-black px-3 py-1 rounded-lg ${item.is_healthy ? 'bg-emerald-400/10 text-emerald-400' : 'bg-red-400/10 text-red-300'}`}>
+                      {item.is_healthy ? 'HEALTH_OK' : 'FAIL_STATE'}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+            <UsageLeaderboard entries={stats?.analytics?.leaderboard ?? []} />
           </div>
         </div>
       )}
@@ -721,7 +731,7 @@ export default function AdminDashboardPage() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div >
   );
 }
 
