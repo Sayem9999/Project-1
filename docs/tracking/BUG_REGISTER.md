@@ -37,6 +37,26 @@ Newest entries go first.
 
 ---
 
+## BUG-20260215-004
+- `Title:` AI pipeline could return source-identical outputs when cut plans were empty or pass-through
+- `Date reported:` 2026-02-15
+- `Reported by:` User feedback + Codex analysis
+- `Owner:` Backend Developer
+- `Severity:` S2
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Final videos looked identical to input because fallback/full-span cuts preserved nearly all source content.
+- `Expected behavior:` AI paths should produce visible edits by default, even when model output is weak or malformed.
+- `Root cause:` Cut lists were accepted without guardrails for pass-through ratio or empty responses.
+- `Fix summary:` Added `ensure_editing_cuts(...)` policy to normalize and replace pass-through plans with pacing-aware highlight cuts in Standard and Pro compiler paths.
+- `Files changed:`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/graph/nodes/compiler.py`
+  - `backend/tests/test_editing_cuts.py`
+- `Validation evidence:` TST-20260215-004
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-004
+
 ## BUG-20260215-003
 - `Title:` Backend lacked an executable deployment preflight and live-start verification path
 - `Date reported:` 2026-02-15

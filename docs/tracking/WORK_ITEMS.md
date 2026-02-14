@@ -21,6 +21,23 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ---
 
+## WRK-20260215-004
+- `Title:` Enforce non-pass-through editing so AI output visibly differs from source footage
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` Users expect AI editing decisions, not source-identical outputs.
+- `Scope / files:`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/graph/nodes/compiler.py`
+  - `backend/tests/test_editing_cuts.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing render orchestration and graph compiler pipeline
+- `Exit criteria:` Empty/full-clip cut plans are converted into deterministic highlight cuts and tests pass.
+
 ## WRK-20260215-003
 - `Title:` Finalize backend deployment readiness and verify live startup endpoints
 - `Status:` Done

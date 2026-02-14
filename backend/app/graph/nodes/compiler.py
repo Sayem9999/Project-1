@@ -20,6 +20,7 @@ if FFMPEG_BINARY != "ffmpeg":
 
 from ...services.concurrency import limits
 from ...config import settings
+from ...services.workflow_engine import ensure_editing_cuts
 
 async def compiler_node(state: GraphState) -> GraphState:
     """
@@ -161,3 +162,11 @@ async def compiler_node(state: GraphState) -> GraphState:
                     "errors": [f"Rendering crashed: {str(e)}. Fallback to raw copy."]
                 }
             return {"errors": [str(e)]}
+    media_duration = (
+        state.get("media_intelligence", {})
+        .get("visual", {})
+        .get("metadata", {})
+        .get("duration", 30.0)
+    )
+    pacing = state.get("user_request", {}).get("pacing", "medium")
+    cuts = ensure_editing_cuts(cuts or [], duration=float(media_duration or 30.0), pacing=pacing)

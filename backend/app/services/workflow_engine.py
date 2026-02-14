@@ -140,6 +140,67 @@ def normalize_agent_result(result: object) -> dict:
     return {}
 
 
+def _coerce_duration(value: object, fallback: float = 30.0) -> float:
+    try:
+        duration = float(value)  # type: ignore[arg-type]
+        if duration > 0:
+            return duration
+    except Exception:
+        pass
+    return fallback
+
+
+def _build_highlight_cuts(duration: float, pacing: str) -> list[dict]:
+    """Create deterministic highlight windows so output is not pass-through."""
+    pace = (pacing or "medium").lower()
+    target_ratio = {
+        "slow": 0.8,
+        "medium": 0.6,
+        "fast": 0.45,
+    }.get(pace, 0.6)
+    clip_len = {
+        "slow": 5.0,
+        "medium": 3.5,
+        "fast": 2.2,
+    }.get(pace, 3.5)
+
+    target_total = max(8.0, min(duration * target_ratio, duration))
+    parts = max(2, int(round(target_total / clip_len)))
+    gap = duration / (parts + 1)
+    cuts: list[dict] = []
+    for i in range(parts):
+        center = gap * (i + 1)
+        start = max(0.0, center - (clip_len / 2))
+        end = min(duration, start + clip_len)
+        if end - start >= 0.8:
+            cuts.append({"start": round(start, 3), "end": round(end, 3), "reason": "auto-highlight"})
+    return cuts
+
+
+def ensure_editing_cuts(cuts: list[dict], duration: float, pacing: str, min_change_ratio: float = 0.9) -> list[dict]:
+    """
+    Normalize AI cuts and enforce visible edits.
+    If cuts are missing or nearly pass-through, generate highlight cuts.
+    """
+    valid: list[dict] = []
+    for cut in cuts or []:
+        try:
+            start = max(0.0, float(cut.get("start", 0)))
+            end = min(duration, float(cut.get("end", 0)))
+        except Exception:
+            continue
+        if end - start >= 0.2:
+            valid.append({"start": start, "end": end, "reason": cut.get("reason", "ai-cut")})
+
+    if not valid:
+        return _build_highlight_cuts(duration, pacing)
+
+    selected = sum(max(0.0, c["end"] - c["start"]) for c in valid)
+    if duration >= 15.0 and selected >= duration * min_change_ratio:
+        return _build_highlight_cuts(duration, pacing)
+    return valid
+
+
 async def process_job(job_id: int, source_path: str, pacing: str = "medium", mood: str = "professional", ratio: str = "16:9", tier: str = "pro", platform: str = "youtube", brand_safety: str = "standard"):
     """
     Master Workflow Router
@@ -341,11 +402,9 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                 publish_progress(job_id, "processing", f"Rendering scenes in parallel...", 65, user_id=user_id)
                 
                 # Standard workflow often has 'cuts' in cutter_data
-                cuts = cutter_data.get("cuts", []) if isinstance(cutter_data, dict) else []
-                if not cuts:
-                    # Fallback to single cut if no EDL
-                    duration = keyframe_data.get("duration", 30.0)
-                    cuts = [{"start": 0, "end": duration}]
+                raw_cuts = cutter_data.get("cuts", []) if isinstance(cutter_data, dict) else []
+                duration = _coerce_duration(keyframe_data.get("duration", 30.0), fallback=30.0)
+                cuts = ensure_editing_cuts(raw_cuts, duration=duration, pacing=pacing)
 
                 success = await rendering_orchestrator.render_parallel(
                     job_id=job_id,

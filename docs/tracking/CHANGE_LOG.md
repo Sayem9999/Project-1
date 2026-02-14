@@ -17,6 +17,24 @@ Newest entries go first.
 
 ---
 
+## CHG-20260215-004
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Added anti-pass-through edit policy so AI outputs are visibly edited instead of source-identical when cut plans are weak.
+- `Why this change was needed:` You reported videos were identical to input; this enforces meaningful edits even when upstream agent output is empty/full-span.
+- `Files changed:`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/graph/nodes/compiler.py`
+  - `backend/tests/test_editing_cuts.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` BUG-20260215-004
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` passed (`29 passed`).
+- `Rollback plan:` Revert this commit to restore prior cut-selection behavior.
+
 ## CHG-20260215-003
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer
