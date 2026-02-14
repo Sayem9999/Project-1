@@ -1,6 +1,7 @@
 from ..state import GraphState
 from ...agents import audio_agent
 from ...services.audio_intelligence import audio_intelligence
+from ...services.post_production_depth import build_audio_post_filter
 import structlog
 
 logger = structlog.get_logger()
@@ -48,8 +49,11 @@ async def audio_node(state: GraphState) -> GraphState:
         return {
             "audio_tracks": audio_response.audio_tracks,
             "audio_intelligence": audio_intel,
-            # We might want to pass other fields too if needed by downstream nodes
-            # "ffmpeg_audio_filter": audio_response.ffmpeg_audio_filter
+            "audio_post_filter": build_audio_post_filter(
+                audio_intel,
+                platform=state.get("user_request", {}).get("platform", "youtube"),
+                mood=state.get("user_request", {}).get("mood", "professional"),
+            ),
         }
     except Exception as e:
         logger.error("audio_node_error", job_id=state.get("job_id"), error=str(e))

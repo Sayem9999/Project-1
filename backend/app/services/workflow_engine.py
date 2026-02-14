@@ -21,6 +21,7 @@ from .memory.hybrid_memory import hybrid_memory
 from .concurrency import limits
 from .metrics_service import metrics_service
 from .n8n_service import n8n_service
+from .post_production_depth import build_audio_post_filter
 
 # Redis for progress publishing (optional)
 REDIS_URL = os.getenv("REDIS_URL")
@@ -405,6 +406,10 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                 raw_cuts = cutter_data.get("cuts", []) if isinstance(cutter_data, dict) else []
                 duration = _coerce_duration(keyframe_data.get("duration", 30.0), fallback=30.0)
                 cuts = ensure_editing_cuts(raw_cuts, duration=duration, pacing=pacing)
+                speed = 1.0 if pacing == "slow" else (1.04 if pacing == "medium" else 1.08)
+                transition_style = director_plan.get("transition_style", "cut" if pacing == "fast" else "dissolve")
+                transition_duration = float(director_plan.get("transition_duration", 0.2 if pacing == "fast" else 0.3))
+                cuts = [{**c, "speed": speed} for c in cuts]
 
                 success = await rendering_orchestrator.render_parallel(
                     job_id=job_id,
@@ -412,7 +417,13 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                     cuts=cuts,
                     output_path=str(output_abs),
                     vf_filters=",".join(vf_filters) if vf_filters else None,
-                    af_filters=af,
+                    af_filters=build_audio_post_filter(
+                        {"ducking_segments": []},
+                        platform=platform,
+                        mood=mood,
+                    ) or af,
+                    transition_style=transition_style,
+                    transition_duration=transition_duration,
                     user_id=user_id
                 )
                 

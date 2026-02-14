@@ -17,6 +17,59 @@ Newest entries go first.
 
 ---
 
+## CHG-20260215-007
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Implemented initial True Post-Production Depth execution layer (timeline/render/audio/color/graphics hooks).
+- `Why this change was needed:` You requested active work on deep post-production capabilities rather than high-level planning only.
+- `Files changed:`
+  - `backend/app/services/post_production_depth.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/graph/nodes/audio.py`
+  - `backend/app/graph/nodes/visuals.py`
+  - `backend/app/graph/nodes/subtitle.py`
+  - `backend/app/graph/nodes/compiler.py`
+  - `backend/app/graph/state.py`
+  - `backend/tests/test_post_production_depth.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` None
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` passed (`33 passed`).
+- `Rollback plan:` Revert this commit to return to prior simpler render/audio/color/subtitle behavior.
+
+## CHG-20260215-006
+- `Date:` 2026-02-15
+- `Owner/Role:` Analyst + Backend Developer
+- `Summary:` Reduced studio roadmap scope to only True Post-Production Depth capabilities.
+- `Why this change was needed:` You requested keeping only timeline/audio/color/graphics depth and removing broader MVP/Enterprise scope.
+- `Files changed:`
+  - `docs/STUDIO_ROADMAP.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` None
+- `Validation:` Manual review confirmed roadmap now contains only the requested post-production depth tracks.
+- `Rollback plan:` Restore prior roadmap version if broader planning scope is needed again.
+
+## CHG-20260215-005
+- `Date:` 2026-02-15
+- `Owner/Role:` Analyst + Backend Developer
+- `Summary:` Added a concrete phased roadmap for replacing a pro editing studio, including backend/frontend ticket mapping and acceptance gates.
+- `Why this change was needed:` You requested a concrete execution plan with phased milestones and explicit BE/FE work breakdown.
+- `Files changed:`
+  - `docs/STUDIO_ROADMAP.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` None
+- `Validation:` Manual review for milestone completeness, ticket coverage, and acceptance-criteria clarity.
+- `Rollback plan:` Remove `docs/STUDIO_ROADMAP.md` and tracking entries if roadmap direction changes.
+
 ## CHG-20260215-004
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer

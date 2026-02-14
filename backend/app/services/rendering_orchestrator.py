@@ -52,7 +52,9 @@ class RenderingOrchestrator:
         af_filters: str | None = None,
         crf: int = 23,
         preset: str = "veryfast",
-        user_id: int | None = None
+        user_id: int | None = None,
+        transition_style: str = "cut",
+        transition_duration: float = 0.25,
     ) -> bool:
         """
         Renders scenes in parallel and merge them.
@@ -68,6 +70,7 @@ class RenderingOrchestrator:
             # 1. Prepare scene tasks
             tasks = []
             scene_files = []
+            scene_durations = []
             
             for i, cut in enumerate(cuts):
                 start = float(cut.get("start", 0))
@@ -78,12 +81,18 @@ class RenderingOrchestrator:
                 
                 part_path = temp_dir / f"part_{i:04d}.mp4"
                 scene_files.append(part_path)
+                speed = float(cut.get("speed", 1.0) or 1.0)
+                if speed <= 0:
+                    speed = 1.0
+                scene_durations.append(duration / speed)
                 tasks.append(self._render_scene(
-                    job_id, source_path, start, duration, str(part_path),
+                    job_id, str(cut.get("source_path") or source_path), start, duration, str(part_path),
                     vf_filters=vf_filters,
                     af_filters=af_filters,
                     crf=crf,
-                    preset=preset
+                    preset=preset,
+                    speed=speed,
+                    keyframes=cut.get("keyframes") if isinstance(cut.get("keyframes"), list) else None,
                 ))
 
             # 2. Execute parallel renders
@@ -98,7 +107,14 @@ class RenderingOrchestrator:
 
             # 3. Concatenate scenes
             publish_progress(job_id, "processing", "Merging scenes...", 85, user_id=user_id)
-            success = await self._concatenate_scenes(job_id, scene_files, output_path)
+            success = await self._concatenate_scenes(
+                job_id,
+                scene_files,
+                output_path,
+                scene_durations=scene_durations,
+                transition_style=transition_style,
+                transition_duration=transition_duration,
+            )
             
             return success
 
@@ -118,7 +134,9 @@ class RenderingOrchestrator:
         vf_filters: str | None = None,
         af_filters: str | None = None,
         crf: int = 23,
-        preset: str = "veryfast"
+        preset: str = "veryfast",
+        speed: float = 1.0,
+        keyframes: list[dict] | None = None,
     ):
         """Renders a single scene with a semaphore."""
         # Convert to absolute paths to avoid FFmpeg CWD issues
@@ -136,11 +154,27 @@ class RenderingOrchestrator:
                 "-c:a", "aac", "-b:a", "128k",
                 "-avoid_negative_ts", "make_zero",
             ]
-            
+
+            vf_chain: list[str] = []
+            af_chain: list[str] = []
+
+            if speed and abs(speed - 1.0) > 0.01:
+                vf_chain.append(f"setpts={1/speed}*PTS")
+                af_chain.extend(self._atempo_chain(speed))
+
+            zoom_kf = self._keyframed_zoom_filter(keyframes)
+            if zoom_kf:
+                vf_chain.append(zoom_kf)
+
             if vf_filters:
-                cmd += ["-vf", vf_filters]
+                vf_chain.append(vf_filters)
             if af_filters:
-                cmd += ["-af", af_filters]
+                af_chain.append(af_filters)
+
+            if vf_chain:
+                cmd += ["-vf", ",".join(vf_chain)]
+            if af_chain:
+                cmd += ["-af", ",".join(af_chain)]
                 
             cmd.append(abs_out)
             
@@ -157,8 +191,54 @@ class RenderingOrchestrator:
                 logger.error("ffmpeg_scene_failed", job_id=job_id, command=" ".join(cmd), error=err_msg)
                 raise Exception(f"FFmpeg scene render failed: {err_msg}")
 
-    async def _concatenate_scenes(self, job_id: int, scene_files: List[Path], out_path: str) -> bool:
+    @staticmethod
+    def _atempo_chain(speed: float) -> list[str]:
+        """Build FFmpeg atempo filters while respecting per-filter [0.5,2.0] constraints."""
+        s = max(0.25, min(speed, 4.0))
+        chain = []
+        while s > 2.0:
+            chain.append("atempo=2.0")
+            s /= 2.0
+        while s < 0.5:
+            chain.append("atempo=0.5")
+            s *= 2.0
+        chain.append(f"atempo={s:.4f}")
+        return chain
+
+    @staticmethod
+    def _keyframed_zoom_filter(keyframes: list[dict] | None) -> str | None:
+        if not keyframes:
+            return None
+        zoom_kf = [k for k in keyframes if (k.get("property") or "").lower() == "zoom"]
+        if len(zoom_kf) < 2:
+            return None
+        z0 = float(zoom_kf[0].get("value", 1.0))
+        z1 = float(zoom_kf[-1].get("value", z0))
+        if abs(z1 - z0) < 0.01:
+            return None
+        # Lightweight keyframe approximation using gradual zoom.
+        step = (z1 - z0) / 240.0
+        return f"zoompan=z='if(lte(on,1),{z0:.4f},min(max(zoom+({step:.6f}),{min(z0,z1):.4f}),{max(z0,z1):.4f}))':d=1:s=1280x720"
+
+    async def _concatenate_scenes(
+        self,
+        job_id: int,
+        scene_files: List[Path],
+        out_path: str,
+        scene_durations: List[float] | None = None,
+        transition_style: str = "cut",
+        transition_duration: float = 0.25,
+    ) -> bool:
         """Merges scenes using the concat demuxer."""
+        if transition_style and transition_style.lower() not in {"cut", "none"} and len(scene_files) > 1:
+            return await self._concatenate_with_transitions(
+                scene_files=scene_files,
+                out_path=out_path,
+                scene_durations=scene_durations or [],
+                transition_style=transition_style,
+                transition_duration=transition_duration,
+            )
+
         list_path = self.output_root / f"job-{job_id}-list.txt"
         
         # Create concat list
@@ -188,6 +268,70 @@ class RenderingOrchestrator:
         finally:
             if list_path.exists():
                 list_path.unlink()
+
+    async def _concatenate_with_transitions(
+        self,
+        scene_files: List[Path],
+        out_path: str,
+        scene_durations: List[float],
+        transition_style: str,
+        transition_duration: float,
+    ) -> bool:
+        xfade_style = {
+            "dissolve": "fade",
+            "crossfade": "fade",
+            "wipe_left": "wipeleft",
+            "wipe_right": "wiperight",
+            "slide_left": "slideleft",
+            "slide_right": "slideright",
+        }.get((transition_style or "").lower(), "fade")
+        d = max(0.08, min(float(transition_duration or 0.25), 1.0))
+
+        cmd = [self.ffmpeg_path, "-y"]
+        for part in scene_files:
+            cmd.extend(["-i", str(part.absolute())])
+
+        if not scene_durations or len(scene_durations) != len(scene_files):
+            scene_durations = [2.0] * len(scene_files)
+
+        filter_parts: list[str] = []
+        v_prev = "[0:v]"
+        a_prev = "[0:a]"
+        elapsed = float(scene_durations[0])
+        for i in range(1, len(scene_files)):
+            v_out = f"v{i}"
+            a_out = f"a{i}"
+            offset = max(0.0, elapsed - d)
+            filter_parts.append(
+                f"{v_prev}[{i}:v]xfade=transition={xfade_style}:duration={d:.3f}:offset={offset:.3f}[{v_out}]"
+            )
+            filter_parts.append(f"{a_prev}[{i}:a]acrossfade=d={d:.3f}:c1=tri:c2=tri[{a_out}]")
+            v_prev = f"[{v_out}]"
+            a_prev = f"[{a_out}]"
+            elapsed += float(scene_durations[i]) - d
+
+        cmd.extend([
+            "-filter_complex", ";".join(filter_parts),
+            "-map", v_prev,
+            "-map", a_prev,
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "22",
+            "-c:a", "aac",
+            "-b:a", "160k",
+            out_path,
+        ])
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            logger.error("ffmpeg_transition_concat_failed", error=stderr.decode()[-500:])
+            return False
+        return True
 
 # Singleton
 rendering_orchestrator = RenderingOrchestrator()

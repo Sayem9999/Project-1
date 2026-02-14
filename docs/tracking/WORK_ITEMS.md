@@ -21,6 +21,56 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ---
 
+## WRK-20260215-007
+- `Title:` Implement Phase-A True Post-Production Depth foundations across timeline/audio/color/graphics pipelines
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` Moves roadmap from planning into executable post-production depth features used by real renders.
+- `Scope / files:`
+  - `backend/app/services/post_production_depth.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/graph/nodes/audio.py`
+  - `backend/app/graph/nodes/visuals.py`
+  - `backend/app/graph/nodes/subtitle.py`
+  - `backend/app/graph/nodes/compiler.py`
+  - `backend/app/graph/state.py`
+  - `backend/tests/test_post_production_depth.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing graph workflow + render orchestrator
+- `Exit criteria:` Advanced transitions/speed/keyframe-aware rendering hooks, audio mastering filter chain, color pipeline defaults, subtitle styling/QA are integrated and tested.
+
+## WRK-20260215-006
+- `Title:` Narrow roadmap to only True Post-Production Depth scope
+- `Status:` Done
+- `Owner/Role:` Analyst + Backend Developer
+- `Priority:` P1
+- `Why this matters:` Product direction is now explicitly focused on deep post-production capabilities only.
+- `Scope / files:`
+  - `docs/STUDIO_ROADMAP.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing roadmap document
+- `Exit criteria:` Roadmap contains only timeline/audio/color/graphics depth tracks and related BE/FE tickets.
+
+## WRK-20260215-005
+- `Title:` Publish phased studio-replacement roadmap with backend/frontend ticket map
+- `Status:` Done
+- `Owner/Role:` Analyst + Backend Developer
+- `Priority:` P1
+- `Why this matters:` Team needs an execution plan to evolve from AI-assisted editing into a full studio replacement.
+- `Scope / files:`
+  - `docs/STUDIO_ROADMAP.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Current architecture and known product gaps
+- `Exit criteria:` Roadmap contains phased milestones (`MVP`, `Pro`, `Enterprise`) and BE/FE ticket mapping with acceptance gates.
+
 ## WRK-20260215-004
 - `Title:` Enforce non-pass-through editing so AI output visibly differs from source footage
 - `Status:` Done

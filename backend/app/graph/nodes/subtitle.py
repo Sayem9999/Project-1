@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Dict
 from ..state import GraphState
 from ...agents import subtitle_agent
+from ...services.post_production_depth import subtitle_qa_report
 
 logger = structlog.get_logger()
 
@@ -41,8 +42,10 @@ async def subtitle_node(state: GraphState) -> Dict[str, Any]:
             
         logger.info("subtitle_node_complete", job_id=job_id, srt_path=str(srt_path))
         
+        qa = subtitle_qa_report(srt_content)
         return {
-            "srt_path": str(srt_path)
+            "srt_path": str(srt_path),
+            "subtitle_qa": qa,
         }
     except Exception as e:
         logger.error("subtitle_node_failed", job_id=job_id, error=str(e))

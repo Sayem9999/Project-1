@@ -21,6 +21,10 @@ if FFMPEG_BINARY != "ffmpeg":
 from ...services.concurrency import limits
 from ...config import settings
 from ...services.workflow_engine import ensure_editing_cuts
+from ...services.post_production_depth import (
+    build_subtitle_filter,
+    build_lower_third_filter,
+)
 
 async def compiler_node(state: GraphState) -> GraphState:
     """
@@ -34,6 +38,8 @@ async def compiler_node(state: GraphState) -> GraphState:
     user_id = state.get("user_id")
     visual_effects = state.get("visual_effects", [])
     srt_path = state.get("srt_path")
+    platform = state.get("user_request", {}).get("platform", "youtube")
+    audio_post_filter = state.get("audio_post_filter")
     
     # 0. Build FFmpeg filter chain
     vf_list = []
@@ -82,10 +88,14 @@ async def compiler_node(state: GraphState) -> GraphState:
 
     # Subtitles (highest priority, added last)
     if srt_path:
-        escaped_srt = str(Path(srt_path).absolute()).replace("\\", "/").replace(":", "\\:")
-        vf_list.append(f"subtitles='{escaped_srt}'")
+        vf_list.append(build_subtitle_filter(srt_path, platform))
+
+    lower_third = build_lower_third_filter(state.get("title") or state.get("director_plan", {}).get("headline"))
+    if lower_third:
+        vf_list.append(lower_third)
 
     compiled_vf = ",".join(vf_list) if vf_list else None
+    compiled_af = audio_post_filter or None
     print(f"--- [Graph] Compiler: Filter Chain -> {compiled_vf} ---")
 
     # 1. Attempt Modal Offloading (GPU)
@@ -101,7 +111,7 @@ async def compiler_node(state: GraphState) -> GraphState:
             fps=24,
             crf=18 if tier == "pro" else 23,
             vf_filters=compiled_vf,
-            af_filters=None
+            af_filters=compiled_af
         )
         if modal_output:
             print(f"--- [Graph] Modal Rendering Success: {modal_output} ---")
@@ -138,8 +148,11 @@ async def compiler_node(state: GraphState) -> GraphState:
                 cuts=cuts,
                 output_path=str(abs_output),
                 vf_filters=compiled_vf,
+                af_filters=compiled_af,
                 crf=18 if tier == "pro" else 23,
                 preset="medium",
+                transition_style=state.get("director_plan", {}).get("transition_style", "dissolve"),
+                transition_duration=float(state.get("director_plan", {}).get("transition_duration", 0.25)),
                 user_id=user_id
             )
             

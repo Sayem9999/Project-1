@@ -2,6 +2,7 @@ import asyncio
 import json
 from ..state import GraphState
 from ...agents import color_agent, vfx_agent
+from ...services.post_production_depth import build_color_pipeline_filters
 
 async def visuals_node(state: GraphState) -> GraphState:
     """
@@ -76,6 +77,19 @@ async def visuals_node(state: GraphState) -> GraphState:
             "type": "ffmpeg_filter",
             "value": clean_filter,
             "name": "vfx_summary"
+        })
+
+    # Add consistent baseline color pipeline filters (scene match + skin protection).
+    pipeline_filters = build_color_pipeline_filters(
+        mood=mood,
+        media_intel=state.get("media_intelligence"),
+        visual_effects=[],
+    )
+    for idx, flt in enumerate(pipeline_filters):
+        effects.append({
+            "type": "ffmpeg_filter",
+            "value": flt,
+            "name": f"color_pipeline_{idx}",
         })
     
     return {"visual_effects": effects}

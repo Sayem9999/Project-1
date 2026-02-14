@@ -18,6 +18,42 @@ Newest entries go first.
 
 ---
 
+## TST-20260215-007
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-007
+- `Related bug:` None
+- `Scope:` True Post-Production Depth foundational execution layer
+- `Test type:` Unit
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe -m pytest -q` in `backend`.
+- `Result:` Pass
+- `Notes:` `33 passed in 7.83s`, including new `test_post_production_depth.py`.
+- `Artifacts:` pytest console output
+
+## TST-20260215-006
+- `Date:` 2026-02-15
+- `Owner/Role:` Analyst + Backend Developer
+- `Related change:` CHG-20260215-006
+- `Related bug:` None
+- `Scope:` Roadmap scope validation for True Post-Production Depth only
+- `Test type:` Manual
+- `Command or procedure:` Review `docs/STUDIO_ROADMAP.md` and verify it contains only timeline/audio/color/graphics depth workstreams.
+- `Result:` Pass
+- `Notes:` Broader MVP/Pro/Enterprise planning sections were removed by design.
+- `Artifacts:` `docs/STUDIO_ROADMAP.md`
+
+## TST-20260215-005
+- `Date:` 2026-02-15
+- `Owner/Role:` Analyst + Backend Developer
+- `Related change:` CHG-20260215-005
+- `Related bug:` None
+- `Scope:` Roadmap documentation quality and ticket map completeness
+- `Test type:` Manual
+- `Command or procedure:` Review `docs/STUDIO_ROADMAP.md` for phased milestones (`MVP`, `Pro`, `Enterprise`), BE/FE ticket mapping, and measurable exit gates.
+- `Result:` Pass
+- `Notes:` Roadmap includes milestone gates, execution order, ownership model, and ticket-level acceptance criteria.
+- `Artifacts:` `docs/STUDIO_ROADMAP.md`
+
 ## TST-20260215-004
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer

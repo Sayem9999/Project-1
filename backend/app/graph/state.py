@@ -22,6 +22,7 @@ class GraphState(TypedDict):
     
     # Audio (Stage 3 Result)
     audio_tracks: List[Dict[str, Any]]
+    audio_post_filter: Optional[str]
     
     # Metadata
     title: Optional[str]
@@ -51,6 +52,12 @@ class GraphState(TypedDict):
     errors: Annotated[List[str], add]
     output_path: Optional[str]
     srt_path: Optional[str]
+    subtitle_qa: Optional[Dict[str, Any]]
+
+    # Post-production depth primitives
+    nested_sequences: Optional[List[Dict[str, Any]]]
+    multicam_sources: Optional[List[Dict[str, Any]]]
+    keyframed_effects: Optional[List[Dict[str, Any]]]
     tier: str  # "pro" or "standard"
     user_id: Optional[int]
 
