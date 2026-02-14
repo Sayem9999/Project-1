@@ -17,6 +17,22 @@ Newest entries go first.
 
 ---
 
+## CHG-20260215-001
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Hardened workflow runtime path resolution and orchestration error logging to improve real job completion reliability.
+- `Why this change was needed:` Backend should produce outputs consistently even when ffmpeg is not globally installed, and failure logging must never crash.
+- `Files changed:`
+  - `backend/app/services/workflow_engine.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260215-001
+- `Validation:` `.\.venv\Scripts\python.exe -m pytest -q` from `backend` passed (`26 passed`).
+- `Rollback plan:` Revert this commit if tool path resolution causes unexpected deployment-specific behavior.
+
 ## CHG-20260214-008
 - `Date:` 2026-02-14
 - `Owner/Role:` Backend Developer

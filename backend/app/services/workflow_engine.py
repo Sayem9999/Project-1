@@ -6,6 +6,7 @@ import shutil
 import os
 import copy
 from pathlib import Path
+import structlog
 from sqlalchemy import select
 from ..db import SessionLocal, engine
 from ..models import Job
@@ -23,6 +24,17 @@ from .n8n_service import n8n_service
 
 # Redis for progress publishing (optional)
 REDIS_URL = os.getenv("REDIS_URL")
+logger = structlog.get_logger()
+
+
+def _resolve_tool_path(tool_name: str) -> str:
+    """Resolve bundled FFmpeg tools first, then fallback to PATH."""
+    ext = ".exe" if os.name == "nt" else ""
+    repo_root = Path(__file__).resolve().parents[3]
+    bundled = repo_root / "tools" / "ffmpeg-8.0.1-essentials_build" / "bin" / f"{tool_name}{ext}"
+    if bundled.exists():
+        return str(bundled)
+    return tool_name
 
 
 def detect_gpu_encoder() -> str:
@@ -32,14 +44,15 @@ def detect_gpu_encoder() -> str:
     """
     # Check for NVIDIA GPU (NVENC)
     try:
+        ffmpeg_bin = _resolve_tool_path("ffmpeg")
         result = subprocess.run(
-            ["ffmpeg", "-hide_banner", "-encoders"],
+            [ffmpeg_bin, "-hide_banner", "-encoders"],
             capture_output=True, text=True, timeout=5
         )
         if "h264_nvenc" in result.stdout:
             # Verify NVENC actually works
             test = subprocess.run(
-                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "nullsrc=s=256x256:d=0.1", 
+                [ffmpeg_bin, "-hide_banner", "-f", "lavfi", "-i", "nullsrc=s=256x256:d=0.1", 
                  "-c:v", "h264_nvenc", "-f", "null", "-"],
                 capture_output=True, timeout=10
             )
@@ -52,8 +65,9 @@ def detect_gpu_encoder() -> str:
     # Check for AMD/Intel VAAPI
     try:
         if os.path.exists("/dev/dri/renderD128"):
+            ffmpeg_bin = _resolve_tool_path("ffmpeg")
             result = subprocess.run(
-                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "nullsrc=s=256x256:d=0.1",
+                [ffmpeg_bin, "-hide_banner", "-f", "lavfi", "-i", "nullsrc=s=256x256:d=0.1",
                  "-vaapi_device", "/dev/dri/renderD128", "-vf", "hwupload,scale_vaapi=256:256",
                  "-c:v", "h264_vaapi", "-f", "null", "-"],
                 capture_output=True, timeout=10
@@ -374,8 +388,9 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
         # Extract thumbnail
         final_thumb_rel_path = None
         if thumb_data.get("best_timestamp"):
+            ffmpeg_bin = _resolve_tool_path("ffmpeg")
             thumb_path = Path(settings.storage_root) / "outputs" / f"job-{job_id}-thumb.jpg"
-            thumb_cmd = ["ffmpeg", "-y", "-ss", str(thumb_data["best_timestamp"]), "-i", str(src), "-vframes", "1", "-q:v", "2", str(thumb_path)]
+            thumb_cmd = [ffmpeg_bin, "-y", "-ss", str(thumb_data["best_timestamp"]), "-i", str(src), "-vframes", "1", "-q:v", "2", str(thumb_path)]
             thumb_proc = await asyncio.create_subprocess_exec(*thumb_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
             await thumb_proc.communicate()
             if thumb_path.exists():

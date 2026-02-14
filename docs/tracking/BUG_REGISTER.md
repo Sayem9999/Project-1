@@ -37,6 +37,24 @@ Newest entries go first.
 
 ---
 
+## BUG-20260215-001
+- `Title:` Workflow runtime could fail due to unresolved ffmpeg binary and undefined logger in orchestration path
+- `Date reported:` 2026-02-15
+- `Reported by:` Codex backend hardening pass
+- `Owner:` Backend Developer
+- `Severity:` S2
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Standard workflow used bare `ffmpeg` commands and could fail when ffmpeg was not on PATH; orchestrated render failure path referenced `logger` without definition.
+- `Expected behavior:` Workflow should use bundled ffmpeg when available and log orchestration errors without NameError.
+- `Root cause:` Tool path resolution not reused in workflow engine and missing logger initialization in module scope.
+- `Fix summary:` Added `_resolve_tool_path(...)` and replaced bare `ffmpeg` calls in GPU detection/thumbnail extraction; added `structlog` logger setup.
+- `Files changed:`
+  - `backend/app/services/workflow_engine.py`
+- `Validation evidence:` TST-20260215-001
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-001
+
 ## BUG-20260214-005
 - `Title:` Missing outbound n8n webhook reliability controls and brittle ffmpeg test bootstrap
 - `Date reported:` 2026-02-14

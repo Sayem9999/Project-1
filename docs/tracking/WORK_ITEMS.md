@@ -21,6 +21,21 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ---
 
+## WRK-20260215-001
+- `Title:` Remove runtime blockers in workflow engine so backend job processing reliably produces outputs
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` Jobs can fail at runtime when FFmpeg is not on PATH or when orchestration error logging hits undefined logger.
+- `Scope / files:`
+  - `backend/app/services/workflow_engine.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Bundled ffmpeg binary under `tools/ffmpeg-8.0.1-essentials_build/bin`
+- `Exit criteria:` Workflow uses resolved ffmpeg path and no runtime NameError in orchestration failure path.
+
 ## WRK-20260214-008
 - `Title:` Integrate outbound n8n status webhook with retries/signature and protect pipeline from n8n outages
 - `Status:` Done

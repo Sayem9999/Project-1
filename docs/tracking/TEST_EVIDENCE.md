@@ -18,6 +18,18 @@ Newest entries go first.
 
 ---
 
+## TST-20260215-001
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-001
+- `Related bug:` BUG-20260215-001
+- `Scope:` Workflow engine runtime hardening (ffmpeg resolution + logger safety)
+- `Test type:` Unit
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe -m pytest -q` in `backend`.
+- `Result:` Pass
+- `Notes:` `26 passed in 6.53s`.
+- `Artifacts:` pytest console output
+
 ## TST-20260214-008
 - `Date:` 2026-02-14
 - `Owner/Role:` Backend Developer
