@@ -264,11 +264,12 @@ async def process_job_standard(job_id: int, source_path: str, pacing: str = "med
                 vf_filters.append(color_res["ffmpeg_color_filter"])
             
             # VFX Filters
-            for effect in vfx_res.get("effects", []):
-                if isinstance(effect, dict) and "filter" in effect:
-                    vf_filters.append(effect["filter"])
+            if vfx_res.get("effects"):
+                for effect in vfx_res["effects"]:
+                    if isinstance(effect, dict) and "filter" in effect:
+                        vf_filters.append(effect["filter"])
             elif vfx_res.get("ffmpeg_filter"):
-                 vf_filters.append(vfx_res["ffmpeg_filter"].replace('-vf "', '').replace('"', '').strip())
+                vf_filters.append(vfx_res["ffmpeg_filter"].replace('-vf "', '').replace('"', '').strip())
             
             if srt_path:
                 escaped_srt = str(srt_path.absolute()).replace("\\", "/").replace(":", "\\:")
