@@ -32,6 +32,7 @@ async def compiler_node(state: GraphState) -> GraphState:
     tier = state.get("tier", "standard")
     user_id = state.get("user_id")
     visual_effects = state.get("visual_effects", [])
+    srt_path = state.get("srt_path")
     
     # 0. Build FFmpeg filter chain
     vf_list = []
