@@ -45,6 +45,37 @@ async def compiler_node(state: GraphState) -> GraphState:
     for effect in visual_effects:
         if isinstance(effect, dict) and effect.get("type") == "ffmpeg_filter":
             val = effect.get("value", "").strip()
+            if not val:
+                continue
+            
+            # Robust LUT Check: AI often suggests LUTs that don't exist on disk, crashing FFmpeg
+            if "lut3d" in val:
+                import re
+                # Extract filename from lut3d=filename.cube
+                match = re.search(r"lut3d=['\"]?([^'\", ]+)['\"]?", val)
+                if match:
+                    lut_name = match.group(1)
+                    # Common locations
+                    lut_paths = [
+                        Path(os.getcwd()) / "assets" / "luts" / lut_name,
+                        Path(os.getcwd()) / "backend" / "assets" / "luts" / lut_name,
+                        Path(os.getcwd()) / "app" / "assets" / "luts" / lut_name,
+                    ]
+                    
+                    found = False
+                    for p in lut_paths:
+                        if p.exists():
+                            # Path must be absolute and escaped for FFmpeg
+                            abs_lut = str(p.absolute()).replace("\\", "/").replace(":", "\\:")
+                            val = val.replace(lut_name, abs_lut)
+                            found = True
+                            break
+                    
+                    if not found:
+                        print(f"--- [Graph] Compiler Warning: LUT '{lut_name}' not found. Stripping filter. ---")
+                        # Strip the lut3d component from the filter string
+                        val = re.sub(r",?lut3d=['\"]?[^'\", ]+['\"]?", "", val).strip(",")
+            
             if val:
                 vf_list.append(val)
 

@@ -96,13 +96,13 @@ workflow.add_conditional_edges(
     }
 )
 
-# Conditional: Iteration Check -> Director (Revise) or Abort
+# Conditional: Iteration Check -> Director (Revise) or Compile (Best Effort)
 workflow.add_conditional_edges(
     "iteration_control",
     should_revise,
     {
         "revise": "director",
-        "proceed": END  # Max iterations reached or no improvement
+        "proceed": "compiler"  # Max iterations reached or no improvement -> Compile anyway
     }
 )
 

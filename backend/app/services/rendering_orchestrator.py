@@ -111,13 +111,17 @@ class RenderingOrchestrator:
         preset: str = "veryfast"
     ):
         """Renders a single scene with a semaphore."""
+        # Convert to absolute paths to avoid FFmpeg CWD issues
+        abs_src = os.path.abspath(source_path)
+        abs_out = os.path.abspath(out_path)
+        
         async with limits.scene_render_semaphore:
             # Use fast-seek (-ss before -i) for speed
             cmd = [
                 self.ffmpeg_path, "-y",
                 "-ss", str(start),
                 "-t", str(duration),
-                "-i", source_path,
+                "-i", abs_src,
                 "-c:v", "libx264", "-preset", preset, "-crf", str(crf),
                 "-c:a", "aac", "-b:a", "128k",
                 "-avoid_negative_ts", "make_zero",
@@ -128,7 +132,7 @@ class RenderingOrchestrator:
             if af_filters:
                 cmd += ["-af", af_filters]
                 
-            cmd.append(out_path)
+            cmd.append(abs_out)
             
             proc = await asyncio.create_subprocess_exec(
                 *cmd, 
@@ -139,6 +143,8 @@ class RenderingOrchestrator:
             
             if proc.returncode != 0:
                 err_msg = stderr.decode()[-500:]
+                # Log full command for debugging on failure
+                logger.error("ffmpeg_scene_failed", job_id=job_id, command=" ".join(cmd), error=err_msg)
                 raise Exception(f"FFmpeg scene render failed: {err_msg}")
 
     async def _concatenate_scenes(self, job_id: int, scene_files: List[Path], out_path: str) -> bool:
