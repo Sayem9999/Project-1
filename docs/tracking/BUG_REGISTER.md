@@ -37,6 +37,28 @@ Newest entries go first.
 
 ---
 
+## BUG-20260214-004
+- `Title:` Production queue dispatch path lacked deterministic preflight guards
+- `Date reported:` 2026-02-14
+- `Reported by:` Codex test run
+- `Owner:` Backend Developer
+- `Severity:` S2
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` `enqueue_job` returned generic dispatch failures when no workers or no queue subscribers existed; dispatch path also relied on late `asyncio` import.
+- `Expected behavior:` Production path should fail early with actionable 503 details for worker visibility and queue subscription.
+- `Root cause:` Missing explicit preflight checks against Celery diagnostics and late import placement.
+- `Fix summary:` Added production diagnostics checks for worker count and queue consumer presence; moved `asyncio` import to module level.
+- `Files changed:`
+  - `backend/app/routers/jobs.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Validation evidence:` TST-20260214-007
+- `Regression risk:` Low
+- `Linked change:` CHG-20260214-007
+
 ## BUG-20260214-003
 - `Title:` Risky bootstrap default and brittle cache health/query behavior
 - `Date reported:` 2026-02-14

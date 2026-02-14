@@ -21,6 +21,21 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ---
 
+## WRK-20260214-007
+- `Title:` Stabilize backend queue preflight behavior and green test suite
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` Production dispatch errors need deterministic diagnostics, and backend tests must stay green.
+- `Scope / files:`
+  - `backend/app/routers/jobs.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing Celery diagnostics helper in jobs router
+- `Exit criteria:` Queue preflight checks are explicit and `pytest` passes.
+
 ## WRK-20260214-006
 - `Title:` Harden admin cache/query semantics and configuration defaults
 - `Status:` Done
