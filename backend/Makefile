@@ -11,6 +11,7 @@ help:
 	@echo "  lock         - Generate requirements.lock from requirements.in"
 	@echo "  test         - Run all tests"
 	@echo "  lint         - Run linting checks"
+	@echo "  ready        - Run backend readiness preflight"
 	@echo "  run          - Start development server"
 	@echo "  clean        - Remove generated files"
 
@@ -34,6 +35,10 @@ migrate:
 # Run all tests
 test:
 	pytest tests/ -v --tb=short
+
+# Readiness preflight
+ready:
+	python scripts/readiness_check.py
 
 # Run tests with coverage
 test-cov:

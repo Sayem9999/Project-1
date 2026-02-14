@@ -18,6 +18,30 @@ Newest entries go first.
 
 ---
 
+## TST-20260215-003
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-003
+- `Related bug:` BUG-20260215-003
+- `Scope:` Deployment readiness + live startup verification
+- `Test type:` Integration
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe scripts\readiness_check.py`, `.\.venv\Scripts\python.exe -m alembic upgrade head`, `.\.venv\Scripts\python.exe -m pytest -q`, then start uvicorn and query `/health` + `/ready`.
+- `Result:` Pass
+- `Notes:` Readiness reported READY; migration applied; tests `26 passed`; live endpoint checks returned HTTP 200.
+- `Artifacts:` console output from readiness/migration/pytest/live health checks
+
+## TST-20260215-002
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-002
+- `Related bug:` BUG-20260215-002
+- `Scope:` Backend launch/readiness hardening and ffmpeg runtime fallback behavior
+- `Test type:` Unit
+- `Command or procedure:` Run `.\.venv\Scripts\python.exe scripts\readiness_check.py` and `.\.venv\Scripts\python.exe -m pytest -q` in `backend`.
+- `Result:` Pass
+- `Notes:` Readiness preflight reports READY; pytest result is `26 passed in 7.76s`.
+- `Artifacts:` preflight console output + pytest console output
+
 ## TST-20260215-001
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer

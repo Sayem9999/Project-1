@@ -37,6 +37,54 @@ Newest entries go first.
 
 ---
 
+## BUG-20260215-003
+- `Title:` Backend lacked an executable deployment preflight and live-start verification path
+- `Date reported:` 2026-02-15
+- `Reported by:` Codex deploy pass
+- `Owner:` Backend Developer
+- `Severity:` S3
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Deployment success depended on manual assumptions; no single preflight signal existed to confirm ffmpeg/db/redis/llm/n8n consistency before startup.
+- `Expected behavior:` A pre-deploy check should deterministically report readiness, and deployment verification should include live endpoint checks.
+- `Root cause:` Operational tooling was fragmented across scripts without a dedicated readiness gate.
+- `Fix summary:` Added `readiness_check.py`, `make ready`, updated env template + readiness docs, hardened ffmpeg runtime fallback paths, and verified live `/health` and `/ready` after startup.
+- `Files changed:`
+  - `backend/.env.example`
+  - `backend/Makefile`
+  - `backend/docs/READINESS.md`
+  - `backend/scripts/readiness_check.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/tests/test_parallel_render.py`
+- `Validation evidence:` TST-20260215-003
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-003
+
+## BUG-20260215-002
+- `Title:` Backend readiness depended on missing ffmpeg binaries and outdated env template keys
+- `Date reported:` 2026-02-15
+- `Reported by:` Codex readiness run
+- `Owner:` Backend Developer
+- `Severity:` S2
+- `Status:` Resolved
+- `Environment:` Local
+- `Symptoms:` Readiness failed when ffmpeg was not on PATH, `.env.example` still referenced obsolete `N8N_WEBHOOK_URL`, and no one-command preflight existed.
+- `Expected behavior:` Backend should have a current env template and a deterministic readiness check that validates core runtime dependencies.
+- `Root cause:` Migration away from repo-shipped ffmpeg artifacts left runtime assumptions partially coupled to PATH.
+- `Fix summary:` Added readiness script + Makefile target + readiness doc; updated env template for n8n keys; added `imageio_ffmpeg` fallback in runtime ffmpeg resolution; made parallel-render test duration check resilient without ffprobe.
+- `Files changed:`
+  - `backend/.env.example`
+  - `backend/scripts/readiness_check.py`
+  - `backend/Makefile`
+  - `backend/docs/READINESS.md`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/tests/test_parallel_render.py`
+- `Validation evidence:` TST-20260215-002
+- `Regression risk:` Low
+- `Linked change:` CHG-20260215-002
+
 ## BUG-20260215-001
 - `Title:` Workflow runtime could fail due to unresolved ffmpeg binary and undefined logger in orchestration path
 - `Date reported:` 2026-02-15

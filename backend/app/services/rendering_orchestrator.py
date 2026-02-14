@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 from pathlib import Path
 from typing import List, Dict, Any
 import structlog
@@ -30,6 +31,15 @@ class RenderingOrchestrator:
         for p in paths_to_check:
             if os.path.exists(p):
                 return os.path.abspath(p)
+        on_path = shutil.which("ffmpeg")
+        if on_path:
+            return on_path
+        try:
+            import imageio_ffmpeg
+
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            pass
         return "ffmpeg"
 
     async def render_parallel(

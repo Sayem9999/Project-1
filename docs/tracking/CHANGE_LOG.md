@@ -17,6 +17,50 @@ Newest entries go first.
 
 ---
 
+## CHG-20260215-003
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Executed deployment hardening and verified a live backend start with passing health/ready checks.
+- `Why this change was needed:` You requested to continue fixing/improving and deploy; this closes operational gaps so backend can be started and validated reliably.
+- `Files changed:`
+  - `backend/.env.example`
+  - `backend/Makefile`
+  - `backend/docs/READINESS.md`
+  - `backend/scripts/readiness_check.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/tests/test_parallel_render.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260215-003
+- `Validation:` readiness script passed; alembic upgraded to head; pytest passed (`26 passed`); live server returned HTTP 200 for `/health` and `/ready`.
+- `Rollback plan:` Revert this commit to restore previous startup/readiness workflow.
+
+## CHG-20260215-002
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Added backend readiness tooling and hardened ffmpeg runtime resolution so backend can start and render reliably in local environments.
+- `Why this change was needed:` You requested the backend be ready to produce results; readiness failed due to ffmpeg assumptions and outdated n8n env template keys.
+- `Files changed:`
+  - `backend/.env.example`
+  - `backend/scripts/readiness_check.py`
+  - `backend/Makefile`
+  - `backend/docs/READINESS.md`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/tests/test_parallel_render.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260215-002
+- `Validation:` `.\.venv\Scripts\python.exe scripts\readiness_check.py` passed and `.\.venv\Scripts\python.exe -m pytest -q` passed (`26 passed`).
+- `Rollback plan:` Revert this commit to return to previous startup/readiness behavior.
+
 ## CHG-20260215-001
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer

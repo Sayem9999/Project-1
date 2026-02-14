@@ -1,6 +1,7 @@
 import asyncio
 import os
 import shutil
+import re
 import sys
 from pathlib import Path
 
@@ -20,6 +21,13 @@ def _resolve_tool(tool_name: str) -> str:
     bundled = project_root / "tools" / "ffmpeg-8.0.1-essentials_build" / "bin" / f"{tool_name}{exe}"
     if bundled.exists():
         return str(bundled)
+    if tool_name == "ffmpeg":
+        try:
+            import imageio_ffmpeg
+
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            pass
     return tool_name
 
 
@@ -62,10 +70,20 @@ async def test_parallel_render():
         print(f"SUCCESS: Rendered video at {output_path}")
         # Check duration (should be ~6s)
         ffprobe_bin = _resolve_tool("ffprobe")
-        cmd = [ffprobe_bin, "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", output_path]
-        proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE)
-        stdout, _ = await proc.communicate()
-        duration = float(stdout.decode().strip())
+        if ffprobe_bin == "ffprobe":
+            ffmpeg_bin = _resolve_tool("ffmpeg")
+            cmd = [ffmpeg_bin, "-i", output_path]
+            proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            _, stderr = await proc.communicate()
+            match = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", stderr.decode(errors="ignore"))
+            assert match is not None, "Could not parse output duration from ffmpeg output"
+            hh, mm, ss = match.groups()
+            duration = int(hh) * 3600 + int(mm) * 60 + float(ss)
+        else:
+            cmd = [ffprobe_bin, "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", output_path]
+            proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE)
+            stdout, _ = await proc.communicate()
+            duration = float(stdout.decode().strip())
         print(f"Final duration: {duration}s (expected ~6s)")
         if 5.8 <= duration <= 6.2:
             print("Duration check PASSED")

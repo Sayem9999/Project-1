@@ -21,6 +21,48 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ---
 
+## WRK-20260215-003
+- `Title:` Finalize backend deployment readiness and verify live startup endpoints
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` Backend must be verifiably deployable with migrations applied, health endpoints reachable, and readiness checks passing.
+- `Scope / files:`
+  - `backend/.env.example`
+  - `backend/Makefile`
+  - `backend/docs/READINESS.md`
+  - `backend/scripts/readiness_check.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/tests/test_parallel_render.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` Existing backend `.venv`, alembic migrations, and runtime config in `.env`
+- `Exit criteria:` readiness preflight passes, migrations are at head, tests pass, and `/health` + `/ready` return 200 on a live process.
+
+## WRK-20260215-002
+- `Title:` Add backend readiness preflight and make ffmpeg runtime resolution independent of PATH/bundled binaries
+- `Status:` Done
+- `Owner/Role:` Backend Developer
+- `Priority:` P1
+- `Why this matters:` Backend should be launch-ready with a deterministic preflight and should still render when ffmpeg is not globally installed or repo-shipped.
+- `Scope / files:`
+  - `backend/.env.example`
+  - `backend/scripts/readiness_check.py`
+  - `backend/Makefile`
+  - `backend/docs/READINESS.md`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/services/rendering_orchestrator.py`
+  - `backend/tests/test_parallel_render.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Dependencies:` `imageio_ffmpeg` from existing dependency graph
+- `Exit criteria:` `scripts/readiness_check.py` reports READY and backend test suite stays green.
+
 ## WRK-20260215-001
 - `Title:` Remove runtime blockers in workflow engine so backend job processing reliably produces outputs
 - `Status:` Done

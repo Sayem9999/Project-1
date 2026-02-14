@@ -34,6 +34,16 @@ def _resolve_tool_path(tool_name: str) -> str:
     bundled = repo_root / "tools" / "ffmpeg-8.0.1-essentials_build" / "bin" / f"{tool_name}{ext}"
     if bundled.exists():
         return str(bundled)
+    on_path = shutil.which(tool_name)
+    if on_path:
+        return on_path
+    if tool_name == "ffmpeg":
+        try:
+            import imageio_ffmpeg
+
+            return imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            pass
     return tool_name
 
 
