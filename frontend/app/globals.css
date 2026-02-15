@@ -2,29 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap");
 
 :root {
   /* Deep Obsidian Palette - High Contrast Depth */
-  --obsidian-950: #020408;
-  --obsidian-900: #050a14;
-  --obsidian-800: #0f172a;
-  --obsidian-700: #1e293b;
-  
-  /* Brand Glow Palette */
-  --brand-cyan: #06b6d4;
-  --brand-violet: #8b5cf6;
-  --brand-fuchsia: #d946ef;
+  --obsidian-950: #010204;
+  --obsidian-900: #03060c;
+  --obsidian-800: #0a0f1d;
+  --obsidian-700: #111827;
+
+  /* Brand Glow Palette - More Vibrant HSL */
+  --brand-cyan: #00e5ff;
+  --brand-violet: #a855f7;
+  --brand-fuchsia: #f0abfc;
   --brand-accent: #22d3ee;
 
   /* Glassmorphism System */
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-highlight: rgba(255, 255, 255, 0.03);
-  --glass-bg-sm: rgba(5, 10, 20, 0.3);
-  --glass-bg-md: rgba(5, 10, 20, 0.6);
-  --glass-bg-lg: rgba(2, 4, 8, 0.85);
-  
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-highlight: rgba(255, 255, 255, 0.02);
+  --glass-bg-sm: rgba(3, 6, 12, 0.4);
+  --glass-bg-md: rgba(3, 6, 12, 0.7);
+  --glass-bg-lg: rgba(1, 2, 4, 0.9);
+
   --layout-pl: 18rem; /* 72 units */
 }
 
@@ -40,27 +40,41 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   background: var(--obsidian-950);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(0, 229, 255, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.03) 0px, transparent 50%);
   color: #fff;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Outfit', sans-serif;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Outfit", sans-serif;
+  letter-spacing: -0.02em;
 }
 
 ::selection {
-  background: rgba(6, 182, 212, 0.3);
+  background: rgba(0, 229, 255, 0.2);
   color: #fff;
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -68,33 +82,33 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Glassmorphism primitives */
 .glass-sm {
   background: var(--glass-bg-sm);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
 }
 
 .glass-md {
   background: var(--glass-bg-md);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
 }
 
 .glass-lg {
   background: var(--glass-bg-lg);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
   border: 1px solid var(--glass-border);
 }
 
@@ -103,38 +117,50 @@ h1, h2, h3, h4, h5, h6 {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }
 
 .glass-heavy {
   background: var(--glass-bg-lg);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
   border: 1px solid var(--glass-border);
 }
 
 .glass-card {
-  background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(10px);
-  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-card:hover {
-  background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
-  border-color: rgba(255, 255, 255, 0.15);
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-6px) scale(1.01);
+  box-shadow:
+    0 20px 40px -12px rgba(0, 0, 0, 0.8),
+    0 0 20px -5px rgba(0, 229, 255, 0.1);
 }
 
 /* Background Patterns */
 .bg-grid-pattern {
-  background-size: 40px 40px;
-  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 50px 50px;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.01) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
 }
 
 .bg-grid-white\/5 {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgba(255,255,255,0.05)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgba(255,255,255,0.03)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e");
 }
 
 /* Global FX Layer */
@@ -142,13 +168,14 @@ h1, h2, h3, h4, h5, h6 {
   position: absolute;
   inset: 0;
   background: radial-gradient(
-    520px circle at var(--cursor-x) var(--cursor-y),
-    rgba(6, 182, 212, 0.14),
-    rgba(6, 182, 212, 0.05) 25%,
-    rgba(2, 6, 23, 0) 62%
+    600px circle at var(--cursor-x) var(--cursor-y),
+    rgba(0, 229, 255, 0.08),
+    rgba(168, 85, 247, 0.04) 30%,
+    transparent 70%
   );
-  transition: background 120ms linear;
+  transition: opacity 0.3s ease;
   pointer-events: none;
+  z-index: 1;
 }
 
 .ambient-orb {
@@ -177,7 +204,10 @@ h1, h2, h3, h4, h5, h6 {
 .ambient-noise {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 0.8px, transparent 0.8px);
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.04) 0.8px,
+    transparent 0.8px
+  );
   background-size: 3px 3px;
   opacity: 0.18;
   mix-blend-mode: soft-light;

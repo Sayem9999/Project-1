@@ -537,6 +537,46 @@ export default function JobPageClient({ id }: { id: string }) {
               <ABTestVariants result={job.ab_test_result} />
             )}
 
+            {job.director_plan && (
+              <div className="glass-panel p-6 rounded-[32px] border-brand-cyan/20 bg-gradient-to-br from-brand-cyan/[0.05] to-transparent relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-cyan/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6 flex items-center gap-2 relative z-10">
+                  <Sparkles className="w-4 h-4 text-brand-cyan animate-pulse" />
+                  Creative Director Insights
+                </h3>
+                <div className="space-y-4 relative z-10">
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/5 group-hover:border-brand-cyan/20 transition-colors">
+                    <p className="text-xs text-gray-400 italic leading-relaxed">
+                      "
+                      {job.director_plan?.vision ||
+                        job.director_plan?.creative_reasoning ||
+                        (job.mood === "clawdbot"
+                          ? "OpenClaw specialized editing strategy active."
+                          : "Standard AI creative orchestration.")}
+                      "
+                    </p>
+                  </div>
+                  {job.director_plan?.key_scenes && (
+                    <div className="flex flex-wrap gap-2">
+                      {Array.isArray(job.director_plan.key_scenes) &&
+                        job.director_plan.key_scenes
+                          .slice(0, 3)
+                          .map((scene: any, i: number) => (
+                            <div
+                              key={i}
+                              className="px-2 py-1 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 text-[9px] font-bold text-brand-cyan uppercase"
+                            >
+                              {typeof scene === "string"
+                                ? scene
+                                : scene.event || "Key Moment"}
+                            </div>
+                          ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Phase 7: Pro Studio Intelligence */}
             {isComplete && (
               <div className="glass-panel p-6 rounded-[32px] border-brand-cyan/20 bg-brand-cyan/[0.02]">

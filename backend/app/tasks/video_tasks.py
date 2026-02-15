@@ -77,6 +77,9 @@ try:
         except:
             pass
             
+        from ..services.worker_heartbeat import update_worker_heartbeat
+        update_worker_heartbeat()
+        
         publish_progress(job_id, "processing", f"Starting video processing ({tier})...", 5)
         
         try:

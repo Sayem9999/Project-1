@@ -3,7 +3,6 @@ import asyncio
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
-from datetime import datetime, timezone
 
 from ..db import get_session
 from ..deps import get_current_user
@@ -13,6 +12,7 @@ from ..services.integration_health import get_integration_health
 from ..config import settings
 from .jobs import _dispatch_job_background
 from ..services.cleanup_service import cleanup_service
+from ..services.worker_heartbeat import get_worker_status
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -314,6 +314,16 @@ async def admin_force_retry_job(
     )
     return {"status": "ok", "job_id": job.id, "forced": True}
 
+
+@router.get("/integrations/health")
+async def get_admin_integrations_health(
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+    return get_integration_health(run_probe=True)
+
+
 from ..services.admin_cache import get_cached_stats, get_cached_health
 
 @router.get("/stats")
@@ -336,13 +346,11 @@ async def get_admin_health(
     return get_cached_health()
 
 
-@router.get("/integrations/health")
-async def get_admin_integrations_health(
+@router.get("/worker-status")
+async def get_admin_worker_status(
     current_user: User = Depends(get_current_user)
 ):
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Admin permissions required")
-    return get_integration_health(run_probe=True)
+    return get_worker_status()
 
 
 @router.get("/performance")
