@@ -67,6 +67,10 @@ module.exports = {
       href: "pro_e2e.json"
     },
     {
+      html: '<i class="fa-sharp fa-solid fa-diagram-project text-emerald-400"></i> <b>Generate Professional Pipeline</b>',
+      href: "backend/scripts/generate_hybrid_pipeline.py"
+    },
+    {
       html: '<hr>'
     },
     {
