@@ -9,21 +9,22 @@ help:
 	@echo "  dev-setup    - One-command development setup"
 	@echo "  install      - Install dependencies from lock file"
 	@echo "  lock         - Generate requirements.lock from requirements.in"
+# Makefile for edit.ai backend
+# Usage: make <target>
+
+.PHONY: help install dev-setup test lint clean run setup-ide
+
+# Default target
+help:
+	@echo "Available targets:"
+	@echo "  dev-setup    - One-command development setup"
+	@echo "  install      - Install dependencies from lock file"
+	@echo "  lock         - Generate requirements.lock from requirements.in"
 	@echo "  test         - Run all tests"
 	@echo "  lint         - Run linting checks"
 	@echo "  ready        - Run backend readiness preflight"
 	@echo "  run          - Start development server"
 	@echo "  clean        - Remove generated files"
-
-# One-command development setup
-dev-setup: install migrate
-	@echo "✅ Development environment ready!"
-
-# Install exact locked dependencies
-install:
-	pip install pip-tools
-	pip install -r requirements.lock
-
 # Generate lock file from requirements.in
 lock:
 	pip-compile requirements.in -o requirements.lock --strip-extras

@@ -1,22 +1,9 @@
 import React from 'react';
 
+import { MediaIntelligence } from '@/lib/types';
+
 interface MediaStatsProps {
-    intelligence?: {
-        video?: {
-            width?: number;
-            height?: number;
-            fps?: number;
-            duration?: number;
-            scene_count?: number;
-            avg_motion_score?: number;
-        };
-        audio?: {
-            loudness_i?: number;
-            loudness_lra?: number;
-            speech_percentage?: number;
-            silent_regions?: number;
-        };
-    };
+    intelligence?: MediaIntelligence | null; // Allow null here to match Job interface
 }
 
 export default function MediaStats({ intelligence }: MediaStatsProps) {

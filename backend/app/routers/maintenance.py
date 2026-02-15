@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..agents.architect_agent import architect_agent
 from ..agents.maintenance_agent import maintenance_agent
+from ..agents.frontend_agent import frontend_agent
+from ..agents.backend_agent import backend_agent
+from ..agents.analyst_agent import analyst_agent
 from ..config import settings
 from ..db import get_session
 from ..deps import get_current_user
@@ -223,6 +226,30 @@ async def ask_architect(payload: Dict[str, Any], current_user: User = Depends(ge
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
     return await architect_agent.run(payload)
+
+
+@router.post("/frontend")
+async def ask_frontend(payload: Dict[str, Any], current_user: User = Depends(get_current_user)):
+    """Ask the Frontend Specialist."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    return await frontend_agent.run(payload)
+
+
+@router.post("/backend")
+async def ask_backend(payload: Dict[str, Any], current_user: User = Depends(get_current_user)):
+    """Ask the Backend Specialist."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    return await backend_agent.run(payload)
+
+
+@router.post("/analyst")
+async def ask_analyst(payload: Dict[str, Any], current_user: User = Depends(get_current_user)):
+    """Ask the Analyst Specialist."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    return await analyst_agent.run(payload)
 
 
 @router.post("/audit")

@@ -18,6 +18,7 @@ ProEdit is an advanced automated video editing platform that uses a multi-agent 
     *   **Brand Safety**: Automated content moderation and safety checks.
 *   **Real-time Processing**: WebSocket-based progress tracking with detailed stage-by-stage visualization.
 *   **Media Intelligence**: Deep technical analysis of source media (Resolution, Loudness, Scene Detection).
+*   **Reliability & Autonomy**: Self-healing architecture with transient error retries, detailed health monitoring, and automated admin cache optimization.
 *   **Admin Panel**: Comprehensive dashboard for user management and job monitoring.
 
 ## 🛠 Tech Stack

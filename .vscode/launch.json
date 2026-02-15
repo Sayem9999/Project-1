@@ -1,0 +1,51 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: API",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--reload",
+        "--port",
+        "8000"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "ENVIRONMENT": "development"
+      },
+      "justMyCode": true
+    },
+    {
+      "name": "Backend: Celery Worker",
+      "type": "python",
+      "request": "launch",
+      "module": "celery",
+      "args": [
+        "-A",
+        "app.celery_app",
+        "worker",
+        "--loglevel=info",
+        "--pool=solo"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "ENVIRONMENT": "development"
+      }
+    },
+    {
+      "name": "Frontend: Dev",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "${workspaceFolder}/frontend",
+      "console": "integratedTerminal"
+    }
+  ]
+}

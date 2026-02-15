@@ -1,23 +1,6 @@
 import React from 'react';
 import { Copy, TrendingUp, Sparkles } from 'lucide-react';
-
-interface Variant {
-    id: string;
-    type: string;
-    content: {
-        description: string;
-        implementation: string;
-        title?: string;
-        hook_text?: string;
-    };
-    predicted_performance: number;
-}
-
-interface ABTestResult {
-    variants: Variant[];
-    rankings: string[];
-    rationale: string;
-}
+import { ABTestResult } from '@/lib/types';
 
 interface ABTestVariantsProps {
     result?: ABTestResult;

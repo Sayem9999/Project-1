@@ -1,19 +1,7 @@
 import React from 'react';
 import { Shield, AlertTriangle, CheckCircle } from 'lucide-react';
 
-interface Violation {
-    type: string;
-    severity: string;
-    timestamp?: number;
-    description: string;
-}
-
-interface BrandSafetyResult {
-    is_safe: boolean;
-    violations: Violation[];
-    risk_score: number;
-    recommendations: string[];
-}
+import { BrandSafetyResult } from '@/lib/types';
 
 interface BrandSafetyCardProps {
     result?: BrandSafetyResult;

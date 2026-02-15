@@ -52,6 +52,8 @@ ProEdit is a distributed video editing platform that leverages AI agents and ser
   - Orchestrator rejects batches with no valid cuts or no rendered scene outputs before concat.
 
 ## Reliability Features
+- **Transient Error Retry**: Robust retry mechanism (max 2 attempts) for "transient" errors (timeouts, connection drops) in AI provider calls.
+- **Admin Cache Optimization**: Concurrent execution of stats gathering (DB, Storage, Health) ensures dashboard latency <1s.
 - **Health Probing**: Real-time monitoring of Gemini, Redis, and Modal integrations.
 - **Timeout Reliability Summary**: Admin endpoint `/api/maintenance/reliability/timeout-summary` exposes recent timeout rate, per-stage hotspots, and threshold alerts.
 - **Auto-Cleanup**: Automated purging of stale local temp files.

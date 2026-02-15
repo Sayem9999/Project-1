@@ -21,7 +21,7 @@ class RoutingPolicy:
     """Policy for selecting AI provider."""
     task_type: TaskType = "simple"
     latency_budget_ms: int = 30000  # 30 seconds default
-    max_cost_usd: float = 0.10
+    max_cost_usd: float = 1.00
     min_quality_tier: QualityTier = "standard"
     prefer_cached: bool = True
     allow_fallback: bool = True

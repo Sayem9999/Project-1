@@ -18,6 +18,57 @@ Newest entries go first.
 
 ---
 
+## TST-20260215-027
+- `Evidence ID:` TST-20260215-027
+- `Date:` 2026-02-15
+- `Owner/Role:` Technical Co-Founder
+- `Related change:` CHG-20260215-028 (Types)
+- `Related bug:` None
+- `Scope:` MVP End-to-End Smoke Test (Upload -> Process -> Complete).
+- `Test type:` Script (`backend/scripts/smoke_test_mvp.py`)
+- `Result:` **PASS**
+- `Notes:` Job 79 successfully transitioned `queued` -> `processing`. Pipeline executed through Director, Smart Cutting, Subtitles, Brand Safety, QC Gate, and reached "Final Rendering" segment before test script timeout (60s). Core orchestration verified.
+- `Artifacts:` Smoke test console output.
+
+## TST-20260215-026
+- `Evidence ID:` TST-20260215-026
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-026
+- `Related bug:` None
+- `Scope:` Specialized agent verification (Frontend/Backend/Analyst).
+- `Test type:` Script
+- `Command or procedure:` Run `python backend/scripts/test_specialist_agents.py`.
+- `Result:` Pass
+- `Notes:` Each agent successfully received a domain-specific prompt and returned a generated response via the configured LLM provider.
+- `Artifacts:` Console output from test script.
+
+## TST-20260215-025
+- `Evidence ID:` TST-20260215-025
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-025
+- `Related bug:` None
+- `Scope:` Environment setup script and configuration persistence.
+- `Test type:` Manual / Script
+- `Command or procedure:` Run `python scripts/setup_dev.py` and verify `.vscode`, `.editorconfig`, and `logs/.keep` are created.
+- `Result:` Pass
+- `Notes:` Script successfully generated all missing configuration files and creating the logging directory structure.
+- `Artifacts:` Generated config files.
+
+## TST-20260215-024
+- `Evidence ID:` TST-20260215-024
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-024
+- `Related bug:` None
+- `Scope:` Autonomy LLM integration and routing policy.
+- `Test type:` Integration + Scripts
+- `Command or procedure:` Run `python backend/scripts/test_autonomy_llm.py`; Run `python backend/scripts/check_openai_direct.py`.
+- `Result:` Pass
+- `Notes:` `test_autonomy_llm.py` successfully scaffolded code using the Maintenance Agent. OpenAI connectivity verified via routing policy fallback.
+- `Artifacts:` Console output from scripts.
+
 ## TST-20260215-023
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer

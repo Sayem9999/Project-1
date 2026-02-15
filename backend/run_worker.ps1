@@ -68,7 +68,8 @@ if ($missing.Count -gt 0) {
 $redisUrlRaw = [Environment]::GetEnvironmentVariable("REDIS_URL")
 if ($null -eq $redisUrlRaw) {
     $redisUrl = ""
-} else {
+}
+else {
     $redisUrl = $redisUrlRaw
 }
 $redisUrl = $redisUrl.Trim().Trim('"').Trim("'")
@@ -99,12 +100,13 @@ if (!(Test-Path $pythonExe)) {
     exit 1
 }
 
+$configuredQueue = [Environment]::GetEnvironmentVariable("CELERY_VIDEO_QUEUE")
 if ([string]::IsNullOrWhiteSpace($Queue)) {
-    $configuredQueue = [Environment]::GetEnvironmentVariable("CELERY_VIDEO_QUEUE")
     if ([string]::IsNullOrWhiteSpace($configuredQueue)) {
         $Queue = "video,celery"
-    } else {
-        $Queue = "$($configuredQueue.Trim()),celery"
+    }
+    else {
+        $Queue = "$($configuredQueue.Trim()),video,celery"
     }
 }
 Write-Host ("Using REDIS_URL host: {0}" -f $uri.Host) -ForegroundColor DarkCyan

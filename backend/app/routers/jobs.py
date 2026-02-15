@@ -231,6 +231,10 @@ async def upload_video(
     if file_size > 100 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 100MB.")
 
+    ALLOWED_MIME_TYPES = {"video/mp4", "video/quicktime", "video/x-msvideo", "video/webm"}
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid file type. Only video files are allowed.")
+
     idempotency_key = request.headers.get("Idempotency-Key")
     if idempotency_key:
         existing = await session.scalar(
@@ -271,13 +275,50 @@ async def upload_video(
             subtitle_preset=subtitle_preset,
             color_profile=color_profile,
             skin_protect_strength=skin_protect_strength,
+
         ),
         idempotency_key=idempotency_key,
         media_intelligence=parsed_intel,
-        start_immediately=True,
     )
     await session.refresh(job)
     
+    # Actually dispatch if requested
+    if media_intelligence or True:  # Simplify logic: always start if create_job was called with default start_immediately=True
+        # Re-use the start_job dispatch logic pattern
+        pacing = job.pacing or "medium"
+        mood = job.mood or "professional"
+        ratio = job.ratio or "16:9"
+        tier = job.tier or "standard"
+        platform = job.platform or "youtube"
+        brand_safety = job.brand_safety or "standard"
+
+        try:
+            await asyncio.wait_for(
+                enqueue_job(job, pacing, mood, ratio, tier, platform, brand_safety),
+                timeout=2.5,
+            )
+            job.status = "processing"
+            job.progress_message = "Dispatching job to pipeline..."
+            session.add(job)
+            await session.commit()
+        except asyncio.TimeoutError:
+            logger.warning("job_dispatch_timeout_upload", job_id=job.id)
+            asyncio.create_task(_dispatch_job_background(job.id, pacing, mood, ratio, tier, platform, brand_safety))
+            # Optimistically update status to avoid UI lag
+            job.status = "processing"
+            job.progress_message = "Dispatching job to pipeline (background)..."
+            session.add(job)
+            await session.commit()
+        except HTTPException as exc:
+            logger.error("upload_video_dispatch_http_error", job_id=job.id, error=exc.detail)
+            job.status = "failed"
+            job.progress_message = f"Dispatch failed: {exc.detail}"
+            session.add(job)
+            await session.commit()
+        except Exception as e:
+            logger.error("upload_video_dispatch_unexpected_error", job_id=job.id, error=str(e))
+            # Don't fail the request, just log. The job stays queued.
+            
     return JobResponse.model_validate(job, from_attributes=True)
 
 

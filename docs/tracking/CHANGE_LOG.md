@@ -17,6 +17,90 @@ Newest entries go first.
 
 ---
 
+## CHG-20260215-028
+- `Change ID:` CHG-20260215-028
+- `Date:` 2026-02-15
+- `Owner/Role:` Frontend Lead (Co-Founder Protocol)
+- `Summary:` Created centralized `frontend/lib/types.ts`.
+- `Why this change was needed:` Mitigation for "Schema Drift" risk identified in Audit (Phase 1).
+- `Files changed:`
+  - `frontend/lib/types.ts` [NEW]
+- `Risk level:` Low
+- `Linked bug(s):` None
+- `Validation:` Verified types match `backend/app/schemas.py`.
+- `Rollback plan:` Delete `frontend/lib/types.ts`.
+
+## CHG-20260215-027
+- `Change ID:` CHG-20260215-027
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Codified multi-agent workspace rules and documentation standards.
+- `Why this change was needed:` User provided strict guidelines for agent behavior, documentation, and verification.
+- `Files changed:`
+  - `.agent/rules/documentation.md` [NEW]
+  - `.agent/rules/multi-agent.md` [NEW]
+  - `.cursorrules`
+  - `docs/tracking/CHANGE_LOG.md`
+- `Risk level:` Low
+- `Linked bug(s):` None
+- `Validation:` Verified file existence and content.
+- `Rollback plan:` Delete new rule files and revert `.cursorrules`.
+
+## CHG-20260215-026
+- `Change ID:` CHG-20260215-026
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Implemented specialized agents (Frontend, Backend, Analyst) and exposed them via API.
+- `Why this change was needed:` User requested dedicated domain-expert agents for better specialization.
+- `Files changed:`
+  - `backend/app/agents/frontend_agent.py` [NEW]
+  - `backend/app/agents/backend_agent.py` [NEW]
+  - `backend/app/agents/analyst_agent.py` [NEW]
+  - `backend/app/agents/__init__.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/scripts/test_specialist_agents.py` [NEW]
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` None
+- `Validation:` TST-20260215-026
+- `Rollback plan:` Remove imports in `__init__.py` and endpoints in `maintenance.py`.
+
+## CHG-20260215-025
+- `Change ID:` CHG-20260215-025
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Implemented automated environment persistence (`scripts/setup_dev.py`) and development docs.
+- `Why this change was needed:` User reported environment settings (VSCode, logs, etc.) were being "forgotten" between sessions.
+- `Files changed:`
+  - `scripts/setup_dev.py` [NEW]
+  - `docs/DEVELOPMENT_SETUP.md` [NEW]
+  - `backend/Makefile`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` None
+- `Validation:` TST-20260215-025
+- `Rollback plan:` Delete `scripts/setup_dev.py` and remove `setup-ide` target from Makefile.
+
+## CHG-20260215-024
+- `Change ID:` CHG-20260215-024
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Configured autonomy routing policy to allow OpenAI usage (increased cost limit) and verified maintenance agent integration.
+- `Why this change was needed:` Users requested OpenAI/Codex for self-improvement; default routing policy cost limit ($0.10) was preventing GPT-4o usage.
+- `Files changed:`
+  - `backend/app/agents/routing_policy.py`
+  - `backend/.env`
+  - `backend/scripts/test_autonomy_llm.py`
+  - `backend/scripts/check_openai_direct.py`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` None
+- `Validation:` TST-20260215-024
+- `Rollback plan:` Revert `routing_policy.py` cost limit to $0.10 and remove OpenAI key from `.env` if needed.
+
 ## CHG-20260215-023
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer

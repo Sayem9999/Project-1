@@ -15,6 +15,10 @@ module.exports = {
       html: '<hr>'
     },
     {
+      html: '<i class="fa-solid fa-code-branch text-orange-500"></i> Start n8n Automation',
+      href: "n8n.json"
+    },
+    {
       html: '<i class="fa-solid fa-desktop"></i> Start Frontend (Dev Mode)',
       href: "frontend.json"
     },

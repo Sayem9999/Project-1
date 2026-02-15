@@ -1,0 +1,94 @@
+# Workspace Rules for AI Assistant
+> **ROLE**: Technical Co-Founder (Act with initiative, challenge assumptions, build for launch).
+> **PROJECT**: ProEdit (AI Video Editor for Content Creators).
+> **PHASE**: 2 - Planning (MVP Scope Definition).
+
+# GEMINI ANTIGRAVITY — OPERATIONAL MANUAL
+
+### 🎯 1. Define the Trajectory (Intent)
+Before launching a prompt:
+* Define **Persona**, **Output Format**, and **Constraints**.
+* Treat prompts like **functional specs**, not casual conversation.
+
+### 📍 2. Segment the Lift (Chain of Thought)
+Break complex reasoning into **discrete steps**:
+✔ *Analyze the inputs*
+✔ *Outline the strategy*
+✔ *Draft the content*
+✔ *Critique and refine*
+
+### 🧠 3. Flight Plan First (Ask Mode)
+For heavy creative or analytical payloads:
+1. Ask Gemini to **generate a structure/outline** first.
+2. Review and tweak the outline.
+3. Command: *"Execute section 1."*
+
+### 📦 4. Maximize Payload (Context Window)
+Leverage the massive context window (1M+ tokens):
+* **Upload** entire codebases, PDF libraries, or video files.
+* **Paste** full reference materials rather than summarizing.
+
+### ⚓ 5. Ground Truth Anchors
+Always anchor generative text to specific sources:
+1. Upload source material (Docs/Sheets).
+2. Prompt: *"Answer using ONLY the provided context."*
+3. Request **Citations** or **Quotes**.
+
+### 🛡️ 6. Override & Control (Human-in-the-loop)
+In high-stakes scenarios:
+* Use **Temperature 0** for logic.
+* Manually review code execution or math.
+* Treat outputs as **Draft V1**, never Final Release.
+
+### 📡 7. Telemetry (Meta-Cognition)
+Always request:
+> **“Explain your reasoning and list any assumptions you made.”**
+
+### ⚡ 8. Multimodal Thrust
+Don't stick to text.
+* **Input:** Sketch a UI ➔ Upload photo ➔ *"Write the code for this."*
+* **Output:** *"Visualize this data as a table/chart description"* (or Python code to plot it).
+
+### 🔍 9. Verify Integrity
+Never trust blindly:
+✔ Check citations against uploaded docs.
+✔ Run generated code in a sandbox.
+✔ Verify logical consistency.
+
+### 🔄 10. Iterative Orbit
+Track ambiguous prompts and "magic words". Save successful prompt patterns as **Templates**.
+
+
+
+## Backend Development
+- **Schema First**: Any changes to Agent outputs must be reflected in `backend/app/agents/schemas.py` and subsequently in `backend/app/models.py`.
+- **JSON Robustness**: Use `parse_json_response` from `backend/app/agents/base.py` for all LLM interactions.
+- **Dependency Audit**: Before adding a new library, check `requirements.txt`. Prefer existing tools over new dependencies.
+
+## Frontend Development
+- **Component Consistency**: Use Vanilla CSS and Lucide-React for consistency with the "Cinematic Studio" aesthetic.
+- **Glassmorphism**: Follow the `glass-panel` and `shadow-glow` classes for new UI elements.
+- **Data Bento**: Ensure new specialist insights are added as modular cards in the `Job Status` bento grid.
+
+## Documentation & Tracking
+- **Tracking IDs**: Use strict formats:
+    - `WRK-YYYYMMDD-NNN` (Work Items)
+    - `BUG-YYYYMMDD-NNN` (Bugs)
+    -   `CHG-YYYYMMDD-NNN` (Changes)
+    -   `TST-YYYYMMDD-NNN` (Tests)
+- **File Usage**:
+    -   `docs/tracking/CHANGE_LOG.md`: Implementation changes and rationale.
+    -   `docs/tracking/TEST_EVIDENCE.md`: Test commands and outcomes.
+
+## Specialized Agents
+- **Frontend Agent**: `/api/maintenance/frontend`
+- **Backend Agent**: `/api/maintenance/backend`
+- **Analyst Agent**: `/api/maintenance/analyst`
+
+## Verification & Documentation (STRICT)
+- **Verify First**: No task is complete without Evidence (Logs, Script Output, Tests).
+- **Artifacts**: Maintain `task.md` and `walkthrough.md` as live records.
+- **Comments**: Mandatory JSDoc/PEP8 on all new code.
+
+## 🚨 CRITICAL REFERENCE
+- **See `docs/WORKSPACE_RULES.md` for the single source of truth.**

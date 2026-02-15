@@ -32,8 +32,8 @@ class Settings(BaseSettings):
     llm_primary_provider: str = "gemini"
     llm_fallback_provider: str = "groq"
     llm_request_timeout_seconds: float = 90.0
-    llm_total_timeout_seconds: float = 180.0
-    ai_stage_timeout_seconds: float = 120.0
+    llm_total_timeout_seconds: float = 300.0
+    ai_stage_timeout_seconds: float = 300.0
 
     # Reliability monitoring thresholds
     reliability_recent_window_jobs: int = 25

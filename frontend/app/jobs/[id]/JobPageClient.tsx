@@ -10,33 +10,7 @@ import BrandSafetyCard from '@/components/dashboard/BrandSafetyCard';
 import ABTestVariants from '@/components/dashboard/ABTestVariants';
 import { apiRequest, ApiError, clearAuth, API_ORIGIN, getWebSocketUrl } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
-
-interface Job {
-  id: number;
-  status: string;
-  progress_message: string;
-  theme?: string;
-  pacing?: string;
-  mood?: string;
-  ratio?: string;
-  platform?: string;
-  brand_safety?: string;
-  output_path?: string;
-  thumbnail_path?: string;
-  created_at: string;
-  updated_at?: string;
-  tier?: string;
-  credits_cost?: number;
-  media_intelligence?: any;
-  qc_result?: any;
-  director_plan?: any;
-  brand_safety_result?: any;
-  ab_test_result?: any;
-  post_settings?: any;
-  audio_qa?: any;
-  color_qa?: any;
-  subtitle_qa?: any;
-}
+import { Job } from '@/lib/types';
 
 export default function JobPageClient({ id }: { id: string }) {
   const router = useRouter();
@@ -404,7 +378,7 @@ export default function JobPageClient({ id }: { id: string }) {
                 <Activity className="w-4 h-4 text-brand-cyan" />
                 Media Intelligence
               </h3>
-              <MediaStats intelligence={job.media_intelligence} />
+              <MediaStats intelligence={job.media_intelligence ?? undefined} />
             </div>
 
             {job.qc_result && (

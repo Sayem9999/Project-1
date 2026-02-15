@@ -1,0 +1,17 @@
+{
+    "run": [
+        {
+            "method": "shell.run",
+            "params": {
+                "id": "n8n_server",
+                "message": "npx n8n start",
+                "on": [
+                    {
+                        "event": null,
+                        "return": true
+                    }
+                ]
+            }
+        }
+    ]
+}

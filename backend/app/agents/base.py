@@ -359,20 +359,29 @@ async def run_agent_prompt(
         for model in fallback_config.models:
             if remaining_seconds() <= 0:
                 break
-            try:
-                logger.debug("agent_api_attempt", provider=fallback_name, model=model, agent=agent_name)
-                result = await attempt_provider(fallback_name, model)
-                if result:
-                    return result
-            except Exception as e:
-                logger.warning("agent_api_failed", provider=fallback_name, model=model, error=str(e))
-                last_error = e
-                provider_router.record_failure(fallback_name, str(e))
-                provider_router.handle_provider_error(fallback_name, model, str(e))
+            # Retry loop for transient issues on fallback models
+            for attempt in range(2):
+                if remaining_seconds() <= 0:
+                    break
+                try:
+                    logger.debug("agent_api_attempt", provider=fallback_name, model=model, agent=agent_name, attempt=attempt+1)
+                    result = await attempt_provider(fallback_name, model)
+                    if result:
+                        return result
+                except Exception as e:
+                    if attempt == 0 and is_transient_error(e):
+                        logger.warning("agent_api_transient_retry", provider=fallback_name, model=model, error=str(e))
+                        await asyncio.sleep(1.0)
+                        continue
 
-                # Add a small yield/delay before switching models or providers to ease rate limits
-                if remaining_seconds() > 0.5:
-                    await asyncio.sleep(0.5)
-                continue
+                    logger.warning("agent_api_failed", provider=fallback_name, model=model, error=str(e))
+                    last_error = e
+                    provider_router.record_failure(fallback_name, str(e))
+                    provider_router.handle_provider_error(fallback_name, model, str(e))
+
+                    # Add a small yield/delay before switching models or providers to ease rate limits
+                    if remaining_seconds() > 0.5:
+                        await asyncio.sleep(0.5)
+                    break
 
     raise RuntimeError(f"All attempts failed for agent {agent_name}. Last error: {last_error}")
