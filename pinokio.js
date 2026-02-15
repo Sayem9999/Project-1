@@ -68,7 +68,7 @@ module.exports = {
     },
     {
       html: '<i class="fa-sharp fa-solid fa-diagram-project text-emerald-400"></i> <b>Generate Professional Pipeline</b>',
-      href: "backend/scripts/generate_hybrid_pipeline.py"
+      href: "generate_pipeline.json"
     },
     {
       html: '<hr>'

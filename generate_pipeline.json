@@ -1,0 +1,17 @@
+{
+  "run": [
+    {
+      "method": "shell.run",
+      "params": {
+        "message": ".venv\\Scripts\\python scripts/generate_hybrid_pipeline.py",
+        "path": "backend"
+      }
+    },
+    {
+      "method": "notify",
+      "params": {
+        "html": "Professional Pipeline Generated! Check the console output for the JSON. 🚀"
+      }
+    }
+  ]
+}
