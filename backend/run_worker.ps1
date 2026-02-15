@@ -131,7 +131,8 @@ Write-Host ("Listening queues: {0}" -f $Queue) -ForegroundColor DarkCyan
 
 & $pythonExe -m celery -A app.celery_app worker `
     --pool=threads `
-    --loglevel=info
+    --loglevel=info `
+    -Q $Queue
 
 $exitCode = $LASTEXITCODE
 if ($exitCode -ne 0) {

@@ -18,21 +18,8 @@ T = TypeVar("T", bound=BaseModel)
 
 logger = structlog.get_logger()
 
-# OpenAI Client
-openai_client = AsyncOpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
-
-# Gemini Client (Unified SDK)
-gemini_client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
-
-# Groq Client
-groq_client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
-
-# OpenRouter Client (OpenAI-compatible)
-openrouter_client = AsyncOpenAI(
-    api_key=settings.openrouter_api_key,
-    base_url="https://openrouter.ai/api/v1"
-) if settings.openrouter_api_key else None
-
+# Global clients removed to prevent event loop conflicts in multi-threaded Celery worker
+# Clients are now instantiated per-request inside run_agent_prompt
 
 def parse_json_response(text: str) -> dict:
     """Parse JSON from model response, handling markdown code blocks and conversational filler."""
@@ -172,7 +159,9 @@ async def run_agent_prompt(
         if timeout <= 0.11:
             raise asyncio.TimeoutError("LLM request total timeout exceeded")
 
-        if provider_name == "groq" and groq_client:
+        if provider_name == "groq" and settings.groq_api_key:
+            # Groq client is sync
+            groq_client = Groq(api_key=settings.groq_api_key)
             chat_completion = await asyncio.wait_for(
                 asyncio.to_thread(
                     groq_client.chat.completions.create,
@@ -186,7 +175,8 @@ async def run_agent_prompt(
             )
             response_text = chat_completion.choices[0].message.content
 
-        elif provider_name == "gemini" and gemini_client:
+        elif provider_name == "gemini" and settings.gemini_api_key:
+            gemini_client = genai.Client(api_key=settings.gemini_api_key)
             full_prompt = f"System: {system_prompt}\n\nUser Input: {payload_json}"
             response = await asyncio.wait_for(
                 gemini_client.aio.models.generate_content(
@@ -197,18 +187,20 @@ async def run_agent_prompt(
             )
             response_text = response.text
 
-        elif provider_name == "openai" and openai_client:
-            response = await asyncio.wait_for(
-                openai_client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": payload_json},
-                    ],
-                ),
-                timeout=timeout,
-            )
-            response_text = response.choices[0].message.content
+        elif provider_name == "openai" and settings.openai_api_key:
+            # Create local client to respect event loop
+            async with AsyncOpenAI(api_key=settings.openai_api_key) as openai_client:
+                response = await asyncio.wait_for(
+                    openai_client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": payload_json},
+                        ],
+                    ),
+                    timeout=timeout,
+                )
+                response_text = response.choices[0].message.content
 
         elif provider_name == "ollama":
             import httpx
@@ -233,22 +225,26 @@ async def run_agent_prompt(
                 data = resp.json()
                 response_text = data.get("message", {}).get("content", "")
 
-        elif provider_name == "openrouter" and openrouter_client:
-            response = await asyncio.wait_for(
-                openrouter_client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": payload_json},
-                    ],
-                    extra_headers={
-                        "HTTP-Referer": "https://proedit.ai",
-                        "X-Title": "ProEdit Studio",
-                    }
-                ),
-                timeout=timeout,
-            )
-            response_text = response.choices[0].message.content
+        elif provider_name == "openrouter" and settings.openrouter_api_key:
+            async with AsyncOpenAI(
+                api_key=settings.openrouter_api_key,
+                base_url="https://openrouter.ai/api/v1"
+            ) as openrouter_client:
+                response = await asyncio.wait_for(
+                    openrouter_client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": payload_json},
+                        ],
+                        extra_headers={
+                            "HTTP-Referer": "https://proedit.ai",
+                            "X-Title": "ProEdit Studio",
+                        }
+                    ),
+                    timeout=timeout,
+                )
+                response_text = response.choices[0].message.content
 
         if response_text:
             latency_ms = (time.time() - attempt_start) * 1000
