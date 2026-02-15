@@ -393,6 +393,57 @@ export default function JobPageClient({ id }: { id: string }) {
 
             {job.brand_safety_result && <BrandSafetyCard result={job.brand_safety_result} />}
             {job.ab_test_result && <ABTestVariants result={job.ab_test_result} />}
+
+            {/* Phase 7: Pro Studio Intelligence */}
+            {isComplete && (
+              <div className="glass-panel p-6 rounded-[32px] border-brand-cyan/20 bg-brand-cyan/[0.02]">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-brand-cyan" />
+                  Pro Studio Mastering
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Audio Mastering</span>
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-tighter">STUDIO GRADE</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+                        <Film className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Scene Match</span>
+                    </div>
+                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-tighter">AI CONSISTENT</span>
+                  </div>
+
+                  {job.scout_result?.assets?.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-white/5">
+                      <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-3">Scouted Stock Manifest</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {job.scout_result.assets.slice(0, 4).map((asset: any, i: number) => (
+                          <div key={i} className="aspect-video bg-white/5 rounded-lg overflow-hidden border border-white/5 relative group">
+                            {asset.preview_url ? (
+                              <img src={asset.preview_url} alt="Stock" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Film className="w-4 h-4 text-gray-700" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

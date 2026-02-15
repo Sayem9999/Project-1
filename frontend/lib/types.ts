@@ -125,6 +125,7 @@ export interface Job {
   media_intelligence?: MediaIntelligence | null;
   qc_result?: QCResult | null;
   director_plan?: Record<string, any> | null;
+  scout_result?: Record<string, any> | null;
   brand_safety_result?: BrandSafetyResult | null;
   ab_test_result?: ABTestResult | null;
   performance_metrics?: Record<string, any> | null;

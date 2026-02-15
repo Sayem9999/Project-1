@@ -6,6 +6,7 @@ import subprocess
 import json
 import asyncio
 import gc
+import re
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from .concurrency import limits
@@ -57,6 +58,7 @@ class AudioAnalysis:
     segments: List[LoudnessSegment] = field(default_factory=list)
     silence_regions: List[SilenceRegion] = field(default_factory=list)
     speech_regions: List[Tuple[float, float]] = field(default_factory=list)
+    noise_floor: float = -60.0
     needs_normalization: bool = False
 
 
@@ -110,6 +112,10 @@ class AudioIntelligence:
             # Detect silence regions
             silence_regions = await self._detect_silence(audio_path)
             gc.collect()
+
+            # Estimate noise floor (Phase 7)
+            noise_floor = await self._estimate_noise_floor(audio_path)
+            gc.collect()
         
         # Detect speech regions (reuse silence regions to avoid redundant decoding)
         speech_regions = self._extract_speech_from_silence(silence_regions)
@@ -120,6 +126,7 @@ class AudioIntelligence:
             overall_peak=overall.get("true_peak", -70),
             silence_regions=silence_regions,
             speech_regions=speech_regions,
+            noise_floor=noise_floor,
             needs_normalization=abs(overall.get("integrated_lufs", -14) - (-14)) > 1
         )
         
@@ -295,6 +302,26 @@ class AudioIntelligence:
         
         return suggestions
     
+    async def _estimate_noise_floor(self, audio_path: str) -> float:
+        """Estimate noise floor using astats filter."""
+        cmd = [
+            self.ffmpeg, "-hide_banner", "-i", audio_path,
+            "-af", "astats=metadata=1:reset=1", "-f", "null", "-"
+        ]
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd, stderr=asyncio.subprocess.PIPE
+            )
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+            output = stderr.decode()
+            # Look for Floor level in astats output
+            matches = re.findall(r"Floor level: ([-\d.]+)", output)
+            if matches:
+                return float(matches[0])
+        except:
+            pass
+        return -60.0
+
     def build_ducking_filter(
         self, 
         analysis: AudioAnalysis,
@@ -302,33 +329,16 @@ class AudioIntelligence:
     ) -> str:
         """
         Build FFmpeg filter for audio ducking during speech.
+        Uses advanced sidechaincompress for higher quality than simple gain gating.
         """
         policy = policy or DuckingPolicy()
-        
-        if not analysis.speech_regions:
-            return ""
-        
-        # Build volume keyframes for ducking
-        keyframes = []
-        
-        for start, end in analysis.speech_regions:
-            # Fade down before speech
-            duck_start = max(0, start - policy.attack_time)
-            keyframes.append(f"{duck_start}:volume=1.0")
-            keyframes.append(f"{start}:volume={policy.duck_level}")
-            
-            # Hold during speech + hold time
-            hold_end = end + policy.hold_time
-            keyframes.append(f"{hold_end}:volume={policy.duck_level}")
-            
-            # Fade up after
-            release_end = hold_end + policy.release_time
-            keyframes.append(f"{release_end}:volume=1.0")
-        
-        # Use volume filter with sendcmd for keyframes
-        # Simplified version: use sidechaincompress
-        return f"sidechaincompress=threshold={policy.threshold_db}dB:ratio=4:attack={int(policy.attack_time*1000)}:release={int(policy.release_time*1000)}"
-    
+        # Sidechain compress: threshold, ratio, attack, release
+        return (
+            f"sidechaincompress=threshold={policy.threshold_db}dB:"
+            f"ratio=4:attack={int(policy.attack_time*1000)}:"
+            f"release={int(policy.release_time*1000)}:mode=downward"
+        )
+
     def get_normalization_filter(
         self, 
         target_lufs: float = -14.0,
@@ -340,7 +350,8 @@ class AudioIntelligence:
         if analysis and not analysis.needs_normalization:
             return ""
         
-        return f"loudnorm=I={target_lufs}:TP=-1:LRA=11"
+        # Pro-grade loudnorm with peak guarding
+        return f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11"
 
 
 # Global instance

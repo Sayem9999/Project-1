@@ -22,8 +22,14 @@ async def visuals_node(state: GraphState) -> GraphState:
     # Run Color and VFX in parallel
     async def run_color():
         try:
+            director_instructions = (plan.get("instructions", {}) if isinstance(plan, dict) else {}).get("color", "")
             resp = await run_with_stage_timeout(
-                color_agent.run({"plan": plan, "mood": mood}),
+                color_agent.run({
+                    "plan": plan.get("directors_vision") if isinstance(plan, dict) else plan, 
+                    "instructions": director_instructions,
+                    "mood": mood,
+                    "media_intelligence": state.get("media_intelligence", {})
+                }),
                 stage="visuals_color",
                 job_id=state.get("job_id"),
             )

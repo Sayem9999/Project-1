@@ -82,7 +82,7 @@ async def _get_audio_intelligence(source_path: str) -> dict:
             "integrated_loudness": profile.overall_lufs,
             "true_peak": profile.overall_peak,
             "ducking_segments": [(s, e) for s, e in profile.speech_regions],
-            "noise_floor": -60,
+            "noise_floor": profile.noise_floor,
         }
     except Exception as e:
         logger.warning("audio_analysis_failed", error=str(e))

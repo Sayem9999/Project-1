@@ -16,9 +16,14 @@ def build_audio_post_filter(audio_intel: dict[str, Any] | None, platform: str, m
         "podcast": -16,
     }.get(platform_key, -14)
 
+    # 1. Dialogue Isolation & Noise Floor Cleanup (Phase 7)
+    noise_floor = (audio_intel or {}).get("noise_floor", -60)
+    nr_strength = 12 if noise_floor < -50 else 20
+    
     chains = [
-        "highpass=f=70",
-        "lowpass=f=14000",
+        f"afftdn=nr={nr_strength}:nf=-25", # Adaptive Noise Reduction
+        "highpass=f=75", # Remove sub-bass rumble
+        "lowpass=f=15000", # Remove high-end hiss
         "acompressor=threshold=-18dB:ratio=3.5:attack=5:release=80:makeup=2",
     ]
 
@@ -29,7 +34,9 @@ def build_audio_post_filter(audio_intel: dict[str, Any] | None, platform: str, m
 
     speech_regions = (audio_intel or {}).get("ducking_segments") or []
     if speech_regions:
+        # Sidechain compress simulation for speech clarity
         chains.append("alimiter=limit=0.93")
+        chains.append("compand=points=-80/-80|-25/-20|-15/-10|0/-7")
     else:
         chains.append("alimiter=limit=0.97")
 
