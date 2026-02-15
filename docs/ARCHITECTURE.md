@@ -29,6 +29,7 @@ ProEdit is a distributed video editing platform that leverages AI agents and ser
 - **Introspection Service**: Scans the codebase to build a dependency graph for AI assistants.
 - **Workflow Engine**: Orchestrates the "Hollywood Pipeline" (Director, Cutter, Audio, Visuals).
 - **Metric Service**: Tracks duration and costs for every job phase.
+  - Reliability hotspot analysis is computed from first-party workflow metrics (including stage timeout totals/counts); no external search API is required for timeout monitoring.
 - **OpenClaw Service**: Generates technical edit strategy for external orchestration with resilient agent-output normalization and specialist fallback handling.
 - **n8n Service**: Sends terminal job events with signed payloads, retries/backoff, and event-level idempotency headers.
 - **Rendering Orchestrator**: Parallel scene renderer with speed/keyframe/transition support and strict guards for invalid/no-output cut batches.
@@ -52,6 +53,7 @@ ProEdit is a distributed video editing platform that leverages AI agents and ser
 
 ## Reliability Features
 - **Health Probing**: Real-time monitoring of Gemini, Redis, and Modal integrations.
+- **Timeout Reliability Summary**: Admin endpoint `/api/maintenance/reliability/timeout-summary` exposes recent timeout rate, per-stage hotspots, and threshold alerts.
 - **Auto-Cleanup**: Automated purging of stale local temp files.
 - **Idempotency**: "Cleanup Stuck Jobs" on startup ensures system state consistency.
 - **Idle Autonomy Loop**: When no queued/processing jobs exist, backend runs guarded self-heal and self-improve cycles:

@@ -18,6 +18,66 @@ Newest entries go first.
 
 ---
 
+## TST-20260215-023
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-023
+- `Related bug:` BUG-20260215-015
+- `Scope:` Blocking pip-audit enforcement with approved waivers, repeated smoke validation, and reliability-threshold verification.
+- `Test type:` Smoke + Integration + Unit
+- `Command or procedure:` Start API with `cd backend && SECRET_KEY=smoke-secret-key ENVIRONMENT=development python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`; run `for i in 1 2 3; do python scripts/smoke_e2e.py; done`; promote one smoke user to admin and call `GET /api/maintenance/reliability/timeout-summary?recent_jobs=3`; run `pytest -q backend/tests/test_maintenance_autonomy_api.py backend/tests/test_maintenance_reliability_api.py backend/tests/test_graph_stage_timeouts.py`.
+- `Result:` Pass
+- `Notes:` Three consecutive smoke runs completed with downloadable outputs (`tmp/smoke/download-1.mp4`, `download-2.mp4`, `download-3.mp4`) and no indefinite stage stalls; reliability summary returned threshold payload with `alerts: []` for the validated window.
+- `Artifacts:` `tmp/smoke/download-1.mp4`, `tmp/smoke/download-2.mp4`, `tmp/smoke/download-3.mp4`, pytest + API response logs
+
+## TST-20260215-022
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-022
+- `Related bug:` BUG-20260215-015
+- `Scope:` Autonomy API DB-failure tolerance and CI launch-gate coverage for maintenance reliability integration tests.
+- `Test type:` Integration + Unit
+- `Command or procedure:` Run `pytest -q backend/tests/test_maintenance_autonomy_api.py backend/tests/test_maintenance_reliability_api.py backend/tests/test_graph_stage_timeouts.py` and `python -m compileall backend/app/services/autonomy_service.py backend/app/routers/maintenance.py backend/tests/test_maintenance_reliability_api.py`.
+- `Result:` Pass
+- `Notes:` Combined suite now passes consistently (`6 passed`), including previous autonomy run path; warnings are limited to test SECRET_KEY length.
+- `Artifacts:` pytest + compileall console output
+
+## TST-20260215-021
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-021
+- `Related bug:` BUG-20260215-015
+- `Scope:` Maintenance reliability timeout summary API, threshold alerts, and failure taxonomy aggregation.
+- `Test type:` Integration + Unit
+- `Command or procedure:` Run `pytest -q backend/tests/test_maintenance_reliability_api.py backend/tests/test_graph_stage_timeouts.py` and `python -m compileall backend/app/routers/maintenance.py backend/app/config.py backend/tests/test_maintenance_reliability_api.py`.
+- `Result:` Pass
+- `Notes:` New maintenance endpoint reports timeout hotspots and threshold breaches over recent completed/failed jobs, including degraded-success vs hard-failure vs external-outage taxonomy.
+- `Artifacts:` pytest + compileall console output
+
+## TST-20260215-020
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-020
+- `Related bug:` BUG-20260215-015
+- `Scope:` Timeout observability (`stage_timeout_total`/per-stage counts), degraded completion signaling, and CI regression coverage.
+- `Test type:` Unit
+- `Command or procedure:` Run `pytest -q backend/tests/test_graph_stage_timeouts.py` and `python -m compileall backend/app/graph/nodes/_timeouts.py backend/app/services/metrics_service.py backend/app/services/workflow_engine.py`.
+- `Result:` Pass
+- `Notes:` Timeout wrapper now records per-stage counters on the active metrics tracker and finalized performance metrics include timeout fields used for degraded completion messaging.
+- `Artifacts:` pytest + compileall console output
+
+## TST-20260215-019
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Related change:` CHG-20260215-019
+- `Related bug:` BUG-20260215-015
+- `Scope:` LangGraph stage timeout helper and fallback behavior in node-level execution.
+- `Test type:` Unit
+- `Command or procedure:` Run `pytest -q backend/tests/test_graph_stage_timeouts.py` and `python -m compileall backend/app/graph/nodes backend/app/config.py`.
+- `Result:` Pass
+- `Notes:` Timeout wrapper raises a deterministic timeout error and platform node returns a safe fallback payload when stage timeout is triggered.
+- `Artifacts:` pytest + compileall console output
+
 ## TST-20260215-016
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer

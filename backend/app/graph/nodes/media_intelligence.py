@@ -3,6 +3,7 @@ from typing import Any, Dict
 from ...services.media_analysis import media_analyzer
 from ...services.audio_intelligence import audio_intelligence
 from ..state import GraphState
+from ._timeouts import run_with_stage_timeout
 
 logger = structlog.get_logger()
 
@@ -30,15 +31,27 @@ async def media_intelligence_node(state: GraphState) -> Dict[str, Any]:
     try:
         # Phase 1: Metadata
         publish_progress(job_id, "processing", "Analyzing video structure...", 10, user_id=user_id)
-        metadata = await media_analyzer.get_metadata(source_path)
+        metadata = await run_with_stage_timeout(
+            media_analyzer.get_metadata(source_path),
+            stage="media_intelligence_metadata",
+            job_id=job_id,
+        )
         
         # Phase 2: Scenes
         publish_progress(job_id, "processing", "Detecting scene changes...", 12, user_id=user_id)
-        scenes = await media_analyzer.detect_scenes(source_path)
+        scenes = await run_with_stage_timeout(
+            media_analyzer.detect_scenes(source_path),
+            stage="media_intelligence_scenes",
+            job_id=job_id,
+        )
         
         # Phase 3: Audio
         publish_progress(job_id, "processing", "Profiling audio loudness...", 15, user_id=user_id)
-        audio_analysis = await audio_intelligence.analyze(source_path)
+        audio_analysis = await run_with_stage_timeout(
+            audio_intelligence.analyze(source_path),
+            stage="media_intelligence_audio",
+            job_id=job_id,
+        )
         
         # Phase 4: Speech/Finalize
         publish_progress(job_id, "processing", "Finalizing intelligence data...", 18, user_id=user_id)

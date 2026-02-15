@@ -82,10 +82,17 @@ Track planned and active work. Move completed items into `CHANGE_LOG.md`.
 
 ## WRK-20260215-018
 - `Title:` Add hard timeouts + stuck protection for AI stages (prevent >10min stalls); improve smoke reliability
-- `Status:` In Progress
+- `Status:` Done
 - `Owner/Role:` Backend Developer
 - `Priority:` P1
 - `Why this matters:` A single hung provider call can block the editor pipeline and make the app feel "dead".
+- `Progress update:` 2026-02-15 kickoff: added shared graph-node stage timeout helper and applied guarded execution/fallbacks across director/cutter/audio/visuals/platform/hook/brand-safety/QC/subtitle/media-intelligence nodes; added timeout regression tests.
+- `Progress update:` 2026-02-15 stage-2: added timeout observability to performance metrics (`stage_timeout_total` + per-stage counts), degraded completion messaging when timeouts occur, and a dedicated CI stage-timeout regression job.
+- `Progress update:` 2026-02-15 stage-3 clarification: timeout reliability work does **not** require a separate search API; hotspot detection uses persisted internal metrics (`stage_timeout_total`, `stage_timeout_counts`) from workflow runs.
+- `Progress update:` 2026-02-15 stage-3 implementation: added admin reliability summary endpoint `/api/maintenance/reliability/timeout-summary` with failure taxonomy + threshold alerts derived from recent job timeout telemetry.
+- `Progress update:` 2026-02-15 stage-3 hardening: made autonomy stuck-job recovery DB-fault-tolerant and added CI integration coverage for maintenance reliability API to reduce false launch-blocking flakes.
+- `Progress update:` 2026-02-15 launch validation: executed three consecutive local smoke E2E runs (jobs 1/2/3) with terminal completion, downloaded outputs, and validated reliability thresholds via `/api/maintenance/reliability/timeout-summary` over recent runs.
+- `Progress update:` 2026-02-15 closure: WRK-20260215-018 moved from In Progress to Done after meeting bounded-runtime, smoke reliability, and threshold-observability exit criteria.
 - `Scope / files:`
   - `backend/app/agents/base.py`
   - `backend/app/config.py`

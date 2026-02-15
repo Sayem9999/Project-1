@@ -1,10 +1,10 @@
 import structlog
-import asyncio
 from pathlib import Path
 from typing import Any, Dict
 from ..state import GraphState
 from ...agents import subtitle_agent
 from ...services.post_production_depth import subtitle_qa_report
+from ._timeouts import run_with_stage_timeout
 
 logger = structlog.get_logger()
 
@@ -25,9 +25,11 @@ async def subtitle_node(state: GraphState) -> Dict[str, Any]:
     try:
         # Run Subtitle Agent
         payload = {"source_path": source_path}
-        from ...config import settings
-        timeout = max(1.0, float(getattr(settings, "llm_request_timeout_seconds", 90.0)))
-        sub_resp = await asyncio.wait_for(subtitle_agent.run(payload), timeout=timeout)
+        sub_resp = await run_with_stage_timeout(
+            subtitle_agent.run(payload),
+            stage="subtitle",
+            job_id=job_id,
+        )
         srt_content = sub_resp.get("raw_response", "") if isinstance(sub_resp, dict) else ""
         
         if not srt_content or "1" not in srt_content:
@@ -49,7 +51,7 @@ async def subtitle_node(state: GraphState) -> Dict[str, Any]:
             "srt_path": str(srt_path),
             "subtitle_qa": qa,
         }
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("subtitle_node_timeout", job_id=job_id)
         return {
             "errors": ["Subtitle generation timed out"],

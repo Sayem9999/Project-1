@@ -3,6 +3,7 @@ from ...agents import cutter_agent
 from ...services.media_analysis import MediaAnalyzer
 import json
 import structlog
+from ._timeouts import run_with_stage_timeout
 
 logger = structlog.get_logger()
 
@@ -47,7 +48,11 @@ async def cutter_node(state: GraphState) -> GraphState:
         if revision_prompt:
             payload["revision_feedback"] = revision_prompt
         
-        cuts_data = await cutter_agent.run(payload)
+        cuts_data = await run_with_stage_timeout(
+            cutter_agent.run(payload),
+            stage="cutter",
+            job_id=state.get("job_id"),
+        )
         cuts = [cut.model_dump() for cut in cuts_data.cuts]
         
         # Validate cuts against shot boundaries
@@ -63,6 +68,19 @@ async def cutter_node(state: GraphState) -> GraphState:
         return {
             "cuts": validated_cuts,
             "shot_metadata": shot_metadata,
+        }
+    except TimeoutError as e:
+        logger.warning("cutter_node_timeout", job_id=state.get("job_id"), error=str(e))
+        duration = (
+            state.get("media_intelligence", {})
+            .get("visual", {})
+            .get("metadata", {})
+            .get("duration", 30.0)
+        )
+        return {
+            "cuts": [{"start": 0.0, "end": float(duration), "reason": "Fallback after cutter timeout"}],
+            "shot_metadata": shot_metadata or {"shots": [], "scene_count": 0, "avg_duration": 0},
+            "errors": [str(e)],
         }
     except Exception as e:
         logger.error("cutter_node_error", job_id=state.get("job_id"), error=str(e))

@@ -3,6 +3,7 @@ from ...agents import audio_agent
 from ...services.audio_intelligence import audio_intelligence
 from ...services.post_production_depth import build_audio_post_filter
 import structlog
+from ._timeouts import run_with_stage_timeout
 
 logger = structlog.get_logger()
 
@@ -37,7 +38,11 @@ async def audio_node(state: GraphState) -> GraphState:
         
     try:
         # Run agent with schema validation and auto-retry
-        audio_response = await audio_agent.run(payload)
+        audio_response = await run_with_stage_timeout(
+            audio_agent.run(payload),
+            stage="audio",
+            job_id=state.get("job_id"),
+        )
         
         # Log success (using the model fields)
         logger.info(
@@ -55,6 +60,9 @@ async def audio_node(state: GraphState) -> GraphState:
                 mood=state.get("user_request", {}).get("mood", "professional"),
             ),
         }
+    except TimeoutError as e:
+        logger.warning("audio_node_timeout", job_id=state.get("job_id"), error=str(e))
+        return {"audio_tracks": [], "audio_intelligence": audio_intel, "errors": [str(e)]}
     except Exception as e:
         logger.error("audio_node_error", job_id=state.get("job_id"), error=str(e))
         return {"errors": [str(e)]}

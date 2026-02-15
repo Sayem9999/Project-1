@@ -5,6 +5,7 @@ from typing import Dict, Any
 from ..state import GraphState
 from ...agents import hook_agent
 import structlog
+from ._timeouts import run_with_stage_timeout
 
 logger = structlog.get_logger(__name__)
 
@@ -21,8 +22,23 @@ async def hook_node(state: GraphState) -> GraphState:
     }
     
     try:
-        result = await hook_agent.run(payload, job_id=state.get("job_id"))
+        result = await run_with_stage_timeout(
+            hook_agent.run(payload, job_id=state.get("job_id")),
+            stage="hook",
+            job_id=state.get("job_id"),
+        )
         return {"hook_result": result.model_dump()}
+    except TimeoutError as e:
+        logger.warning("hook_node_timeout", error=str(e), job_id=state.get("job_id"))
+        return {
+            "hook_result": {
+                "attention_technique": "fallback",
+                "opening_cuts": [],
+                "hook_text": None,
+                "retention_score": 5,
+                "warning": str(e),
+            }
+        }
     except Exception as e:
         logger.error("hook_node_error", error=str(e))
         return {

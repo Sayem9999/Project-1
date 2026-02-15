@@ -3,6 +3,7 @@ import json
 from ..state import GraphState
 from ...agents import color_agent, vfx_agent
 from ...services.post_production_depth import build_color_pipeline_filters
+from ._timeouts import run_with_stage_timeout
 
 async def visuals_node(state: GraphState) -> GraphState:
     """
@@ -21,7 +22,11 @@ async def visuals_node(state: GraphState) -> GraphState:
     # Run Color and VFX in parallel
     async def run_color():
         try:
-            resp = await color_agent.run({"plan": plan, "mood": mood})
+            resp = await run_with_stage_timeout(
+                color_agent.run({"plan": plan, "mood": mood}),
+                stage="visuals_color",
+                job_id=state.get("job_id"),
+            )
             return parse_json_response(resp.get("raw_response", "{}"))
         except Exception as e:
             print(f"Color Agent Parse Error: {e}")
@@ -29,7 +34,11 @@ async def visuals_node(state: GraphState) -> GraphState:
 
     async def run_vfx():
         try:
-            resp = await vfx_agent.run({"plan": plan, "mood": mood})
+            resp = await run_with_stage_timeout(
+                vfx_agent.run({"plan": plan, "mood": mood}),
+                stage="visuals_vfx",
+                job_id=state.get("job_id"),
+            )
             return parse_json_response(resp.get("raw_response", "{}"))
         except Exception as e:
             print(f"VFX Agent Parse Error: {e}")

@@ -26,11 +26,15 @@ class PerformanceTracker:
 
     def get_metrics(self) -> Dict[str, Any]:
         total_duration = (time.time() - self.start_time) * 1000
+        stage_timeout_counts = self.metadata.get("stage_timeout_counts", {})
+        stage_timeout_total = int(self.metadata.get("stage_timeout_total", 0) or 0)
         return {
             "total_duration_ms": round(total_duration, 2),
             "phase_durations": self.phases,
             "timestamp": datetime.utcnow().isoformat(),
-            "estimated_cost": self._calculate_cost()
+            "estimated_cost": self._calculate_cost(),
+            "stage_timeout_total": stage_timeout_total,
+            "stage_timeout_counts": stage_timeout_counts,
         }
 
     def _calculate_cost(self) -> Dict[str, float]:

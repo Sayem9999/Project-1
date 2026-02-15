@@ -17,6 +17,107 @@ Newest entries go first.
 
 ---
 
+## CHG-20260215-023
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Finalized launch gating for timeout reliability with blocking dependency audit policy, repeated smoke validation, and required-check branch protection guidance updates.
+- `Why this change was needed:` User requested product launch readiness hardening: block unapproved dependency CVEs, prove WRK-018 exit criteria via repeated smoke + threshold validation, and ensure branch protections include reliability/security/migration checks.
+- `Files changed:`
+  - `.github/workflows/ci.yml`
+  - `backend/pip_audit_waivers.txt`
+  - `docs/tracking/CI_ENFORCEMENT.md`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` BUG-20260215-015
+- `Validation:` TST-20260215-023
+- `Rollback plan:` Revert this commit to restore non-blocking pip-audit behavior and prior tracking/branch-protection guidance.
+
+## CHG-20260215-022
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Hardened autonomy DB-failure handling and expanded CI integration coverage for maintenance reliability reporting.
+- `Why this change was needed:` Launch readiness required eliminating a reproducible autonomy API failure path when DB access is temporarily unavailable and ensuring reliability-summary integration tests run in CI.
+- `Files changed:`
+  - `backend/app/services/autonomy_service.py`
+  - `.github/workflows/ci.yml`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260215-015
+- `Validation:` TST-20260215-022
+- `Rollback plan:` Revert this commit to restore previous autonomy DB behavior and CI test scope.
+
+## CHG-20260215-021
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Added timeout reliability operational thresholds and an admin summary API for hotspot/taxonomy visibility.
+- `Why this change was needed:` WRK-20260215-018 stage-3 required operator-facing threshold alerts and recent-run failure taxonomy instead of relying on raw per-job metrics only.
+- `Files changed:`
+  - `backend/app/config.py`
+  - `backend/app/routers/maintenance.py`
+  - `backend/tests/test_maintenance_reliability_api.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` BUG-20260215-015
+- `Validation:` TST-20260215-021
+- `Rollback plan:` Revert this change to remove reliability threshold settings and the maintenance timeout-summary API.
+
+## CHG-20260215-020
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Added stage-timeout observability and CI regression enforcement for LangGraph timeout guardrails.
+- `Why this change was needed:` Next stage of WRK-20260215-018 required converting timeout protection into measurable signals and enforceable CI checks.
+- `Files changed:`
+  - `.github/workflows/ci.yml`
+  - `backend/app/services/metrics_service.py`
+  - `backend/app/services/workflow_engine.py`
+  - `backend/app/graph/nodes/_timeouts.py`
+  - `backend/tests/test_graph_stage_timeouts.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Low
+- `Linked bug(s):` BUG-20260215-015
+- `Validation:` TST-20260215-020
+- `Rollback plan:` Revert this commit to remove timeout observability fields and the dedicated CI stage-timeout job.
+
+## CHG-20260215-019
+- `Date:` 2026-02-15
+- `Owner/Role:` Backend Developer
+- `Summary:` Started stage-timeout hardening across LangGraph nodes with a shared timeout utility and fallback behavior.
+- `Why this change was needed:` WRK-20260215-018 required bounded execution for each AI stage so jobs do not appear indefinitely stuck in processing.
+- `Files changed:`
+  - `backend/app/config.py`
+  - `backend/app/graph/nodes/_timeouts.py`
+  - `backend/app/graph/nodes/director.py`
+  - `backend/app/graph/nodes/cutter.py`
+  - `backend/app/graph/nodes/audio.py`
+  - `backend/app/graph/nodes/visuals.py`
+  - `backend/app/graph/nodes/hook.py`
+  - `backend/app/graph/nodes/platform.py`
+  - `backend/app/graph/nodes/brand_safety.py`
+  - `backend/app/graph/nodes/ab_test.py`
+  - `backend/app/graph/nodes/media_intelligence.py`
+  - `backend/app/graph/nodes/qc_gate.py`
+  - `backend/app/graph/nodes/subtitle.py`
+  - `backend/tests/test_graph_stage_timeouts.py`
+  - `docs/tracking/WORK_ITEMS.md`
+  - `docs/tracking/BUG_REGISTER.md`
+  - `docs/tracking/CHANGE_LOG.md`
+  - `docs/tracking/TEST_EVIDENCE.md`
+- `Risk level:` Medium
+- `Linked bug(s):` BUG-20260215-015
+- `Validation:` TST-20260215-019
+- `Rollback plan:` Revert this commit to restore previous unguarded node execution behavior.
+
 ## CHG-20260215-016
 - `Date:` 2026-02-15
 - `Owner/Role:` Backend Developer
