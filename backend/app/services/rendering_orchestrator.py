@@ -93,6 +93,8 @@ class RenderingOrchestrator:
                     preset=preset,
                     speed=speed,
                     keyframes=cut.get("keyframes") if isinstance(cut.get("keyframes"), list) else None,
+                    audio_leadin=float(cut.get("audio_leadin", 0.0) or 0.0),
+                    audio_leadout=float(cut.get("audio_leadout", 0.0) or 0.0),
                 ))
 
             if not tasks:
@@ -146,6 +148,8 @@ class RenderingOrchestrator:
         preset: str = "veryfast",
         speed: float = 1.0,
         keyframes: list[dict] | None = None,
+        audio_leadin: float = 0.0,
+        audio_leadout: float = 0.0,
     ):
         """Renders a single scene with a semaphore."""
         # Convert to absolute paths to avoid FFmpeg CWD issues
@@ -153,21 +157,29 @@ class RenderingOrchestrator:
         abs_out = os.path.abspath(out_path)
         
         async with limits.scene_render_semaphore:
-            # Use fast-seek (-ss before -i) for speed
+            # For J/L cuts, we need separate trim control for video and audio.
+            # Video: [start, start+duration]
+            # Audio: [start-leadin, start+duration+leadout]
+            
+            v_start = start
+            v_dur = duration
+            a_start = max(0.0, start - audio_leadin)
+            a_dur = duration + (start - a_start) + audio_leadout
+            
             cmd = [
                 self.ffmpeg_path, "-y",
-                "-ss", str(start),
-                "-t", str(duration),
                 "-i", abs_src,
                 "-c:v", "libx264", "-preset", preset, "-crf", str(crf),
                 "-c:a", "aac", "-b:a", "128k",
                 "-avoid_negative_ts", "make_zero",
             ]
 
-            vf_chain: list[str] = []
-            af_chain: list[str] = []
+            vf_chain: list[str] = [f"trim=start={v_start}:duration={v_dur},setpts=PTS-STARTPTS"]
+            af_chain: list[str] = [f"atrim=start={a_start}:duration={a_dur},asetpts=PTS-STARTPTS"]
 
             if speed and abs(speed - 1.0) > 0.01:
+                # Note: PTOFFSET adjustment might be needed for speed + J/L cuts, 
+                # but for V1 we keep it simple.
                 vf_chain.append(f"setpts={1/speed}*PTS")
                 af_chain.extend(self._atempo_chain(speed))
 

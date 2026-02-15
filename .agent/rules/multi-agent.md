@@ -16,6 +16,8 @@ always_on: true
     - **Backend**: API, Database, Python (`backend_agent`).
     - **Analyst**: Architecture, Schema (`analyst_agent`).
     - **Director/Creative**: Video vision (`director_agent`).
+- **CONSTITUTIONAL CONSTRAINT**: (Strict) **NO GENERATION**. ProEdit is an AI-driven *editing* tool. Do not generate AI images/videos. Focus strictly on post-production: cutting, color, audio, and assembly of source media.
+
 
 ## 3. Verification Loops
 - **Requirement**: "Verify with Artifacts" before marking a task complete.

@@ -68,16 +68,17 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
         
         # Stricter timeout for control inspection to avoid blocking threads.
         # inspect().ping() and active_queues() are network-bound calls to other workers.
-        inspect = celery_app.control.inspect(timeout=0.5)
+        # Reduced from 0.5 to 0.2s for faster failover.
+        inspect = celery_app.control.inspect(timeout=0.2)
         
-        # Ping check
+        # Ping check - wrap in safe check
         try:
             ping = inspect.ping() or {}
         except Exception as e:
             logger.warning("celery_inspect_ping_failed", error=str(e))
             ping = {}
 
-        # Queue check
+        # Queue check - wrap in safe check
         try:
             active_queues = inspect.active_queues() or {}
         except Exception as e:
@@ -614,7 +615,7 @@ async def enqueue_job(
                         args=[job.id, job.source_path, pacing, mood, ratio, tier, platform, brand_safety],
                         queue=queue_name,
                     ),
-                    timeout=2.0,
+                    timeout=5.0,
                 )
             except asyncio.TimeoutError as e:
                 # In local/dev, fall back to in-process workflow rather than hanging the job forever.

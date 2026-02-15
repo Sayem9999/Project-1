@@ -191,11 +191,11 @@ class MediaAnalyzer:
                 channels=int(audio_stream.get("channels", 0)) if audio_stream else None
             )
             
-        except (asyncio.TimeoutError, Exception):
-            logger.error("ffprobe_timeout")
+        except asyncio.TimeoutError:
+            logger.error("ffprobe_timeout", path=video_path)
             return None
         except Exception as e:
-            logger.error("metadata_extraction_failed", error=str(e))
+            logger.error("metadata_extraction_failed", error=str(e), type=type(e).__name__)
             return None
     
     async def detect_scenes(self, video_path: str, threshold: float = 0.4) -> List[SceneInfo]:
@@ -256,8 +256,8 @@ class MediaAnalyzer:
             logger.info("scene_detection_native_complete", scene_count=len(scenes))
             return scenes
             
-        except (asyncio.TimeoutError, Exception):
-            logger.error("scene_detection_timeout", timeout=600)
+        except asyncio.TimeoutError:
+            logger.error("scene_detection_timeout", path=video_path, timeout=600)
             return []
         except Exception as e:
             logger.error("scene_detection_failed", error=str(e), type=type(e).__name__)

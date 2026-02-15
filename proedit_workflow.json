@@ -1,0 +1,120 @@
+{
+    "name": "ProEdit Job Handler",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "proedit/job-status",
+                "options": {}
+            },
+            "name": "ProEdit Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ],
+            "webhookId": "proedit-job-status"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{$json[\"status\"]}}",
+                            "value2": "complete"
+                        }
+                    ]
+                }
+            },
+            "name": "Is Success?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                500,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "keepOnlySet": true,
+                "values": {
+                    "string": [
+                        {
+                            "name": "message",
+                            "value": "✅ Job #{{$json[\"job_id\"]}} Completed!"
+                        },
+                        {
+                            "name": "video_url",
+                            "value": "={{$json[\"output_path\"]}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Format Success",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 1,
+            "position": [
+                750,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "keepOnlySet": true,
+                "values": {
+                    "string": [
+                        {
+                            "name": "message",
+                            "value": "❌ Job #{{$json[\"job_id\"]}} Failed."
+                        },
+                        {
+                            "name": "error",
+                            "value": "={{$json[\"message\"]}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Format Failure",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 1,
+            "position": [
+                750,
+                450
+            ]
+        }
+    ],
+    "connections": {
+        "ProEdit Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Is Success?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Success?": {
+            "main": [
+                [
+                    {
+                        "node": "Format Success",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Format Failure",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

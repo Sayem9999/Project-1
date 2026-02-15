@@ -32,6 +32,9 @@ class CutItem(BaseModel):
     start: float
     end: float
     reason: str
+    audio_leadin: float = Field(0.0, description="Seconds of audio from previous clip to play over this video start (J-cut)")
+    audio_leadout: float = Field(0.0, description="Seconds of audio from this clip to continue after video ends (L-cut)")
+
 
 class CutterOutput(BaseModel):
     """Output from SLICE - the Cutter Agent."""

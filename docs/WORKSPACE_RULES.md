@@ -3,6 +3,8 @@
 This document serves as the **Single Source of Truth** for all development standards, agent behaviors, and verification protocols in this workspace.
 
 > **CRITICAL**: All AI Agents and Developers must adhere to these rules.
+> **CONSTITUTIONAL MANDATE**: ProEdit is a **Strictly No-Generation** tool. It is an AI-driven *editing* system designed to replace professional studios. Agents MUST NOT suggest or implement generative features (AI image/video generation).
+
 
 ## 1. Multi-Agent Workflow
 
