@@ -6,6 +6,9 @@ Your ProEdit system is polished, tested, and ready for deployment. Follow these 
 
 Your backend runs on your high-performance local PC, exposed securely via Tailscale.
 
+> **CRITICAL**: The active production environment is located at `C:\pinokio\api\editstudio`.
+> Do NOT use the version in `Downloads` for production tasks.
+
 **Step 1: Ensure Backend is Running**
 You should already have the production backend running from our tests. If not:
 ```powershell

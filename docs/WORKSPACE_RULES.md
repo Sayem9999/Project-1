@@ -47,7 +47,9 @@ Use strict ID formats in documentation:
 - `TST-YYYYMMDD-NNN` (Tests)
 
 ## 4. Environment Persistence
-- **Setup**: Run `make setup-ide` (in `backend/`) to restore `.vscode`, `.editorconfig`, and `logs/`.
+- **Production Path**: `C:\pinokio\api\editstudio` (Active Pinokio Project).
+- **Staging/Dev Path**: `C:\Users\Sayem\Downloads\New folder\Project-1-1` (Git Repo).
+- **Rule**: Always verify which environment you are modifying. configuration changes must be mirrored to the Production Path.
 - **Setup**: Run `make setup-ide` (in `backend/`) to restore `.vscode`, `.editorconfig`, and `logs/`.
 - **Reference**: See `docs/DEVELOPMENT_SETUP.md`.
 

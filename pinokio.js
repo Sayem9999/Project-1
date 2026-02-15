@@ -1,8 +1,15 @@
 module.exports = {
-  title: "ProEdit API",
+  title: "ProEdit API (Updated)",
   description: "High-performance Local API for Proedit (Modal + Vercel Integrated)",
   icon: "icon.png",
   menu: [
+    {
+      html: '<i class="fa-solid fa-code-branch text-orange-500"></i> <b>Start n8n Automation</b>',
+      href: "n8n.json"
+    },
+    {
+      html: '<hr>'
+    },
     {
       html: '<i class="fa-solid fa-play text-green-400"></i> <b>Start Proedit Hub (Full Stack)</b>',
       href: "start.json"
@@ -13,10 +20,6 @@ module.exports = {
     },
     {
       html: '<hr>'
-    },
-    {
-      html: '<i class="fa-solid fa-code-branch text-orange-500"></i> Start n8n Automation',
-      href: "n8n.json"
     },
     {
       html: '<i class="fa-solid fa-desktop"></i> Start Frontend (Dev Mode)',
