@@ -8,7 +8,9 @@ const DEFAULT_TIMEOUT_MS = (() => {
   return 60000;
 })();
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
+export const API_BASE = (
+  process.env.NEXT_PUBLIC_API_BASE ?? DEFAULT_API_BASE
+).replace(/\/$/, "");
 
 export const API_ORIGIN = API_BASE.endsWith("/api")
   ? API_BASE.slice(0, -4)
@@ -20,7 +22,13 @@ export class ApiError extends Error {
   isAuth: boolean;
   raw?: any;
 
-  constructor(message: string, status: number, code?: string, isAuth = false, raw?: any) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    isAuth = false,
+    raw?: any,
+  ) {
     super(message);
     this.status = status;
     this.code = code;
@@ -60,7 +68,7 @@ export const SafeStorage = {
     } catch (e) {
       console.warn(`[Storage] Failed to remove ${key}:`, e);
     }
-  }
+  },
 };
 
 export function getAuthToken(): string | null {
@@ -82,8 +90,12 @@ export function clearAuth(): void {
 
 export function getWebSocketUrl(path: string): string {
   const baseOrigin =
-    typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-  const httpOrigin = API_ORIGIN.startsWith("/") ? `${baseOrigin}${API_ORIGIN}` : API_ORIGIN;
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "http://localhost:3000";
+  const httpOrigin = API_ORIGIN.startsWith("/")
+    ? `${baseOrigin}${API_ORIGIN}`
+    : API_ORIGIN;
   const origin = httpOrigin.replace(/^http/, "ws");
   if (path.startsWith("ws://") || path.startsWith("wss://")) {
     return path;
@@ -124,7 +136,10 @@ function normalizeMessage(data: any): { message: string; code?: string } {
     return { message: detail, code: data?.error_code };
   }
   if (detail?.message) {
-    return { message: detail.message, code: detail.error_code ?? data?.error_code };
+    return {
+      message: detail.message,
+      code: detail.error_code ?? data?.error_code,
+    };
   }
   if (detail && typeof detail === "object") {
     return { message: JSON.stringify(detail), code: data?.error_code };
@@ -190,20 +205,26 @@ function withHeaders(options: ApiOptions): RequestInit {
   return { ...options, headers };
 }
 
-export async function apiFetch(path: string, options: ApiOptions = {}): Promise<Response> {
+export async function apiFetch(
+  path: string,
+  options: ApiOptions = {},
+): Promise<Response> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   let res: Response;
   try {
-    res = await fetch(buildUrl(path), { ...withHeaders(options), signal: controller.signal });
+    res = await fetch(buildUrl(path), {
+      ...withHeaders(options),
+      signal: controller.signal,
+    });
   } catch (error: any) {
     if (error?.name === "AbortError") {
       throw new ApiError(
         `Request timed out after ${Math.round(timeoutMs / 1000)}s. Check API connectivity.`,
         0,
-        "timeout"
+        "timeout",
       );
     }
     throw error;
@@ -217,23 +238,26 @@ export async function apiFetch(path: string, options: ApiOptions = {}): Promise<
   return res;
 }
 
-export async function apiRequest<T = any>(path: string, options: ApiOptions = {}): Promise<T> {
+export async function apiRequest<T = any>(
+  path: string,
+  options: ApiOptions = {},
+): Promise<T> {
   const res = await apiFetch(path, options);
   const contentType = res.headers.get("content-type") || "";
 
   const text = await res.text();
   if (contentType.includes("application/json")) {
     if (!text || text.trim() === "") {
-      return ({} as unknown) as T;
+      return {} as unknown as T;
     }
     try {
       return JSON.parse(text) as T;
     } catch (e) {
       console.error("[API] JSON Parse Error:", e, "Raw:", text);
-      return ({} as unknown) as T;
+      return {} as unknown as T;
     }
   }
-  return (text as unknown) as T;
+  return text as unknown as T;
 }
 
 type UploadOptions = {
@@ -243,7 +267,10 @@ type UploadOptions = {
   onProgress?: (percent: number) => void;
 };
 
-export function apiUpload<T = any>(path: string, options: UploadOptions): { promise: Promise<T>; abort: () => void } {
+export function apiUpload<T = any>(
+  path: string,
+  options: UploadOptions,
+): { promise: Promise<T>; abort: () => void } {
   const url = buildUrl(path);
   const xhr = new XMLHttpRequest();
 
@@ -253,7 +280,9 @@ export function apiUpload<T = any>(path: string, options: UploadOptions): { prom
     if (options.auth) {
       const token = getAuthToken();
       if (!token) {
-        reject(new ApiError("Authentication required", 401, "auth_failed", true));
+        reject(
+          new ApiError("Authentication required", 401, "auth_failed", true),
+        );
         return;
       }
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -277,7 +306,7 @@ export function apiUpload<T = any>(path: string, options: UploadOptions): { prom
         try {
           resolve((text ? JSON.parse(text) : null) as T);
         } catch {
-          resolve((text as unknown) as T);
+          resolve(text as unknown as T);
         }
       } else {
         reject(toApiErrorFromText(text, status));
@@ -285,7 +314,16 @@ export function apiUpload<T = any>(path: string, options: UploadOptions): { prom
     };
 
     xhr.onerror = () => {
-      reject(new ApiError("Network error during upload", 0));
+      console.error(
+        "[API] Network Error during upload. Check CORS, API_BASE, or Backend reachability.",
+        { url, status: xhr.status },
+      );
+      reject(
+        new ApiError(
+          "Network error during upload. Check console for details.",
+          0,
+        ),
+      );
     };
 
     xhr.onabort = () => {
