@@ -273,11 +273,11 @@ async def run_agent_prompt(
                 emergency_order.append(normalized)
 
         for provider_name in emergency_order:
-            if provider_name == "gemini" and not gemini_client:
+            if provider_name == "gemini" and not settings.gemini_api_key:
                 continue
-            if provider_name == "groq" and not groq_client:
+            if provider_name == "groq" and not settings.groq_api_key:
                 continue
-            if provider_name == "openai" and not openai_client:
+            if provider_name == "openai" and not settings.openai_api_key:
                 continue
             provider_cfg = PROVIDERS.get(provider_name)
             if not provider_cfg:
@@ -343,11 +343,11 @@ async def run_agent_prompt(
             continue
         if remaining_seconds() <= 0:
             break
-        if fallback_name == "gemini" and not gemini_client:
+        if fallback_name == "gemini" and not settings.gemini_api_key:
             continue
-        if fallback_name == "groq" and not groq_client:
+        if fallback_name == "groq" and not settings.groq_api_key:
             continue
-        if fallback_name == "openai" and not openai_client:
+        if fallback_name == "openai" and not settings.openai_api_key:
             continue
         fallback_config = PROVIDERS.get(fallback_name)
         if not fallback_config:

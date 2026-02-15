@@ -649,6 +649,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         director_plan = final_state.get("director_plan")
         brand_safety_result = final_state.get("brand_safety_result")
         scout_result = final_state.get("scout_result")
+        ab_test_result = final_state.get("ab_test_result")
         audio_qa = final_state.get("audio_qa")
         color_qa = final_state.get("color_qa")
         subtitle_qa = final_state.get("subtitle_qa")
