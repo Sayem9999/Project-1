@@ -27,3 +27,9 @@ backend/worker*.log
 
 # Local one-off debug scripts
 backend/repro_*.py
+
+# Debug scripts
+check_*.py
+inspect_redis.py
+test_*.json
+worker_debug*.log

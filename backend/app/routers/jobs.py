@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 from typing import Any
@@ -71,14 +72,17 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
         # Stricter timeout for control inspection to avoid blocking threads.
         # inspect().ping() and active_queues() are network-bound calls to other workers.
         # Reduced from 0.5 to 0.2s for faster failover.
-        inspect = celery_app.control.inspect(timeout=0.2)
+        inspect = celery_app.control.inspect(timeout=timeout)
         
+        t0 = time.perf_counter()
         # Ping check - wrap in safe check
         try:
             ping = inspect.ping() or {}
         except Exception as e:
             logger.warning("celery_inspect_ping_failed", error=str(e))
             ping = {}
+        t1 = time.perf_counter()
+        logger.info("celery_inspect_ping", duration_ms=(t1-t0)*1000)
 
         # Queue check - wrap in safe check
         try:
@@ -86,6 +90,8 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
         except Exception as e:
             logger.warning("celery_inspect_queues_failed", error=str(e))
             active_queues = {}
+        t2 = time.perf_counter()
+        logger.info("celery_inspect_queues", duration_ms=(t2-t1)*1000)
 
         worker_names = sorted(set(list(ping.keys()) + list(active_queues.keys())))
         diagnostics["workers"] = worker_names
@@ -98,6 +104,8 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
 
         # Check for version mismatch via stats/heartbeats
         stats = inspect.stats() or {}
+        t3 = time.perf_counter()
+        logger.info("celery_inspect_stats", duration_ms=(t3-t2)*1000)
         for worker, s in stats.items():
             # We look for CODE_VERSION in worker stats if we can get it
             # For now, we'll implement the worker-side injection in video_tasks.py
