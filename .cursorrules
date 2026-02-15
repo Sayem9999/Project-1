@@ -90,5 +90,13 @@ Track ambiguous prompts and "magic words". Save successful prompt patterns as **
 - **Artifacts**: Maintain `task.md` and `walkthrough.md` as live records.
 - **Comments**: Mandatory JSDoc/PEP8 on all new code.
 
+## 🚨 MULTI-WORKSPACE SYNCHRONIZATION (CONSTITUTION)
+- **Rule**: Whenever updating specialized agents, schemas, or Pinokio launcher files, YOU MUST apply the same changes to all identified workspaces.
+- **Identified Roots**:
+    - `C:\pinokio\api\editstudio` (Global Pinokio Root)
+    - `C:\Users\Sayem\Downloads\New folder\Project-1-1` (Main Dev)
+    - `C:\Users\Sayem\Downloads\New folder\Project-1-1_pushsafe` (Push Protection)
+- **Rationale**: Prevent "forgetting" secondary environments. Synchronous parity across all roots is non-negotiable.
+
 ## 🚨 CRITICAL REFERENCE
 - **See `docs/WORKSPACE_RULES.md` for the single source of truth.**

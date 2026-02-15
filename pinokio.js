@@ -45,8 +45,29 @@ module.exports = {
       href: "update.json"
     },
     {
-      html: '<i class="fa-solid fa-vial text-purple-400"></i> <b>Professional E2E Check</b>',
+      html: '<hr>'
+    },
+    {
+      html: '<b>PRO STUDIO INTELLIGENCE</b>'
+    },
+    {
+      html: '<i class="fa-solid fa-microphone-lines text-pink-400"></i> Cinematic Audio Audit (Phase 7)',
+      href: "test_audio.json"
+    },
+    {
+      html: '<i class="fa-solid fa-wand-magic-sparkles text-yellow-400"></i> Social Graphics Audit (Phase 8)',
+      href: "test_graphics.json"
+    },
+    {
+      html: '<i class="fa-solid fa-magnifying-glass text-cyan-400"></i> Semantic Scout Audit (Phase 6)',
+      href: "test_scout.json"
+    },
+    {
+      html: '<i class="fa-solid fa-vial text-purple-400"></i> <b>Full Hollywood E2E Check</b>',
       href: "pro_e2e.json"
+    },
+    {
+      html: '<hr>'
     },
     {
       html: '<i class="fa-solid fa-database text-yellow-500"></i> Database Audit (Live)',
