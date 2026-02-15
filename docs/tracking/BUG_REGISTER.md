@@ -83,21 +83,22 @@ Newest entries go first.
 - `Reported by:` Smoke runs (intermittent)
 - `Owner:` Backend Developer
 - `Severity:` S2
-- `Status:` Investigating
+- `Status:` Resolved
+- `Resolution note:` Closed after repeated smoke completion evidence and reliability threshold validation confirmed no indefinite AI-stage stalls in the tested window.
 - `Environment:` Local
 - `Symptoms:` Jobs can remain in `processing` with `[AI] ...` progress messages for >10-15 minutes (e.g., Director/Platform stages) depending on provider latency/outage; smoke scripts may time out.
 - `Expected behavior:` Each AI stage should have a bounded runtime and fail/skip gracefully so the job either completes (degraded) or fails fast with a clear reason.
 - `Root cause:` LLM provider calls and fallback loops could consume long time; sqlite concurrency could stall API polls under load.
-- `Fix summary:` Added total/per-call LLM timeouts, WAL + short SQLite busy timeout, and retry/timeout hardening in smoke; further per-node watchdogs still pending.
+- `Fix summary:` Added total/per-call LLM timeouts, WAL + short SQLite busy timeout, retry/timeout hardening in smoke, plus shared LangGraph stage watchdog wrappers with node-level timeout fallbacks. Added timeout observability (`stage_timeout_total`/per-stage counts), degraded completion signaling when timeouts occur, a dedicated CI regression job, an admin reliability summary endpoint (`/api/maintenance/reliability/timeout-summary`) with threshold-based alerts/failure taxonomy, and launch-validation smoke repetitions with threshold checks.
 - `Files changed:`
   - `backend/app/agents/base.py`
   - `backend/app/config.py`
   - `backend/app/db.py`
   - `backend/app/graph/nodes/subtitle.py`
   - `scripts/smoke_e2e.py`
-- `Validation evidence:` TST-20260215-018
+- `Validation evidence:` TST-20260215-023
 - `Regression risk:` Medium
-- `Linked change:` CHG-20260215-018
+- `Linked change:` CHG-20260215-023
 
 ## BUG-20260215-012
 - `Title:` Missing CI callback-security gate and missing audit trail for autonomy control actions

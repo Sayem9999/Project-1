@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     llm_fallback_provider: str = "groq"
     llm_request_timeout_seconds: float = 90.0
     llm_total_timeout_seconds: float = 180.0
+    ai_stage_timeout_seconds: float = 120.0
+
+    # Reliability monitoring thresholds
+    reliability_recent_window_jobs: int = 25
+    reliability_max_timeouts_per_job: int = 2
+    reliability_timeout_rate_threshold: float = 0.2
+    reliability_stage_timeout_spike_threshold: int = 3
     
     # Ollama (Local LLM)
     ollama_base_url: str = "http://localhost:11434"

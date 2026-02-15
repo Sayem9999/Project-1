@@ -5,6 +5,7 @@ from typing import Dict, Any
 from ..state import GraphState
 from ...agents import ab_test_agent
 import structlog
+from ._timeouts import run_with_stage_timeout
 
 logger = structlog.get_logger(__name__)
 
@@ -23,8 +24,15 @@ async def ab_test_node(state: GraphState) -> GraphState:
     }
     
     try:
-        result = await ab_test_agent.run(payload, job_id=state.get("job_id"))
+        result = await run_with_stage_timeout(
+            ab_test_agent.run(payload, job_id=state.get("job_id")),
+            stage="ab_test",
+            job_id=state.get("job_id"),
+        )
         return {"ab_test_result": result.model_dump()}
+    except TimeoutError as e:
+        logger.warning("ab_test_node_timeout", error=str(e), job_id=state.get("job_id"))
+        return {"ab_test_result": {"error": str(e)}}
     except Exception as e:
         logger.error("ab_test_node_error", error=str(e))
         # Non-fatal: return a placeholder instead of failing the full pipeline

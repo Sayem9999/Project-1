@@ -632,8 +632,12 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
             raise Exception("No output path returned from Graph.")
             
         # Success
+        tracker.end_phase("total_workflow")
+        performance_metrics = metrics_service.finalize(job_id)
+
         completion_msg = "Pro Edit Ready!"
-        if graph_errors:
+        timeout_total = int((performance_metrics or {}).get("stage_timeout_total", 0) or 0)
+        if graph_errors or timeout_total > 0:
             completion_msg = "Pro Edit Ready (with degraded AI recommendations)"
         
         # Extract metadata
@@ -645,9 +649,6 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         audio_qa = final_state.get("audio_qa")
         color_qa = final_state.get("color_qa")
         subtitle_qa = final_state.get("subtitle_qa")
-        
-        tracker.end_phase("total_workflow")
-        performance_metrics = metrics_service.finalize(job_id)
         
         await update_status(
             job_id, 

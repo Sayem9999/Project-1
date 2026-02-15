@@ -1,0 +1,7 @@
+# Approved pip-audit vulnerability waivers.
+# Format: one vulnerability ID per line (e.g., PYSEC-YYYY-NNNNN).
+# Keep this list minimal and periodically re-review.
+PYSEC-2022-42969
+
+# Temporary waiver: pinned transitive dependency; tracked for upgrade to Pillow >=12.1.1
+CVE-2026-25990

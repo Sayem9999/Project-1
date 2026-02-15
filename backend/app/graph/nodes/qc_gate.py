@@ -11,6 +11,7 @@ from ...agents.base import run_agent_with_schema
 from ...agents.schemas import QCOutput, EvalOutput
 from ...agents.routing_policy import provider_router, RoutingPolicy
 from ...agents import eval_optimizer
+from ._timeouts import run_with_stage_timeout
 
 logger = structlog.get_logger()
 
@@ -108,7 +109,11 @@ class QCGate:
                 "audio_tracks": state.get("audio_tracks", [])
             }
             
-            qc_result = await eval_optimizer.run(eval_payload, job_id=job_id)
+            qc_result = await run_with_stage_timeout(
+                eval_optimizer.run(eval_payload, job_id=job_id),
+                stage="qc_gate",
+                job_id=job_id,
+            )
             
             # Convert EvalOutput to dict for state storage
             qc_dict = qc_result.model_dump()

@@ -6,6 +6,7 @@ from typing import Any
 
 import structlog
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import SQLAlchemyError
 
 from ..agents.maintenance_agent import maintenance_agent
 from ..agents.routing_policy import provider_router
@@ -169,25 +170,33 @@ class AutonomyService:
         return now - last_run >= timedelta(seconds=max(1, int(interval_seconds)))
 
     async def _is_system_idle(self) -> bool:
-        async with SessionLocal() as session:
-            active = await session.scalar(
-                select(func.count()).select_from(Job).where(Job.status.in_(["queued", "processing"]))
-            )
-        return int(active or 0) == 0
+        try:
+            async with SessionLocal() as session:
+                active = await session.scalar(
+                    select(func.count()).select_from(Job).where(Job.status.in_(["queued", "processing"]))
+                )
+            return int(active or 0) == 0
+        except SQLAlchemyError as exc:
+            logger.warning("autonomy_idle_check_failed", error=str(exc))
+            return False
 
     async def _recover_stuck_jobs(self) -> int:
         cutoff = datetime.utcnow() - timedelta(minutes=max(10, int(settings.autonomy_stuck_job_minutes)))
-        async with SessionLocal() as session:
-            result = await session.execute(
-                update(Job)
-                .where(Job.status == "processing", Job.updated_at < cutoff)
-                .values(
-                    status="failed",
-                    progress_message="Auto-healed: processing timeout exceeded. Retry recommended.",
+        try:
+            async with SessionLocal() as session:
+                result = await session.execute(
+                    update(Job)
+                    .where(Job.status == "processing", Job.updated_at < cutoff)
+                    .values(
+                        status="failed",
+                        progress_message="Auto-healed: processing timeout exceeded. Retry recommended.",
+                    )
                 )
-            )
-            await session.commit()
-            recovered = int(result.rowcount or 0)
+                await session.commit()
+                recovered = int(result.rowcount or 0)
+        except SQLAlchemyError as exc:
+            logger.warning("autonomy_stuck_recovery_failed", error=str(exc))
+            return 0
 
         if recovered > 0:
             logger.warning("autonomy_recovered_stuck_jobs", recovered=recovered)

@@ -1,6 +1,7 @@
 from ..state import GraphState
 from ...agents import director_agent
 import json
+from ._timeouts import run_with_stage_timeout
 
 async def director_node(state: GraphState) -> GraphState:
     """
@@ -16,9 +17,16 @@ async def director_node(state: GraphState) -> GraphState:
     }
     
     try:
-        plan = await director_agent.run(payload)
+        plan = await run_with_stage_timeout(
+            director_agent.run(payload),
+            stage="director",
+            job_id=state.get("job_id"),
+        )
         # Convert to dict for state storage (or keep as model if state supports it)
         return {"director_plan": plan.model_dump()}
+    except TimeoutError as e:
+        print(f"Director Timeout: {e}")
+        return {"errors": [str(e)], "director_plan": {}}
     except Exception as e:
         print(f"Director Error: {e}")
         return {"errors": [str(e)]}

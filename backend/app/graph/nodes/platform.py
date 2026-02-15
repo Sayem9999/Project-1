@@ -5,6 +5,7 @@ from typing import Dict, Any
 from ..state import GraphState
 from ...agents import platform_agent
 import structlog
+from ._timeouts import run_with_stage_timeout
 
 logger = structlog.get_logger(__name__)
 
@@ -25,8 +26,15 @@ async def platform_node(state: GraphState) -> GraphState:
     }
     
     try:
-        result = await platform_agent.run(payload, job_id=state.get("job_id"))
+        result = await run_with_stage_timeout(
+            platform_agent.run(payload, job_id=state.get("job_id")),
+            stage="platform",
+            job_id=state.get("job_id"),
+        )
         return {"platform_result": result.model_dump()}
+    except TimeoutError as e:
+        logger.warning("platform_node_timeout", error=str(e), job_id=state.get("job_id"))
+        return {"errors": [str(e)], "platform_result": {"warning": str(e), "platform": platform}}
     except Exception as e:
         logger.error("platform_node_error", error=str(e))
         return {"errors": [f"Platform Agent failed: {str(e)}"]}

@@ -11,11 +11,12 @@ Mark these checks as **required** in branch protection:
 - `Lint & Type Check`
 - `Backend Pytest`
 - `Orchestration Callback Security`
+- `Stage Timeout Regression`
+- `Migration Check`
+- `Security Scan`
 - `Frontend Lint`
 
 Recommended (optional but useful):
-- `Migration Check`
-- `Security Scan`
 - `E2E Smoke Tests`
 
 ## GitHub Settings (UI)
@@ -55,6 +56,9 @@ gh api \
   -f rules[][parameters][required_status_checks][][context]="Lint & Type Check" \
   -f rules[][parameters][required_status_checks][][context]="Backend Pytest" \
   -f rules[][parameters][required_status_checks][][context]="Orchestration Callback Security" \
+  -f rules[][parameters][required_status_checks][][context]="Stage Timeout Regression" \
+  -f rules[][parameters][required_status_checks][][context]="Migration Check" \
+  -f rules[][parameters][required_status_checks][][context]="Security Scan" \
   -f rules[][parameters][required_status_checks][][context]="Frontend Lint"
 ```
 
