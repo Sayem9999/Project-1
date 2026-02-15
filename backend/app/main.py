@@ -244,8 +244,11 @@ class PrivateNetworkAccessMiddleware:
             except Exception:
                 continue
 
+        # Enhanced PNA logging
         method = (scope.get("method") or "").upper()
         origin = headers.get("origin")
+        if origin and "vercel" in origin:
+            logger.info("pna_middleware_check", method=method, origin=origin, headers_keys=list(headers.keys()))
         # Always allow PNA on OPTIONS responses. Browsers require this on certain
         # local/private-network preflights; being permissive here is fine because
         # we already run with allow_origins=["*"] and token auth.
@@ -305,9 +308,10 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://project-1-alpha-three.vercel.app",
-        "https://desktop-ajdgsgd.tail4e4049.ts.net"
+        "https://desktop-ajdgsgd.tail4e4049.ts.net",
+        "https://vercel.live"
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://.*\.vercel\.(app|live)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -342,6 +346,8 @@ async def logging_middleware(request: Request, call_next):
                 "slow_request",
                 method=request.method,
                 path=request.url.path,
+                start_time=start_time,
+                origin=request.headers.get("origin"),
                 status_code=response.status_code,
                 duration_seconds=round(process_time, 2)
             )
@@ -363,6 +369,7 @@ async def logging_middleware(request: Request, call_next):
             "request_failed",
             method=request.method,
             path=request.url.path,
+            origin=request.headers.get("origin"),
             duration=process_time,
             error=str(e)
         )

@@ -41,6 +41,51 @@ class N8NService:
         digest = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
         return f"sha256={digest}"
 
+    async def trigger_orchestration(self, job: Job) -> bool:
+        """
+        Notifies n8n that a job has entered the Clawdbot/OpenClaw phase.
+        This signals n8n to start fetching context and generating a strategy.
+        """
+        url = self._build_url()
+        if not url:
+            return False
+
+        now = datetime.now(timezone.utc).isoformat()
+        payload = {
+            "event": "job.orchestration.required",
+            "job_id": job.id,
+            "user_id": job.user_id,
+            "status": job.status,
+            "message": job.progress_message,
+            "tier": job.tier,
+            "mood": job.mood,
+            "pacing": job.pacing,
+            "ratio": job.ratio,
+            "platform": job.platform,
+            "timestamp": now,
+        }
+        
+        body = self._canonical_body(payload)
+        event_id = f"job-{job.id}-orchestration-{now}"
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "proedit-backend/n8n-orchestrator",
+            "X-ProEdit-Timestamp": now,
+            "X-ProEdit-Event-Id": event_id,
+        }
+        signature = self._signature(now, body)
+        if signature:
+            headers["X-ProEdit-Signature"] = signature
+
+        timeout = max(0.1, float(settings.n8n_timeout_seconds))
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(url, content=body, headers=headers)
+                return 200 <= response.status_code < 300
+        except Exception as exc:
+            logger.warning("n8n_orchestration_trigger_failed", extra={"error": str(exc)})
+            return False
+
     async def send_job_status_event(self, job: Job) -> bool:
         """Send terminal job status to n8n. Returns False on any delivery failure."""
         url = self._build_url()

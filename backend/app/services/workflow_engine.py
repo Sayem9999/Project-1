@@ -24,6 +24,7 @@ from .metrics_service import metrics_service
 from .n8n_service import n8n_service
 from .stock_scout_service import stock_scout_service
 from .post_production_depth import build_audio_post_filter, build_subtitle_filter
+from .openclaw_service import openclaw_service
 
 # Redis for progress publishing (optional)
 REDIS_URL = os.getenv("REDIS_URL")
@@ -216,7 +217,9 @@ async def process_job(job_id: int, source_path: str, pacing: str = "medium", moo
     """
     Master Workflow Router
     """
-    if tier == "pro":
+    if mood == "clawdbot" or mood == "ai_creative":
+        await process_job_clawdbot(job_id, source_path, pacing, mood, ratio, platform, brand_safety)
+    elif tier == "pro":
         await process_job_pro(job_id, source_path, pacing, mood, ratio, platform, brand_safety)
     else:
         await process_job_standard(job_id, source_path, pacing, mood, ratio, platform, brand_safety)
@@ -788,3 +791,94 @@ async def render_orchestrated_job(job_id: int, cuts: list, vf_filters: str | Non
         logger.error("orchestration_render_failed", job_id=job_id, error=str(e))
         await update_status(job_id, "failed", f"Orchestration failed: {str(e)}")
         publish_progress(job_id, "failed", f"Orchestration failed: {str(e)}", 0, user_id=user_id)
+
+
+async def process_job_clawdbot(job_id: int, source_path: str, pacing: str = "medium", mood: str = "clawdbot", ratio: str = "16:9", platform: str = "youtube", brand_safety: str = "standard"):
+    """
+    [Clawdbot] Specialized Workflow using OpenClaw + Gemini Brain.
+    Guarantees varied editing by bypassing the standard graph if it's too repetitive.
+    """
+    tracker = metrics_service.get_tracker(job_id)
+    tracker.start_phase("total_workflow")
+    print(f"[Clawdbot] Starting Gemini-powered job {job_id}")
+    user_id = None
+    
+    async with SessionLocal() as session:
+        job = await session.get(Job, job_id)
+        if not job: return
+        job.status = "processing"
+        job.progress_message = "Switching to Clawdbot (Gemini Brain)..."
+        user_id = job.user_id
+        await session.commit()
+
+    publish_progress(job_id, "processing", "Clawdbot is initializing (Gemini Brain)...", 10, user_id=user_id)
+
+    try:
+        # Phase 1: Analysing Media Intelligence
+        # We assume media_intelligence is already there if uploaded via UI, 
+        # but if not, we use the standard intelligence node or OpenClaw's own logic.
+        from ..graph.nodes.media_intelligence import media_intelligence_node
+        from ..graph.state import GraphState
+        
+        state: GraphState = {
+            "job_id": job_id,
+            "source_path": source_path,
+            "user_request": {"pacing": pacing, "mood": mood, "ratio": ratio, "platform": platform},
+            "errors": []
+        }
+        
+        # 1. Get Intelligence
+        await update_status(job_id, "processing", "[Clawdbot] Analyzing media depth...")
+        intel_state = await media_intelligence_node(state)
+        media_intelligence = intel_state.get("media_intelligence", {})
+
+        # 2. Hand over to n8n for Orchestration (instead of running OpenClaw locally)
+        publish_progress(job_id, "processing", "Handing over to n8n for creative strategy...", 40, user_id=user_id)
+        
+        success = await n8n_service.trigger_orchestration(job)
+        if not success:
+            logger.warning("n8n_handoff_failed_falling_back_to_local", job_id=job_id)
+            # Fallback to local OpenClaw if n8n is unreachable
+            publish_progress(job_id, "processing", "Clawdbot generating creative strategy (Local Fallback)...", 50, user_id=user_id)
+            strategy = await openclaw_service.get_editing_strategy(
+                job_id=job_id,
+                media_intelligence=media_intelligence,
+                user_requirements=state["user_request"]
+            )
+            
+            # 3. Render locally
+            publish_progress(job_id, "processing", "Clawdbot performing technical render...", 70, user_id=user_id)
+            
+            from .rendering_orchestrator import rendering_orchestrator
+            output_filename = f"job-{job_id}-clawdbot.mp4"
+            output_abs = Path(settings.storage_root) / "outputs" / output_filename
+            output_abs.parent.mkdir(parents=True, exist_ok=True)
+            
+            success = await rendering_orchestrator.render_parallel(
+                job_id=job_id,
+                source_path=source_path,
+                cuts=strategy["cuts"],
+                output_path=str(output_abs),
+                vf_filters=strategy.get("vf_filters"),
+                af_filters=strategy.get("af_filters"),
+                user_id=user_id
+            )
+            
+            if not success:
+                raise Exception("Clawdbot render failed.")
+
+            final_rel_path = f"storage/outputs/{output_filename}"
+            completion_msg = "Clawdbot Edit Ready! (Gemini Brain)"
+            
+            await update_status(job_id, "complete", completion_msg, final_rel_path)
+            publish_progress(job_id, "complete", completion_msg, 100, user_id=user_id)
+        else:
+            # Successfully handed off to n8n. The worker can stop here.
+            # n8n will eventually call back to /orchestration/callback/{job_id}
+            await update_status(job_id, "processing", "Waiting for n8n orchestration strategy...")
+            print(f"[Clawdbot] Job {job_id} handed off to n8n.")
+
+    except Exception as e:
+        print(f"[Clawdbot] Job {job_id} failed: {e}")
+        await update_status(job_id, "failed", f"Clawdbot failed: {str(e)[:100]}")
+        publish_progress(job_id, "failed", f"Clawdbot failed: {str(e)[:100]}", 0, user_id=user_id)

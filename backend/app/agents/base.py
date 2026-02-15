@@ -51,7 +51,8 @@ async def run_agent_with_schema(
     agent_name: str = "unknown",
     job_id: Optional[int] = None,
     max_retries: int = 2,
-    task_type: TaskType = "simple"
+    task_type: TaskType = "simple",
+    provider: Optional[str] = None
 ) -> T:
     """
     Run an agent prompt and validate output against a Pydantic schema.
@@ -70,7 +71,8 @@ async def run_agent_with_schema(
                     payload, 
                     task_type=task_type,
                     agent_name=agent_name,
-                    job_id=job_id
+                    job_id=job_id,
+                    provider=provider
                 )
                 
                 raw_text = result.get("raw_response", "")
@@ -134,14 +136,18 @@ async def run_agent_prompt(
     payload: dict, 
     task_type: TaskType = "simple",
     agent_name: str = "unknown",
-    job_id: Optional[int] = None
+    job_id: Optional[int] = None,
+    provider: Optional[str] = None
 ) -> dict:
     """
     Run an agent prompt and return raw response.
-    Uses ProviderRouter for policy-driven selection.
+    Uses ProviderRouter for policy-driven selection unless provider is overridden.
     """
-    policy = RoutingPolicy(task_type=task_type)
-    provider = provider_router.select_provider(policy)
+    if provider:
+        selected_provider = provider.lower()
+    else:
+        policy = RoutingPolicy(task_type=task_type)
+        selected_provider = provider_router.select_provider(policy)
 
     last_error = None
     total_timeout = max(10.0, float(getattr(settings, "llm_total_timeout_seconds", 180.0)))
@@ -256,75 +262,29 @@ async def run_agent_prompt(
             }
         return None
 
-    if not provider:
-        logger.warning("provider_emergency_mode", task_type=task_type, agent=agent_name)
-        emergency_order: list[str] = []
-        for name in [
-            settings.llm_fallback_provider,
-            settings.llm_primary_provider,
-            "gemini",
-            "groq",
-            "openai",
-        ]:
-            if not name:
-                continue
-            normalized = name.lower()
-            if normalized not in emergency_order:
-                emergency_order.append(normalized)
-
-        for provider_name in emergency_order:
-            if provider_name == "gemini" and not settings.gemini_api_key:
-                continue
-            if provider_name == "groq" and not settings.groq_api_key:
-                continue
-            if provider_name == "openai" and not settings.openai_api_key:
-                continue
-            provider_cfg = PROVIDERS.get(provider_name)
-            if not provider_cfg:
-                continue
+    # Initial Attempt(s) with selected provider
+    if selected_provider:
+        provider_cfg = PROVIDERS.get(selected_provider)
+        if provider_cfg:
             for model in provider_cfg.models:
                 try:
                     logger.debug(
-                        "agent_api_attempt_emergency",
-                        provider=provider_name,
+                        "agent_api_attempt",
+                        provider=selected_provider,
                         model=model,
                         agent=agent_name,
                     )
-                    result = await attempt_provider(provider_name, model)
+                    result = await attempt_provider(selected_provider, model)
                     if result:
                         return result
                 except Exception as e:
-                    logger.warning("agent_api_failed", provider=provider_name, model=model, error=str(e))
+                    logger.warning("agent_api_failed", provider=selected_provider, model=model, error=str(e))
                     last_error = e
-                    provider_router.record_failure(provider_name, str(e))
-                    provider_router.handle_provider_error(provider_name, model, str(e))
-                    continue
-        raise RuntimeError(f"No provider available for task {task_type}. Last error: {last_error}")
-
-    # Try the selected provider and its models
-    for model in provider.models:
-        if remaining_seconds() <= 0:
-            raise RuntimeError(f"LLM total timeout exceeded for agent {agent_name}")
-        try:
-            logger.debug("agent_api_attempt", provider=provider.name, model=model, agent=agent_name)
-            result = await attempt_provider(provider.name, model)
-            if result:
-                return result
-        except Exception as e:
-            logger.warning("agent_api_failed", provider=provider.name, model=model, error=str(e))
-            last_error = e
-            provider_router.record_failure(provider.name, str(e))
-            provider_router.handle_provider_error(provider.name, model, str(e))
-            
-            # Short sleep before trying next model of the SAME provider
-            if remaining_seconds() > 0.5:
-                await asyncio.sleep(0.5)
-            continue
-
-    # Fallback if selected provider failed
-    logger.warning("agent_provider_fallback", old_provider=provider.name, agent=agent_name)
-
-    fallback_order: list[str] = []
+                    provider_router.record_failure(selected_provider, str(e))
+    
+    # Emergency Fallback Loop
+    logger.warning("provider_emergency_mode", task_type=task_type, agent=agent_name)
+    emergency_order: list[str] = []
     for name in [
         settings.llm_fallback_provider,
         settings.llm_primary_provider,
@@ -335,49 +295,37 @@ async def run_agent_prompt(
         if not name:
             continue
         normalized = name.lower()
-        if normalized not in fallback_order:
-            fallback_order.append(normalized)
+        if normalized not in emergency_order:
+            emergency_order.append(normalized)
 
-    for fallback_name in fallback_order:
-        if fallback_name == provider.name:
+    for provider_name in emergency_order:
+        if provider_name == (selected_provider or "none").lower():
             continue
-        if remaining_seconds() <= 0:
-            break
-        if fallback_name == "gemini" and not settings.gemini_api_key:
+        if provider_name == "gemini" and not settings.gemini_api_key:
             continue
-        if fallback_name == "groq" and not settings.groq_api_key:
+        if provider_name == "groq" and not settings.groq_api_key:
             continue
-        if fallback_name == "openai" and not settings.openai_api_key:
+        if provider_name == "openai" and not settings.openai_api_key:
             continue
-        fallback_config = PROVIDERS.get(fallback_name)
-        if not fallback_config:
+        provider_cfg = PROVIDERS.get(provider_name)
+        if not provider_cfg:
             continue
-        for model in fallback_config.models:
-            if remaining_seconds() <= 0:
-                break
-            # Retry loop for transient issues on fallback models
-            for attempt in range(2):
-                if remaining_seconds() <= 0:
-                    break
-                try:
-                    logger.debug("agent_api_attempt", provider=fallback_name, model=model, agent=agent_name, attempt=attempt+1)
-                    result = await attempt_provider(fallback_name, model)
-                    if result:
-                        return result
-                except Exception as e:
-                    if attempt == 0 and is_transient_error(e):
-                        logger.warning("agent_api_transient_retry", provider=fallback_name, model=model, error=str(e))
-                        await asyncio.sleep(1.0)
-                        continue
-
-                    logger.warning("agent_api_failed", provider=fallback_name, model=model, error=str(e))
-                    last_error = e
-                    provider_router.record_failure(fallback_name, str(e))
-                    provider_router.handle_provider_error(fallback_name, model, str(e))
-
-                    # Add a small yield/delay before switching models or providers to ease rate limits
-                    if remaining_seconds() > 0.5:
-                        await asyncio.sleep(0.5)
-                    break
-
-    raise RuntimeError(f"All attempts failed for agent {agent_name}. Last error: {last_error}")
+        for model in provider_cfg.models:
+            try:
+                logger.debug(
+                    "agent_api_attempt_emergency",
+                    provider=provider_name,
+                    model=model,
+                    agent=agent_name,
+                )
+                result = await attempt_provider(provider_name, model)
+                if result:
+                    return result
+            except Exception as e:
+                logger.warning("agent_api_failed", provider=provider_name, model=model, error=str(e))
+                last_error = e
+                provider_router.record_failure(provider_name, str(e))
+                provider_router.handle_provider_error(provider_name, model, str(e))
+                continue
+    
+    raise RuntimeError(f"All attempts failed for agent {agent_name} (task: {task_type}). Last error: {last_error}")

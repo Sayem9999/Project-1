@@ -29,7 +29,7 @@ class OpenClawService:
             "memory_context": "Strict technical edit. No generative assets.",
             "feedback": ""
         }
-        director_raw = await run_director(director_payload)
+        director_raw = await run_director(director_payload, provider="gemini")
         director_out = normalize_agent_result(director_raw)
         instructions = director_out.get("instructions") or {}
         if not isinstance(instructions, dict):
@@ -50,8 +50,8 @@ class OpenClawService:
         }
 
         cutter_raw, color_raw = await asyncio.gather(
-            run_cutter(cutter_payload),
-            run_color(color_payload),
+            run_cutter(cutter_payload, provider="gemini"),
+            run_color(color_payload, provider="gemini"),
             return_exceptions=True,
         )
 
