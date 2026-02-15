@@ -144,12 +144,47 @@ def subtitle_qa_report(srt_text: str) -> dict[str, Any]:
     }
 
 
-def build_lower_third_filter(title: str | None) -> str | None:
+def build_lower_third_filter(title: str | None, subtitle: str | None = None) -> list[str]:
+    """Build an animated lower-third (Phase 8)."""
     if not title:
-        return None
-    safe = str(title).replace(":", "\\:").replace("'", "\\'")
-    return (
-        "drawtext="
-        f"text='{safe}':fontsize=34:fontcolor=white:box=1:boxcolor=black@0.45:"
-        "x=40:y=h-130:enable='between(t,0,4.5)'"
-    )
+        return []
+    
+    safe_title = str(title).replace(":", "\\:").replace("'", "\\'")
+    safe_sub = str(subtitle or "").replace(":", "\\:").replace("'", "\\'")
+    
+    # Slide-in animation: x goes from -w to 40 over 0.5s
+    # enable between 0 and 5s
+    filters = [
+        f"drawtext=text='{safe_title}':fontcolor=white:fontsize=42:fontfile=Montserrat-Bold:x='if(lt(t,0.5),-w+(w+40)*t/0.5,40)':y=h-150:enable='between(t,0,5.5)'"
+    ]
+    if safe_sub:
+        filters.append(
+            f"drawtext=text='{safe_sub}':fontcolor=white@0.8:fontsize=28:fontfile=Montserrat-Regular:x='if(lt(t,0.6),-w+(w+40)*(t-0.1)/0.5,40)':y=h-100:enable='between(t,0.1,5.5)'"
+        )
+    return filters
+
+
+def build_kinetic_highlight_filters(word_timings: list[dict[str, Any]], highlight_color: str = "#FFFF00") -> list[str]:
+    """
+    Generate drawtext filters for word-level kinetic highlighting (Phase 8).
+    Creates a 'pop-up' effect by scaling or changing color when word is active.
+    """
+    filters = []
+    # Convert hex #RRGGBB to FFmpeg style 0xRRGGBB or name
+    color = highlight_color.replace("#", "0x")
+    
+    for item in word_timings:
+        if not item.get("should_highlight"):
+            continue
+            
+        word = str(item["word"]).replace(":", "\\:").replace("'", "\\'")
+        start = item["start"]
+        end = item["end"]
+        
+        # Pop-up "highlight" filter: center screen, scale up slightly, bright color
+        filters.append(
+            f"drawtext=text='{word}':fontcolor={color}:fontsize=70:fontfile=Montserrat-ExtraBold:"
+            f"x=(w-text_w)/2:y=(h-text_h)/2:enable='between(t,{start},{end})':alpha='if(lt(t,{start}+0.1),(t-{start})/0.1,1)'"
+        )
+        
+    return filters

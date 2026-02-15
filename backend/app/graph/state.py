@@ -54,6 +54,12 @@ class GraphState(TypedDict):
     output_path: Optional[str]
     srt_path: Optional[str]
     subtitle_qa: Optional[Dict[str, Any]]
+    
+    # Phase 8: Kinetic Branding
+    word_timings: List[Dict[str, Any]]
+    highlight_color: str
+    subtitle: Optional[str]
+    subtitle_style: Optional[str]
 
     # Post-production depth primitives
     nested_sequences: Optional[List[Dict[str, Any]]]

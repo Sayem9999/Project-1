@@ -18,12 +18,33 @@ FFMPEG_BINARY = _resolve_ffmpeg()
 if FFMPEG_BINARY != "ffmpeg":
     os.environ["IMAGEIO_FFMPEG_EXE"] = FFMPEG_BINARY
 
+from ..state import GraphState
+from pathlib import Path
+import os
+# Configure MoviePy to use the correct FFmpeg binary (v2.0+ compatible)
+def _resolve_ffmpeg():
+    ext = ".exe" if os.name == 'nt' else ""
+    paths_to_check = [
+        f"tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg{ext}",
+        f"../tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg{ext}",
+        f"../../tools/ffmpeg-8.0.1-essentials_build/bin/ffmpeg{ext}"
+    ]
+    for p in paths_to_check:
+        if os.path.exists(p):
+            return os.path.abspath(p)
+    return "ffmpeg"
+
+FFMPEG_BINARY = _resolve_ffmpeg()
+if FFMPEG_BINARY != "ffmpeg":
+    os.environ["IMAGEIO_FFMPEG_EXE"] = FFMPEG_BINARY
+
 from ...services.concurrency import limits
 from ...config import settings
 from ...services.workflow_engine import ensure_editing_cuts
 from ...services.post_production_depth import (
     build_subtitle_filter,
     build_lower_third_filter,
+    build_kinetic_highlight_filters
 )
 
 async def compiler_node(state: GraphState) -> GraphState:
@@ -40,6 +61,8 @@ async def compiler_node(state: GraphState) -> GraphState:
     srt_path = state.get("srt_path")
     platform = state.get("user_request", {}).get("platform", "youtube")
     audio_post_filter = state.get("audio_post_filter")
+    word_timings = state.get("word_timings", [])
+    highlight_color = state.get("highlight_color", "#FFFF00")
     
     # 0. Build FFmpeg filter chain
     vf_list = []
@@ -85,20 +108,26 @@ async def compiler_node(state: GraphState) -> GraphState:
             
             if val:
                 vf_list.append(val)
+    
+    # Phase 8: Kinetic Highlight Pop-ups (Center screen retention)
+    if word_timings:
+        kinetic_filters = build_kinetic_highlight_filters(word_timings, highlight_color)
+        vf_list.extend(kinetic_filters)
 
     # Subtitles (highest priority, added last)
     if srt_path:
         vf_list.append(build_subtitle_filter(srt_path, platform))
 
-    lower_third = build_lower_third_filter(state.get("title") or state.get("director_plan", {}).get("headline"))
-    if lower_third:
-        vf_list.append(lower_third)
+    # Animated Lower Thirds (Phase 8)
+    title = state.get("title") or (state.get("director_plan") or {}).get("headline")
+    subtitle = state.get("subtitle") or (state.get("director_plan") or {}).get("subheadline")
+    lower_third_filters = build_lower_third_filter(title, subtitle)
+    if lower_third_filters:
+        vf_list.extend(lower_third_filters)
 
     compiled_vf = ",".join(vf_list) if vf_list else None
     compiled_af = audio_post_filter or None
     print(f"--- [Graph] Compiler: Filter Chain -> {compiled_vf} ---")
-
-    # 1. Attempt Modal Offloading (GPU)
     from ...services.modal_service import modal_service
     from ...services.workflow_engine import publish_progress
     

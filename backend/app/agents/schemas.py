@@ -155,12 +155,22 @@ class TimingAdjustment(BaseModel):
     reason: str
 
 
+class WordTiming(BaseModel):
+    """Timing for an individual word for kinetic highlighting."""
+    word: str
+    start: float
+    end: float
+    should_highlight: bool = False
+
+
 class ScriptOutput(BaseModel):
     """Output from SCRIBE - the Script Agent."""
-    subtitle_style: str
+    subtitle_style: str = Field(..., description="e.g. 'Social Bold', 'Minimal Clean'")
     font_config: FontConfig
+    word_timings: list[WordTiming] = Field(default_factory=list, description="Word-level sync")
     timing_adjustments: list[TimingAdjustment] = []
     ffmpeg_subtitle_filter: str
+    highlight_color: str = Field(default="#FFFF00", description="Hex color for highlights")
     enhancement_tips: list[str] = []
 
 
