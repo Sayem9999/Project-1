@@ -38,6 +38,7 @@ class GraphState(TypedDict):
     hook_result: Optional[Dict[str, Any]]
     platform_result: Optional[Dict[str, Any]]
     ab_test_result: Optional[Dict[str, Any]]
+    scout_result: Optional[Dict[str, Any]]
     
     # Intelligence (Phase 3)
     media_intelligence: Optional[Dict[str, Any]]

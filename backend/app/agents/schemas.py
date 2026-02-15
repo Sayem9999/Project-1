@@ -321,6 +321,25 @@ class EvalOutput(BaseModel):
 
 
 # ============================================================================
+# Scout Agent
+# ============================================================================
+class ScoutAsset(BaseModel):
+    url: str
+    provider: str
+    tags: list[str] = []
+    relevance_score: float = Field(..., ge=0, le=1)
+    preview_url: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+class ScoutOutput(BaseModel):
+    """Output from SCOUT - finding real stock footage."""
+    assets: list[ScoutAsset]
+    search_queries: list[str]
+    reasoning: str
+
+
+# ============================================================================
 # Schema Registry - Map agent names to their output schemas
 # ============================================================================
 AGENT_SCHEMAS = {
@@ -342,4 +361,8 @@ AGENT_SCHEMAS = {
     "brand_safety": BrandSafetyOutput,
     "ab_test": ABTestOutput,
     "eval": EvalOutput,
+    "scout": ScoutOutput,
 }
+
+
+# ... (End of file)

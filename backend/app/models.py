@@ -71,6 +71,9 @@ class Job(Base):
     audio_qa: Mapped[dict] = mapped_column(JSON, nullable=True)
     color_qa: Mapped[dict] = mapped_column(JSON, nullable=True)
     subtitle_qa: Mapped[dict] = mapped_column(JSON, nullable=True)
+    
+    # Phase 6 Fields
+    scout_result: Mapped[dict] = mapped_column(JSON, nullable=True)
 
     # Relationships (if needed in future)
     # user: Mapped["User"] = relationship("User", back_populates="jobs")

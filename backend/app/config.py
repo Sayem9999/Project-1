@@ -89,6 +89,10 @@ class Settings(BaseSettings):
     modal_token_id: str | None = None
     modal_token_secret: str | None = None
 
+    # Stock Media APIs
+    pexels_api_key: str | None = None
+    pixabay_api_key: str | None = None
+
     # Idle Autonomy (Self-Heal + Self-Improve)
     autonomy_enabled: bool = True
     autonomy_profile_mode: str = "conservative"

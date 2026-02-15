@@ -14,13 +14,15 @@ from ..config import settings
 from ..agents import (
     director_agent, cutter_agent, subtitle_agent, audio_agent, 
     color_agent, qc_agent, metadata_agent, transition_agent,
-    vfx_agent, keyframe_agent, thumbnail_agent, script_agent
+    vfx_agent, keyframe_agent, thumbnail_agent, script_agent,
+    scout_agent
 )
 from ..agents.base import parse_json_response
 from .memory.hybrid_memory import hybrid_memory
 from .concurrency import limits
 from .metrics_service import metrics_service
 from .n8n_service import n8n_service
+from .stock_scout_service import stock_scout_service
 from .post_production_depth import build_audio_post_filter, build_subtitle_filter
 
 # Redis for progress publishing (optional)
@@ -606,6 +608,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
                     "brand_safety": {"msg": "Guardian: Brand Safety Check...", "p": 25},
                     "ab_test": {"msg": "Variant: A/B Test Optimization...", "p": 35},
                     "cutter": {"msg": "AI Smart Cutting...", "p": 50},
+                    "scout": {"msg": "Scouting Real Footage...", "p": 60},
                     "audio": {"msg": "Audio Mastery...", "p": 65},
                     "visuals": {"msg": "Visual Enhancement...", "p": 80},
                     "hook": {"msg": "Optimizing Hook...", "p": 82},
@@ -645,7 +648,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
         qc_result = final_state.get("qc_result")
         director_plan = final_state.get("director_plan")
         brand_safety_result = final_state.get("brand_safety_result")
-        ab_test_result = final_state.get("ab_test_result")
+        scout_result = final_state.get("scout_result")
         audio_qa = final_state.get("audio_qa")
         color_qa = final_state.get("color_qa")
         subtitle_qa = final_state.get("subtitle_qa")
@@ -660,6 +663,7 @@ async def process_job_pro(job_id: int, source_path: str, pacing: str = "medium",
             director_plan=director_plan,
             brand_safety_result=brand_safety_result,
             ab_test_result=ab_test_result,
+            scout_result=scout_result,
             audio_qa=audio_qa,
             color_qa=color_qa,
             subtitle_qa=subtitle_qa,
@@ -690,6 +694,7 @@ async def update_status(
     audio_qa: dict | None = None,
     color_qa: dict | None = None,
     subtitle_qa: dict | None = None,
+    scout_result: dict | None = None,
     performance_metrics: dict | None = None
 ):
     async with SessionLocal() as session:
@@ -721,6 +726,8 @@ async def update_status(
                 job.color_qa = color_qa
             if subtitle_qa is not None:
                 job.subtitle_qa = subtitle_qa
+            if scout_result is not None:
+                job.scout_result = scout_result
             if performance_metrics is not None:
                 job.performance_metrics = performance_metrics
                 

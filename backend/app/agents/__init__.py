@@ -18,6 +18,7 @@ from . import hook_agent
 from . import platform_agent
 from . import brand_safety_agent
 from . import ab_test_agent
+from . import scout_agent
 from . import frontend_agent
 from . import backend_agent
 from . import analyst_agent
