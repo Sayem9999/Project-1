@@ -17,7 +17,7 @@ from ..agents import (
     vfx_agent, keyframe_agent, thumbnail_agent, script_agent,
     scout_agent
 )
-from ..agents.base import parse_json_response
+from ..agents.base import parse_json_response, parse_json_safe, normalize_agent_result
 from .memory.hybrid_memory import hybrid_memory
 from .concurrency import limits
 from .metrics_service import metrics_service
@@ -121,27 +121,7 @@ def publish_progress(job_id: int, status: str, message: str, progress: int = 0, 
         print(f"[Redis] Progress publish error: {e}")
 
 
-def parse_json_safe(raw: str) -> dict:
-    try:
-        return parse_json_response(raw)
-    except Exception:
-        return {}
 
-
-def normalize_agent_result(result: object) -> dict:
-    """Convert agent output into a plain dict safely."""
-    if not result:
-        return {}
-    if hasattr(result, "model_dump"):
-        try:
-            return result.model_dump()  # type: ignore[no-any-return]
-        except Exception:
-            return {}
-    if isinstance(result, dict):
-        if "raw_response" in result:
-            return parse_json_safe(result.get("raw_response", "{}"))
-        return result
-    return {}
 
 
 def _coerce_duration(value: object, fallback: float = 30.0) -> float:

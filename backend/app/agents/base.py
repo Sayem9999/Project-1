@@ -41,6 +41,32 @@ def parse_json_response(text: str) -> dict:
     return json.loads(text.strip())
 
 
+def parse_json_safe(raw: str) -> dict:
+    """Safely parse JSON with fallback to empty dict."""
+    try:
+        if not raw:
+            return {}
+        return parse_json_response(raw)
+    except Exception:
+        return {}
+
+
+def normalize_agent_result(result: object) -> dict:
+    """Convert agent output into a plain dict safely."""
+    if not result:
+        return {}
+    if hasattr(result, "model_dump"):
+        try:
+            return result.model_dump()  # type: ignore[no-any-return]
+        except Exception:
+            return {}
+    if isinstance(result, dict):
+        if "raw_response" in result:
+            return parse_json_safe(result.get("raw_response", "{}"))
+        return result
+    return {}
+
+
 from .routing_policy import provider_router, RoutingPolicy, TaskType, PROVIDERS
 from .telemetry import AgentSpan
 

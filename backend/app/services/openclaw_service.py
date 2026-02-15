@@ -1,7 +1,7 @@
 import structlog
 import asyncio
 from typing import Dict, Any, List
-from .workflow_engine import normalize_agent_result
+from ..agents.base import normalize_agent_result
 from ..agents.director_agent import run as run_director
 from ..agents.cutter_agent import run as run_cutter
 from ..agents.color_agent import run as run_color
