@@ -3,6 +3,7 @@ import structlog
 from typing import Dict, Any
 from ..services.introspection import introspection_service
 from .base import run_agent_prompt
+from .workflow_generator_agent import workflow_generator_agent
 
 logger = structlog.get_logger()
 
@@ -47,14 +48,36 @@ class ArchitectAgent:
         Provide a specific, technical plan or explanation.
         Reference existing specific file paths and class names from the graph.
         If the user asks to add a feature, tell them exactly which files to modify and what new files to create.
+        
+        SPECIAL CAPABILITY:
+        If the user asks to GENERATE an n8n workflow or export a pipeline, you should respond with:
+        "COMMAND:GENERATE_WORKFLOW|DESCRIPTION:<detailed requirement for n8n>"
+        I will then use the Workflow Generator to provide the JSON.
         """
         
         try:
             # Re-use run_agent_prompt helper (using 'analytical' for better provider routing)
             result = await run_agent_prompt(system_prompt, {"query": query}, task_type="analytical")
+            raw_answer = result.get("raw_response", "No response generated")
+            
+            # Check for special generation command
+            if "COMMAND:GENERATE_WORKFLOW" in raw_answer:
+                try:
+                    desc = raw_answer.split("DESCRIPTION:")[1].strip()
+                    logger.info("architect_triggering_workflow_gen", description=desc)
+                    gen_result = await workflow_generator_agent.run({"description": desc})
+                    return {
+                        "status": "success",
+                        "answer": "I have generated the n8n workflow export for you below.",
+                        "workflow_json": gen_result.get("workflow_json"),
+                        "is_workflow": True
+                    }
+                except Exception as gen_err:
+                    logger.error("architect_gen_failure", error=str(gen_err))
+
             return {
                 "status": "success",
-                "answer": result.get("raw_response", "No response generated")
+                "answer": raw_answer
             }
         except Exception as e:
             logger.error("architect_error", error=str(e))

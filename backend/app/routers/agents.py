@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from ..schemas import AgentInput, AgentOutput, ArchitectInput
-from ..agents import director_agent, cutter_agent, subtitle_agent, audio_agent, color_agent, qc_agent, architect_agent
+from ..agents import director_agent, cutter_agent, subtitle_agent, audio_agent, color_agent, qc_agent, architect_agent, workflow_generator_agent
 from ..services.llm_health import get_llm_health_summary
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -41,6 +41,14 @@ async def architect(payload: ArchitectInput):
     # Special case: Architect returns 'answer' instead of 'directives' or just raw dict
     result = await architect_agent.run(payload.model_dump())
     return {"agent": "architect", "data": result}
+
+
+@router.post("/workflow-generator")
+async def generate_workflow(payload: AgentInput):
+    # Specialized endpoint for direct workflow generation
+    description = payload.model_dump().get("query") or payload.model_dump().get("description")
+    result = await workflow_generator_agent.run({"description": description})
+    return {"agent": "workflow_generator", "data": result}
 
 
 @router.get("/health")

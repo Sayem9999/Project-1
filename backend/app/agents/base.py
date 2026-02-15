@@ -147,7 +147,8 @@ async def run_agent_prompt(
         selected_provider = provider.lower()
     else:
         policy = RoutingPolicy(task_type=task_type)
-        selected_provider = provider_router.select_provider(policy)
+        provider_cfg = provider_router.select_provider(policy)
+        selected_provider = provider_cfg.name if provider_cfg else None
 
     last_error = None
     total_timeout = max(10.0, float(getattr(settings, "llm_total_timeout_seconds", 180.0)))
