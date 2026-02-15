@@ -47,7 +47,7 @@ if ([string]::IsNullOrWhiteSpace($scriptDir)) {
     $scriptDir = $PSScriptRoot
 }
 
-if ((Test-Path $devDir) -And (-not [string]::IsNullOrWhiteSpace($scriptDir)) -And ($scriptDir -ne $devDir)) {
+if ((Test-Path $devDir) -And $scriptDir -ne $devDir) {
     Write-Host "[SYNC] Verifying codebase integrity vs $devDir..." -ForegroundColor Cyan
     # Use robocopy to sync if mismatch is likely
     # XC: Exclude venv, storage, node_modules, and local files that shouldn't be mirrored
@@ -130,12 +130,7 @@ Write-Host ("Using REDIS_URL host: {0}" -f $uri.Host) -ForegroundColor DarkCyan
 Write-Host ("Listening queues: {0}" -f $Queue) -ForegroundColor DarkCyan
 
 & $pythonExe -m celery -A app.celery_app worker `
-    --pool=solo `
-    --concurrency=1 `
-    --without-gossip `
-    --without-mingle `
-    --without-heartbeat `
-    -Q $Queue `
+    --pool=threads `
     --loglevel=info
 
 $exitCode = $LASTEXITCODE
