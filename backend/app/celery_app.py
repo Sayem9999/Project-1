@@ -44,6 +44,12 @@ celery_app.conf.update(
     enable_utc=True,
     broker_connection_retry_on_startup=True,
     broker_pool_limit=1,
+    # Standard queue visibility timeout (auto-release stuck tasks after 1 hour)
+    broker_transport_options={
+        "visibility_timeout": 3600,
+        "socket_timeout": 15,
+        "socket_connect_timeout": 15,
+    },
 )
 
 celery_app.conf.task_routes = {

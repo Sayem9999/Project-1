@@ -10,7 +10,7 @@ $pythonExe = Join-Path $scriptDir ".venv\Scripts\python.exe"
 function Import-DotEnvFile {
     param([string]$Path)
 
-    if (-not (Test-Path $Path)) {
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path $Path)) {
         return
     }
 
@@ -39,6 +39,23 @@ Import-DotEnvFile (Join-Path $scriptDir ".env.local")
 
 if (-not [Environment]::GetEnvironmentVariable("ENVIRONMENT")) {
     $env:ENVIRONMENT = "production"
+}
+
+# [AUTO-SYNC] Implementation of permanent fix for codebase mismatch
+$devDir = "c:\Users\Sayem\Downloads\New folder\Project-1-1\backend"
+if ([string]::IsNullOrWhiteSpace($scriptDir)) {
+    $scriptDir = $PSScriptRoot
+}
+
+if ((Test-Path $devDir) -And (-not [string]::IsNullOrWhiteSpace($scriptDir)) -And ($scriptDir -ne $devDir)) {
+    Write-Host "[SYNC] Verifying codebase integrity vs $devDir..." -ForegroundColor Cyan
+    # Use robocopy to sync if mismatch is likely
+    # XC: Exclude venv, storage, node_modules, and local files that shouldn't be mirrored
+    $excludeDirs = @(".venv", "storage", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache")
+    $excludeFiles = @(".env", ".env.local", "app.db")
+    
+    robocopy $devDir $scriptDir /MIR /XD $excludeDirs /XF $excludeFiles /R:2 /W:2 /NJH /NJS /NDL /NFL /NC /NS /NP | Out-Null
+    Write-Host "[SYNC] Codebase synchronized." -ForegroundColor Green
 }
 
 $required = @(

@@ -101,6 +101,26 @@ class Settings(BaseSettings):
     autonomy_idle_improve_interval_seconds: int = 1800
     autonomy_stuck_job_minutes: int = 180
 
+    # Code Integrity
+    @property
+    def code_version(self) -> str:
+        """
+        Simple deterministic hash of the graph structure to prevent 
+        version mismatch between API and workers.
+        """
+        import hashlib
+        # We hash the filenames or contents of core workflow files
+        core_files = ["app/graph/workflow.py", "app/graph/state.py"]
+        hasher = hashlib.md5()
+        for f in core_files:
+            try:
+                base_dir = os.path.dirname(os.path.dirname(__file__))
+                with open(os.path.join(base_dir, f), "rb") as bf:
+                    hasher.update(bf.read())
+            except:
+                hasher.update(f.encode())
+        return hasher.hexdigest()[:8]
+
     model_config = SettingsConfigDict(
         env_file=(".env", f".env.{os.getenv('ENVIRONMENT', 'development')}"),
         env_file_encoding="utf-8", 

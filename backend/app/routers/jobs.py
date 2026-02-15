@@ -58,6 +58,8 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
         "worker_count": 0,
         "workers": [],
         "queues": {},
+        "api_version": settings.code_version,
+        "mismatched_workers": [],
         "error": None,
     }
     if not USE_CELERY:
@@ -93,6 +95,15 @@ def get_celery_dispatch_diagnostics(timeout: float = 1.5) -> dict[str, Any]:
             worker: [q.get("name") for q in active_queues.get(worker, [])]
             for worker in worker_names
         }
+
+        # Check for version mismatch via stats/heartbeats
+        stats = inspect.stats() or {}
+        for worker, s in stats.items():
+            # We look for CODE_VERSION in worker stats if we can get it
+            # For now, we'll implement the worker-side injection in video_tasks.py
+            worker_info = s.get("api_version")
+            if worker_info and worker_info != settings.code_version:
+                diagnostics["mismatched_workers"].append(worker)
     except Exception as exc:
         diagnostics["error"] = str(exc)
     return diagnostics

@@ -16,11 +16,6 @@ from .models import User
 from .services.introspection import introspection_service
 from .services.autonomy_service import autonomy_service
 
-import os
-
-from contextlib import asynccontextmanager
-from starlette.types import ASGIApp, Receive, Scope, Send
-
 # Configure Logging
 configure_logging()
 logger = structlog.get_logger()
@@ -29,6 +24,8 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI):
     # Validate settings at startup
     settings.validate_required_settings()
+    
+    logger.info("startup_init", version=settings.code_version, environment=settings.environment)
     
     logger.info("startup_config",
         gemini_key_present=bool(settings.gemini_api_key),
